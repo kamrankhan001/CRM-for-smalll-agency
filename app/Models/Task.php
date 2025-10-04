@@ -15,6 +15,13 @@ class Task extends Model
         'assigned_to', 'created_by'
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'due_date' => 'datetime',
+        ];
+    }
+
     public function taskable()
     {
         return $this->morphTo();

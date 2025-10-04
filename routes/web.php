@@ -6,6 +6,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\TaskController;
+
 
 Route::get('/', function () {
     return Inertia::render('Welcome');
@@ -19,6 +21,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('leads', LeadController::class);
 
     Route::resource('clients', ClientController::class);
+
+    Route::resource('tasks', TaskController::class);
 
     Route::resource('users', UserController::class);
     
