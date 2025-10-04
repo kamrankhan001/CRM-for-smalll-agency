@@ -34,7 +34,7 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'Clients',
-        href: '#',
+        href: '/clients',
         icon: Users,
     },
     {

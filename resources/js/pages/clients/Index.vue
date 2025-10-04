@@ -1,0 +1,454 @@
+<script setup lang="ts">
+import ActionButtons from '@/components/ActionButtons.vue';
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableFooter,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { type BreadcrumbItem } from '@/types';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { ChevronLeft, ChevronRight, Plus, Search, X } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+
+// Import Wayfinder-generated actions
+import {
+    create,
+    destroy,
+    edit,
+    index,
+} from '@/actions/App/Http/Controllers/ClientController';
+
+interface User {
+  id: number
+  name: string
+}
+
+interface Lead {
+  id: number
+  name: string
+}
+
+interface Client {
+  id: number
+  name: string
+  email: string | null
+  phone: string | null
+  company: string | null
+  address: string | null
+  lead?: Lead | null
+  assignee?: User | null
+  creator?: User | null
+  created_at: string
+  updated_at: string
+}
+
+interface PaginationLinks {
+  url: string | null
+  label: string
+  active: boolean
+}
+
+interface PaginatedClients {
+  data: Client[]
+  links: PaginationLinks[]
+  meta: {
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
+    from: number
+    to: number
+  }
+}
+
+const props = defineProps<{
+  clients: PaginatedClients
+  filters: {
+    search?: string;
+    assigned_to?: string;
+    date_from?: string;
+    date_to?: string;
+  };
+  users: User[];
+}>()
+
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Clients', href: '#' }]
+
+const showDeleteDialog = ref(false)
+const clientToDelete = ref<number | null>(null)
+
+// Filters
+const filters = ref({
+    search: props.filters.search || '',
+    assigned_to: props.filters.assigned_to || null,
+    date_from: props.filters.date_from || '',
+    date_to: props.filters.date_to || '',
+})
+
+function goToEdit(clientId: number) {
+    router.get(edit.url(clientId))
+}
+
+function confirmDelete(clientId: number) {
+    clientToDelete.value = clientId
+    showDeleteDialog.value = true
+}
+
+function deleteClient() {
+    if (clientToDelete.value) {
+        router.delete(destroy.url(clientToDelete.value))
+    }
+    showDeleteDialog.value = false
+    clientToDelete.value = null
+}
+
+function cancelDelete() {
+    showDeleteDialog.value = false
+    clientToDelete.value = null
+}
+
+const clientBeingDeleted = computed(() =>
+    props.clients.data.find((client) => client.id === clientToDelete.value),
+)
+
+// Format date to relative time or specific format
+const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffTime = Math.abs(now.getTime() - date.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (diffDays === 1) {
+        return 'Yesterday'
+    } else if (diffDays < 7) {
+        return `${diffDays} days ago`
+    } else if (diffDays < 30) {
+        const weeks = Math.floor(diffDays / 7)
+        return `${weeks} week${weeks > 1 ? 's' : ''} ago`
+    } else {
+        return date.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+        })
+    }
+}
+
+// Filter functions
+function applyFilters() {
+    const backendFilters = {
+        ...filters.value,
+        assigned_to: filters.value.assigned_to === null ? '' : filters.value.assigned_to,
+    }
+
+    router.get(index.url(), backendFilters, {
+        preserveState: true,
+        replace: true,
+    })
+}
+
+function resetFilters() {
+    filters.value = {
+        search: '',
+        assigned_to: null,
+        date_from: '',
+        date_to: '',
+    }
+    router.get(index.url(), {}, { preserveState: true, replace: true })
+}
+
+// Check if any filter is active
+const hasActiveFilters = computed(() => {
+    return (
+        filters.value.search ||
+        filters.value.assigned_to ||
+        filters.value.date_from ||
+        filters.value.date_to
+    )
+})
+
+// Pagination logic
+function goToPage(url: string | null) {
+    if (url) router.visit(url)
+}
+
+const pageLinks = computed(() => {
+    if (!props.clients.links) return []
+    return props.clients.links.filter(
+        (_, index) => index !== 0 && index !== props.clients.links.length - 1,
+    )
+})
+
+const showingFrom = computed(() => {
+    if (!props.clients.meta || props.clients.data.length === 0) return 0
+    return props.clients.meta.from || (props.clients.meta.current_page - 1) * props.clients.meta.per_page + 1
+})
+
+const showingTo = computed(() => {
+    if (!props.clients.meta || props.clients.data.length === 0) return 0
+    return props.clients.meta.to || Math.min(props.clients.meta.current_page * props.clients.meta.per_page, props.clients.meta.total)
+})
+
+const total = computed(() => props.clients.meta?.total || 0)
+</script>
+
+<template>
+  <Head title="Clients" />
+  <AppLayout :breadcrumbs="breadcrumbs">
+    <div class="p-6">
+      <!-- Header -->
+      <div class="mb-6 flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold tracking-tight">Clients</h1>
+          <p class="mt-1 text-muted-foreground">
+            Manage your active clients and customer relationships
+          </p>
+        </div>
+        <Link :href="create.url()" class="shrink-0">
+          <Button class="flex items-center gap-2">
+            <Plus class="h-4 w-4" />
+            Add Client
+          </Button>
+        </Link>
+      </div>
+
+      <!-- Filters -->
+      <div class="mb-6 rounded-lg border p-4">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <!-- Search -->
+          <div class="space-y-2">
+            <Label for="search">Search</Label>
+            <div class="relative">
+              <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+              <Input
+                id="search"
+                v-model="filters.search"
+                type="text"
+                placeholder="Search by name, email, or company..."
+                class="pl-10"
+                @keyup.enter="applyFilters"
+              />
+            </div>
+          </div>
+
+          <!-- Assigned To Filter -->
+          <div class="space-y-2">
+            <Label for="assigned_to">Assigned To</Label>
+            <Select v-model="filters.assigned_to">
+              <SelectTrigger>
+                <SelectValue placeholder="All users" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem :value="null">All Users</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                <SelectItem v-for="user in users" :key="user.id" :value="user.id.toString()">
+                  {{ user.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <!-- Date From -->
+          <div class="space-y-2">
+            <Label for="date_from">Created From</Label>
+            <Input
+              id="date_from"
+              v-model="filters.date_from"
+              type="date"
+            />
+          </div>
+
+          <!-- Date To -->
+          <div class="space-y-2">
+            <Label for="date_to">Created To</Label>
+            <Input
+              id="date_to"
+              v-model="filters.date_to"
+              type="date"
+            />
+          </div>
+        </div>
+
+        <!-- Filter Actions -->
+        <div class="mt-4 flex justify-between">
+          <Button
+            variant="outline"
+            size="sm"
+            @click="resetFilters"
+            :disabled="!hasActiveFilters"
+            class="flex items-center gap-2"
+          >
+            <X class="h-4 w-4" />
+            Clear Filters
+          </Button>
+          <Button size="sm" @click="applyFilters">
+            Apply Filters
+          </Button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead class="w-[200px]">Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Phone</TableHead>
+              <TableHead>Company</TableHead>
+              <TableHead>Assigned To</TableHead>
+              <TableHead>Source Lead</TableHead>
+              <TableHead>Last Updated</TableHead>
+              <TableHead class="w-[120px] text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            <TableRow v-for="client in clients.data" :key="client.id">
+              <TableCell class="font-medium">
+                <div class="flex items-center space-x-3">
+                  <div
+                    class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary/10"
+                  >
+                    <span class="text-sm font-medium text-primary">
+                      {{ client.name.charAt(0).toUpperCase() }}
+                    </span>
+                  </div>
+                  <div>
+                    <div class="font-medium text-gray-900">{{ client.name }}</div>
+                    <div v-if="client.address" class="text-xs text-muted-foreground truncate max-w-[150px]">
+                      {{ client.address }}
+                    </div>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ client.email ?? '-' }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ client.phone ?? '-' }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ client.company ?? 'N/A' }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ client.assignee?.name ?? 'Unassigned' }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ client.lead?.name ?? 'Direct' }}
+              </TableCell>
+              <TableCell class="text-muted-foreground text-sm">
+                {{ formatDate(client.updated_at) }}
+              </TableCell>
+              <TableCell>
+                <ActionButtons
+                  :show-edit="true"
+                  :show-delete="true"
+                  :on-edit="() => goToEdit(client.id)"
+                  :on-delete="() => confirmDelete(client.id)"
+                />
+              </TableCell>
+            </TableRow>
+            <TableRow v-if="clients.data.length === 0">
+              <TableCell
+                colspan="8"
+                class="py-8 text-center text-muted-foreground"
+              >
+                No clients found matching your filters.
+              </TableCell>
+            </TableRow>
+          </TableBody>
+
+          <!-- Table Footer with Pagination -->
+          <TableFooter>
+            <TableRow>
+              <TableCell colspan="8">
+                <div
+                  v-if="clients.meta?.last_page > 1"
+                  class="flex flex-col items-center justify-between gap-4 py-4 sm:flex-row"
+                >
+                  <!-- Info -->
+                  <div class="text-sm text-muted-foreground">
+                    Showing
+                    <span class="font-medium">{{ showingFrom }}</span>
+                    to
+                    <span class="font-medium">{{ showingTo }}</span>
+                    of
+                    <span class="font-medium">{{ total }}</span>
+                    results
+                  </div>
+
+                  <!-- Pagination Controls -->
+                  <nav
+                    class="flex items-center overflow-hidden rounded-md border"
+                  >
+                    <!-- Prev -->
+                    <button
+                      class="px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                      :disabled="!clients.links[0].url"
+                      @click="goToPage(clients.links[0].url)"
+                    >
+                      <ChevronLeft class="h-4 w-4" />
+                    </button>
+
+                    <!-- Page Numbers -->
+                    <button
+                      v-for="link in pageLinks"
+                      :key="link.label"
+                      class="border-l px-3 py-2 text-sm font-medium transition-colors"
+                      @click="goToPage(link.url)"
+                      :class="[
+                        link.active
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          : 'text-muted-foreground hover:bg-muted',
+                      ]"
+                    >
+                      {{ link.label }}
+                    </button>
+
+                    <!-- Next -->
+                    <button
+                      class="border-l px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                      :disabled="!clients.links[clients.links.length - 1].url"
+                      @click="goToPage(clients.links[clients.links.length - 1].url)"
+                    >
+                      <ChevronRight class="h-4 w-4" />
+                    </button>
+                  </nav>
+                </div>
+              </TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
+      </div>
+
+      <!-- Delete Confirmation -->
+      <ConfirmationDialog
+        :show="showDeleteDialog"
+        title="Delete Client"
+        :description="`Are you sure you want to delete ${clientBeingDeleted?.name}? This action cannot be undone.`"
+        confirm-text="Delete Client"
+        cancel-text="Cancel"
+        variant="destructive"
+        @confirm="deleteClient"
+        @cancel="cancelDelete"
+      />
+    </div>
+  </AppLayout>
+</template>
