@@ -7,10 +7,33 @@ import { Table, TableHeader, TableHead, TableRow, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import type { BreadcrumbItem } from '@/types';
 
-const props = defineProps({
-    stats: Object,
-    recent_notes: Array,
-});
+interface Stats {
+    leads: number;
+    clients: number;
+    pending_tasks: number;
+}
+
+interface User {
+    id: number;
+    name: string;
+    email?: string;
+}
+
+interface RecentNote {
+    id: number;
+    content: string;
+    noteable_type: string;
+    created_at: string;
+    user_id: number;
+    user?: User;
+}
+
+interface Props {
+    stats: Stats;
+    recent_notes: RecentNote[];
+}
+
+const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -89,6 +112,11 @@ const breadcrumbs: BreadcrumbItem[] = [
                                     </Badge>
                                 </TableCell>
                                 <TableCell>{{ new Date(note.created_at).toLocaleDateString() }}</TableCell>
+                            </TableRow>
+                            <TableRow v-if="props.recent_notes.length === 0">
+                                <TableCell colspan="4" class="text-center py-8 text-muted-foreground">
+                                    No recent activity found.
+                                </TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
