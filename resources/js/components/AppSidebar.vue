@@ -29,7 +29,7 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'Leads',
-        href: '#',
+        href: '/leads',
         icon: UserCircle,
     },
     {
