@@ -3,6 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Models\Lead;
+use App\Models\Client;
+use App\Models\Task;
+use App\Models\Note;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -13,11 +17,17 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // Create core users
+        $admin = User::factory()->admin()->create(['name' => 'Admin User']);
+        $manager = User::factory()->manager()->create(['name' => 'Manager User']);
+        $members = User::factory()->count(10)->member()->create();
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // Create leads and clients
+        $leads = Lead::factory(30)->create();
+        $clients = Client::factory(15)->create();
+
+        // Create tasks & notes
+        Task::factory(50)->create();
+        Note::factory(60)->create();
     }
 }
