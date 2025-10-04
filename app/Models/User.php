@@ -46,4 +46,29 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function createdLeads()
+    {
+        return $this->hasMany(Lead::class, 'created_by');
+    }
+
+    public function assignedLeads()
+    {
+        return $this->hasMany(Lead::class, 'assigned_to');
+    }
+
+    public function createdClients()
+    {
+        return $this->hasMany(Client::class, 'created_by');
+    }
+
+    public function assignedClients()
+    {
+        return $this->hasMany(Client::class, 'assigned_to');
+    }
+
+    public function tasks()
+    {
+        return $this->hasMany(Task::class, 'assigned_to');
+    }
 }
