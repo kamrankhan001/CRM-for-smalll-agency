@@ -33,6 +33,11 @@ const mainNavItems: NavItem[] = [
         icon: UserCircle,
     },
     {
+        title: 'Clients',
+        href: '#',
+        icon: Users,
+    },
+    {
         title: 'Tasks',
         href: '#',
         icon: ClipboardList,
@@ -42,18 +47,13 @@ const mainNavItems: NavItem[] = [
         href: '#',
         icon: StickyNote,
     },
-        {
-        title: 'Clients',
-        href: '#',
-        icon: Users,
-    },
 ];
 
 // Conditionally add Users link if role === 'admin'
 if (user?.role === 'admin') {
     mainNavItems.push({
         title: 'Users',
-        href: '#',
+        href: '/users',
         icon: Users,
     });
 }
