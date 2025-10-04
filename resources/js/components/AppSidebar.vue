@@ -13,17 +13,50 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-vue-next';
+import { Link, usePage } from '@inertiajs/vue3';
+import { BookOpen, Folder, LayoutGrid, Users, UserCircle, ClipboardList, StickyNote } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
+const page = usePage();
+const user = page.props.auth?.user;
+
+// Main navigation links
 const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
     },
+    {
+        title: 'Leads',
+        href: '#',
+        icon: UserCircle,
+    },
+    {
+        title: 'Tasks',
+        href: '#',
+        icon: ClipboardList,
+    },
+    {
+        title: 'Notes',
+        href: '#',
+        icon: StickyNote,
+    },
+        {
+        title: 'Clients',
+        href: '#',
+        icon: Users,
+    },
 ];
+
+// Conditionally add Users link if role === 'admin'
+if (user?.role === 'admin') {
+    mainNavItems.push({
+        title: 'Users',
+        href: '#',
+        icon: Users,
+    });
+}
 
 const footerNavItems: NavItem[] = [
     {
@@ -62,5 +95,6 @@ const footerNavItems: NavItem[] = [
             <NavUser />
         </SidebarFooter>
     </Sidebar>
+
     <slot />
 </template>
