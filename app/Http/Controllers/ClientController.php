@@ -25,8 +25,8 @@ class ClientController extends Controller
             ->when($request->search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%")
-                      ->orWhere('company', 'like', "%{$search}%");
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('company', 'like', "%{$search}%");
                 });
             })
             ->when($request->filled('assigned_to'), function ($query) use ($request) {
@@ -64,6 +64,8 @@ class ClientController extends Controller
                     'id' => $client->creator->id,
                     'name' => $client->creator->name,
                 ] : null,
+                'created_by' => $client->created_by,
+                'assigned_to' => $client->assigned_to,
                 'created_at' => $client->created_at->toDateString(),
                 'updated_at' => $client->updated_at->toDateString(),
             ]);
@@ -143,7 +145,31 @@ class ClientController extends Controller
         $leads = Lead::select('id', 'name')->get();
 
         return Inertia::render('clients/Edit', [
-            'client' => $client->load(['lead', 'creator', 'assignee']),
+            'client' => [
+                'id' => $client->id,
+                'name' => $client->name,
+                'email' => $client->email,
+                'phone' => $client->phone,
+                'company' => $client->company,
+                'address' => $client->address,
+                'lead_id' => $client->lead_id,
+                'lead' => $client->lead ? [
+                    'id' => $client->lead->id,
+                    'name' => $client->lead->name,
+                ] : null,
+                'assignee' => $client->assignee ? [
+                    'id' => $client->assignee->id,
+                    'name' => $client->assignee->name,
+                ] : null,
+                'creator' => $client->creator ? [
+                    'id' => $client->creator->id,
+                    'name' => $client->creator->name,
+                ] : null,
+                'created_by' => $client->created_by,
+                'assigned_to' => $client->assigned_to,
+                'created_at' => $client->created_at->toDateString(),
+                'updated_at' => $client->updated_at->toDateString(),
+            ],
             'users' => $users,
             'leads' => $leads,
         ]);
