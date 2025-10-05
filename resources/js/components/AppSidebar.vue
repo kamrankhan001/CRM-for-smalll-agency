@@ -44,7 +44,7 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'Notes',
-        href: '#',
+        href: '/notes',
         icon: StickyNote,
     },
 ];
