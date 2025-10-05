@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Note;
-use App\Models\Lead;
 use App\Models\Client;
+use App\Models\Lead;
+use App\Models\Note;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,6 +18,35 @@ class NoteController extends Controller
         $this->authorize('viewAny', Note::class);
 
         $notes = Note::with(['user', 'noteable'])
+            ->when($request->search, function ($query, $search) {
+                $query->where('content', 'like', "%{$search}%");
+            })
+            ->when($request->filled('noteable_type'), function ($query) use ($request) {
+                $query->where('noteable_type', $request->noteable_type === 'lead'
+                    ? 'App\\Models\\Lead'
+                    : 'App\\Models\\Client'
+                );
+            })
+            ->when($request->filled('user_id'), function ($query) use ($request) {
+                $query->where('user_id', $request->user_id);
+            })
+            ->when($request->date_range, function ($query) use ($request) {
+                $dateRanges = [
+                    '7_days' => now()->subDays(7),
+                    '15_days' => now()->subDays(15),
+                    '30_days' => now()->subDays(30),
+                    'custom' => $request->date_from ?: now()->subDays(30),
+                ];
+
+                if ($request->date_range === 'custom' && $request->date_from && $request->date_to) {
+                    $query->whereBetween('created_at', [
+                        $request->date_from,
+                        $request->date_to,
+                    ]);
+                } else {
+                    $query->where('created_at', '>=', $dateRanges[$request->date_range]);
+                }
+            })
             ->latest()
             ->paginate(10)
             ->through(fn ($note) => [
@@ -27,6 +56,7 @@ class NoteController extends Controller
                     'id' => $note->user->id,
                     'name' => $note->user->name,
                 ],
+                'user_id' => $note->user_id,
                 'noteable' => $note->noteable ? [
                     'id' => $note->noteable->id,
                     'name' => $note->noteable->name,
@@ -35,6 +65,8 @@ class NoteController extends Controller
                 'created_at' => $note->created_at->toISOString(),
                 'updated_at' => $note->updated_at->toISOString(),
             ]);
+
+        $users = \App\Models\User::select('id', 'name')->get();
 
         return Inertia::render('notes/Index', [
             'notes' => [
@@ -51,6 +83,8 @@ class NoteController extends Controller
                 ],
                 'links' => $notes->linkCollection()->toArray(),
             ],
+            'filters' => $request->only(['search', 'noteable_type', 'user_id', 'date_range', 'date_from', 'date_to']),
+            'users' => $users,
         ]);
     }
 
@@ -97,6 +131,7 @@ class NoteController extends Controller
                     'id' => $note->user->id,
                     'name' => $note->user->name,
                 ],
+                'user_id' => $note->user_id,
                 'noteable' => $note->noteable ? [
                     'id' => $note->noteable->id,
                     'name' => $note->noteable->name,
