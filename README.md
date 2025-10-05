@@ -37,8 +37,8 @@ An open-source CRM solution tailored for small agencies, featuring lead/client m
 
 1. Clone repository:
 ```bash
-git clone https://github.com/kamrankhan-dev/crm.git
-cd crm
+git clone https://github.com/kamrankhan001/CRM-for-smalll-agency.git
+cd CRM-for-smalll-agency
 ```
 
 2. Install dependencies:

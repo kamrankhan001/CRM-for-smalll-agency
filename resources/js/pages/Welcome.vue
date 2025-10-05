@@ -112,7 +112,7 @@ const features = [
 
         <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <Link :href="user ? dashboard() : register()" class="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-lg">
-            {{ user ? 'Go to Dashboard' : 'Start Free Trial' }}
+            {{ user ? 'Go to Dashboard' : 'Get Started' }}
             <i class="ml-2">→</i>
           </Link>
           <a href="#features" class="px-8 py-4 border-2 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl hover:border-blue-500 dark:hover:border-blue-400 transition-all duration-300">
@@ -201,7 +201,7 @@ const features = [
         <div class="text-center mb-16">
           <h2 class="text-4xl md:text-5xl font-bold mb-6">Get Started in <span class="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Minutes</span></h2>
           <p class="text-xl text-slate-600 dark:text-slate-400">
-            Deploy your own instance with just a few commands.
+            Get your own instance with just a few commands.
           </p>
         </div>
 
