@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ActionButtons from '@/components/ActionButtons.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
+import LeadImportDialog from '@/components/LeadImportDialog.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,10 +21,26 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ChevronLeft, ChevronRight, Plus, Search, X, Filter  } from 'lucide-vue-next';
+import {
+    ChevronLeft,
+    ChevronRight,
+    Download,
+    FileText,
+    Filter,
+    Plus,
+    Search,
+    Upload,
+    X,
+} from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 // Import Wayfinder-generated actions
@@ -97,7 +114,10 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Leads', href: '#' }];
 
 const showFilters = ref(false);
 const showDeleteDialog = ref(false);
+const showImportDialog = ref(false);
 const leadToDelete = ref<number | null>(null);
+const importFile = ref<File | null>(null);
+const isImporting = ref(false);
 
 // Filters
 const filters = ref({
@@ -136,6 +156,10 @@ const leadBeingDeleted = computed(() =>
 
 // Permission checks
 const canDelete = computed(() => props.auth.user.role === 'admin');
+const canImport = computed(
+    () =>
+        props.auth.user.role === 'admin' || props.auth.user.role === 'manager',
+);
 
 const canEditLead = (lead: Lead) => {
     const user = props.auth.user;
@@ -253,6 +277,60 @@ const showingTo = computed(() => {
 });
 
 const total = computed(() => props.leads.meta?.total || 0);
+
+// Import/Export functions
+function exportLeads() {
+    const backendFilters = {
+        ...filters.value,
+        status: filters.value.status === null ? '' : filters.value.status,
+        assigned_to:
+            filters.value.assigned_to === null ? '' : filters.value.assigned_to,
+    };
+
+    const queryString = new URLSearchParams(backendFilters).toString();
+    const url = `/leads/export${queryString ? `?${queryString}` : ''}`;
+
+    window.location.href = url;
+}
+
+function downloadSample() {
+    window.location.href = '/leads/import/sample';
+}
+
+function openImportDialog() {
+    showImportDialog.value = true;
+}
+
+function closeImportDialog() {
+    showImportDialog.value = false;
+    importFile.value = null;
+    isImporting.value = false;
+}
+
+async function submitImport(file: File) {
+    isImporting.value = true;
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        await router.post('/leads/import', formData, {
+            onSuccess: () => {
+                closeImportDialog();
+                // The success message will be shown via Inertia flash messages
+            },
+            onError: (errors) => {
+                console.error('Import failed:', errors);
+            },
+            onFinish: () => {
+                isImporting.value = false;
+            },
+        });
+    } catch (error) {
+        console.error('Import error:', error);
+        isImporting.value = false;
+    }
+}
 </script>
 
 <template>
@@ -260,33 +338,151 @@ const total = computed(() => props.leads.meta?.total || 0);
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6">
             <!-- Header -->
-            <div class="mb-6 flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold tracking-tight">Leads</h1>
-                    <p class="mt-1 text-muted-foreground">
-                        Manage your potential clients and leads pipeline
-                    </p>
-                </div>
-                <div class="flex items-center gap-3">
-                    <Button
-                        variant="outline"
-                        @click="showFilters = !showFilters"
-                        class="flex items-center gap-2"
+            <div class="mb-6">
+                <div
+                    class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+                >
+                    <div class="space-y-1">
+                        <h1
+                            class="text-2xl font-bold tracking-tight sm:text-3xl"
+                        >
+                            Leads
+                        </h1>
+                        <p class="text-sm text-muted-foreground sm:text-base">
+                            Manage your potential clients and leads pipeline
+                        </p>
+                    </div>
+
+                    <!-- All buttons container -->
+                    <div
+                        class="flex w-full items-center justify-between gap-2 lg:w-auto lg:justify-normal lg:gap-3"
                     >
-                        <Filter class="h-4 w-4" />
-                        {{ showFilters ? 'Hide' : 'Show' }} Filters
-                    </Button>
-                    <Link :href="create.url()" class="shrink-0">
-                        <Button class="flex items-center gap-2">
-                            <Plus class="h-4 w-4" />
-                            Add Lead
-                        </Button>
-                    </Link>
+                        <!-- Left side buttons (Export, Import, Sample) -->
+                        <div class="flex items-center gap-1 lg:gap-2">
+                            <TooltipProvider>
+                                <!-- Export Button -->
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <Button
+                                            variant="outline"
+                                            @click="exportLeads"
+                                            class="h-9 w-9 p-0 md:px-4 md:py-2 lg:h-auto lg:w-auto"
+                                            size="sm"
+                                        >
+                                            <Download class="h-4 w-4" />
+                                            <span class="hidden lg:inline"
+                                                >Export</span
+                                            >
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Export leads to Excel</p>
+                                    </TooltipContent>
+                                </Tooltip>
+
+                                <!-- Import Button -->
+                                <Tooltip v-if="canImport">
+                                    <TooltipTrigger as-child>
+                                        <Button
+                                            variant="outline"
+                                            @click="openImportDialog"
+                                            cclass="h-9 w-9 p-0 lg:h-auto lg:w-auto md:px-4 md:py-2"
+                                            size="sm"
+                                        >
+                                            <Upload class="h-4 w-4" />
+                                            <span class="hidden lg:inline"
+                                                >Import</span
+                                            >
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Import leads from Excel</p>
+                                    </TooltipContent>
+                                </Tooltip>
+
+                                <!-- Sample Button -->
+                                <Tooltip v-if="canImport">
+                                    <TooltipTrigger as-child>
+                                        <Button
+                                            variant="outline"
+                                            @click="downloadSample"
+                                            class="h-9 w-9 p-0 md:px-4 md:py-2 lg:h-auto lg:w-auto"
+                                            size="sm"
+                                        >
+                                            <FileText class="h-4 w-4" />
+                                            <span class="hidden lg:inline"
+                                                >Sample</span
+                                            >
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Download import template</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
+
+                        <!-- Right side buttons (Filter, Add Lead) -->
+                        <div class="flex items-center gap-1 lg:gap-2">
+                            <TooltipProvider>
+                                <!-- Filter Button -->
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <Button
+                                            variant="outline"
+                                            @click="showFilters = !showFilters"
+                                            class="h-9 w-9 p-0 md:px-4 md:py-2 lg:h-auto lg:w-auto"
+                                            size="sm"
+                                        >
+                                            <Filter class="h-4 w-4" />
+                                            <span class="hidden lg:inline">
+                                                {{
+                                                    showFilters
+                                                        ? 'Hide'
+                                                        : 'Show'
+                                                }}
+                                                Filters
+                                            </span>
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>
+                                            {{ showFilters ? 'Hide' : 'Show' }}
+                                            filters
+                                        </p>
+                                    </TooltipContent>
+                                </Tooltip>
+
+                                <!-- Add Lead Button -->
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <Link
+                                            :href="create.url()"
+                                            class="shrink-0"
+                                        >
+                                            <Button
+                                                class="h-9 w-9 p-0 md:px-4 md:py-2 lg:h-auto lg:w-auto"
+                                                size="sm"
+                                            >
+                                                <Plus class="h-4 w-4" />
+                                                <span class="hidden lg:inline"
+                                                    >Add Lead</span
+                                                >
+                                            </Button>
+                                        </Link>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Create new lead</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Filters -->
-            <div  v-if="showFilters" class="mb-6 rounded-lg border p-4">
+            <div v-if="showFilters" class="mb-6 rounded-lg border p-4">
                 <div
                     class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5"
                 >
@@ -574,6 +770,15 @@ const total = computed(() => props.leads.meta?.total || 0);
                 variant="destructive"
                 @confirm="deleteLead"
                 @cancel="cancelDelete"
+            />
+
+            <!-- Import Dialog -->
+            <LeadImportDialog
+                :show="showImportDialog"
+                :is-importing="isImporting"
+                @update:show="closeImportDialog"
+                @confirm="submitImport"
+                @download-sample="downloadSample"
             />
         </div>
     </AppLayout>

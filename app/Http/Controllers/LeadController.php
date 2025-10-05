@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\LeadsExport;
+use App\Imports\LeadsImport;
 use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LeadController extends Controller
 {
@@ -133,37 +136,37 @@ class LeadController extends Controller
     /**
      * Show the form for editing the specified lead.
      */
-   public function edit(Lead $lead): Response
-{
-    $this->authorize('update', $lead);
+    public function edit(Lead $lead): Response
+    {
+        $this->authorize('update', $lead);
 
-    $users = User::select('id', 'name')->get();
+        $users = User::select('id', 'name')->get();
 
-    return Inertia::render('leads/Edit', [
-        'lead' => [
-            'id' => $lead->id,
-            'name' => $lead->name,
-            'email' => $lead->email,
-            'phone' => $lead->phone,
-            'company' => $lead->company,
-            'source' => $lead->source,
-            'status' => $lead->status,
-            'assignee' => $lead->assignee ? [
-                'id' => $lead->assignee->id,
-                'name' => $lead->assignee->name,
-            ] : null,
-            'creator' => $lead->creator ? [
-                'id' => $lead->creator->id,
-                'name' => $lead->creator->name,
-            ] : null,
-            'created_by' => $lead->created_by,
-            'assigned_to' => $lead->assigned_to,
-            'created_at' => $lead->created_at->toDateString(),
-            'updated_at' => $lead->updated_at->toDateString(),
-        ],
-        'users' => $users,
-    ]);
-}
+        return Inertia::render('leads/Edit', [
+            'lead' => [
+                'id' => $lead->id,
+                'name' => $lead->name,
+                'email' => $lead->email,
+                'phone' => $lead->phone,
+                'company' => $lead->company,
+                'source' => $lead->source,
+                'status' => $lead->status,
+                'assignee' => $lead->assignee ? [
+                    'id' => $lead->assignee->id,
+                    'name' => $lead->assignee->name,
+                ] : null,
+                'creator' => $lead->creator ? [
+                    'id' => $lead->creator->id,
+                    'name' => $lead->creator->name,
+                ] : null,
+                'created_by' => $lead->created_by,
+                'assigned_to' => $lead->assigned_to,
+                'created_at' => $lead->created_at->toDateString(),
+                'updated_at' => $lead->updated_at->toDateString(),
+            ],
+            'users' => $users,
+        ]);
+    }
 
     /**
      * Update the specified lead in storage.
@@ -199,5 +202,114 @@ class LeadController extends Controller
 
         return redirect()->route('leads.index')
             ->with('success', 'Lead deleted successfully.');
+    }
+
+    /**
+     * Export leads to Excel
+     */
+    public function export(Request $request)
+    {
+        $this->authorize('viewAny', Lead::class);
+
+        $filters = $request->only(['search', 'status', 'assigned_to', 'date_from', 'date_to']);
+
+        // Clean up empty filters
+        $filters = array_filter($filters, function ($value) {
+            return $value !== null && $value !== '';
+        });
+
+        return Excel::download(new LeadsExport($filters), 'leads-'.date('Y-m-d').'.xlsx');
+    }
+
+    /**
+     * Import leads from Excel
+     */
+    public function import(Request $request)
+    {
+        $this->authorize('create', Lead::class);
+
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240', // 10MB max
+        ]);
+
+        try {
+            $import = new LeadsImport;
+            Excel::import($import, $request->file('file'));
+
+            $importedCount = $import->getImportedCount();
+            $errors = $import->getErrors();
+
+            if (! empty($errors)) {
+                return redirect()->back()->with([
+                    'warning' => "Imported {$importedCount} leads, but encountered ".count($errors).' errors.',
+                    'import_errors' => $errors,
+                ]);
+            }
+
+            return redirect()->back()->with('success', "Successfully imported {$importedCount} leads.");
+
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error importing file: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Download sample import template
+     */
+    /**
+     * Download sample import template
+     */
+    public function downloadSample()
+    {
+        $this->authorize('create', Lead::class);
+
+        $sampleData = [
+            [
+                'name' => 'John Doe',
+                'email' => 'john@example.com',
+                'phone' => '+1234567890',
+                'company' => 'ABC Company',
+                'source' => 'website',
+                'status' => 'new',
+                'assigned_to' => 'User Name', // Optional: assignee's name
+            ],
+            [
+                'name' => 'Jane Smith',
+                'email' => 'jane@example.com',
+                'phone' => '+0987654321',
+                'company' => 'XYZ Corp',
+                'source' => 'referral',
+                'status' => 'contacted',
+                'assigned_to' => '', // Leave empty for no assignment
+            ],
+        ];
+
+        return Excel::download(new class($sampleData) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithHeadings
+        {
+            protected $data;
+
+            public function __construct($data)
+            {
+                $this->data = $data;
+            }
+
+            public function array(): array
+            {
+                return $this->data;
+            }
+
+            public function headings(): array
+            {
+                return [
+                    'name',
+                    'email',
+                    'phone',
+                    'company',
+                    'source',
+                    'status',
+                    'assigned_to',
+                ];
+            }
+        }, 'leads-import-template.xlsx');
     }
 }
