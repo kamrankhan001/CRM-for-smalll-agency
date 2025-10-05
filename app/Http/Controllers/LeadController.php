@@ -63,6 +63,8 @@ class LeadController extends Controller
                     'id' => $lead->creator->id,
                     'name' => $lead->creator->name,
                 ] : null,
+                'created_by' => $lead->created_by,
+                'assigned_to' => $lead->assigned_to,
                 'created_at' => $lead->created_at->toDateString(),
                 'updated_at' => $lead->updated_at->toDateString(),
             ]);
@@ -85,7 +87,7 @@ class LeadController extends Controller
                 'links' => $leads->linkCollection()->toArray(),
             ],
             'filters' => $request->only(['search', 'status', 'assigned_to', 'date_from', 'date_to']),
-            'users' => $users, // Pass users for assignee filter
+            'users' => $users,
         ]);
     }
 
@@ -131,17 +133,37 @@ class LeadController extends Controller
     /**
      * Show the form for editing the specified lead.
      */
-    public function edit(Lead $lead): Response
-    {
-        $this->authorize('update', $lead);
+   public function edit(Lead $lead): Response
+{
+    $this->authorize('update', $lead);
 
-        $users = User::select('id', 'name')->get();
+    $users = User::select('id', 'name')->get();
 
-        return Inertia::render('leads/Edit', [
-            'lead' => $lead->load(['creator', 'assignee']),
-            'users' => $users,
-        ]);
-    }
+    return Inertia::render('leads/Edit', [
+        'lead' => [
+            'id' => $lead->id,
+            'name' => $lead->name,
+            'email' => $lead->email,
+            'phone' => $lead->phone,
+            'company' => $lead->company,
+            'source' => $lead->source,
+            'status' => $lead->status,
+            'assignee' => $lead->assignee ? [
+                'id' => $lead->assignee->id,
+                'name' => $lead->assignee->name,
+            ] : null,
+            'creator' => $lead->creator ? [
+                'id' => $lead->creator->id,
+                'name' => $lead->creator->name,
+            ] : null,
+            'created_by' => $lead->created_by,
+            'assigned_to' => $lead->assigned_to,
+            'created_at' => $lead->created_at->toDateString(),
+            'updated_at' => $lead->updated_at->toDateString(),
+        ],
+        'users' => $users,
+    ]);
+}
 
     /**
      * Update the specified lead in storage.
