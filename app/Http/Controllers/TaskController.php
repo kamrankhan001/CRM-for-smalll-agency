@@ -2,19 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Client;
+use App\Models\Lead;
 use App\Models\Task;
 use App\Models\User;
-use App\Models\Lead;
-use App\Models\Client;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class TaskController extends Controller
 {
     use AuthorizesRequests;
-    
+
     public function index(Request $request)
     {
         $this->authorize('viewAny', Task::class);
@@ -41,7 +41,7 @@ class TaskController extends Controller
             ->when($user->role === 'member', function ($query) use ($user) {
                 $query->where(function ($q) use ($user) {
                     $q->where('assigned_to', $user->id)
-                      ->orWhere('created_by', $user->id);
+                        ->orWhere('created_by', $user->id);
                 });
             })
             ->latest()
@@ -65,6 +65,8 @@ class TaskController extends Controller
                     'name' => $task->taskable->name,
                     'type' => class_basename($task->taskable_type),
                 ] : null,
+                'created_by' => $task->created_by,
+                'assigned_to' => $task->assigned_to,
                 'created_at' => $task->created_at->toDateString(),
                 'updated_at' => $task->updated_at->toDateString(),
             ]);
@@ -129,7 +131,32 @@ class TaskController extends Controller
         $this->authorize('update', $task);
 
         return Inertia::render('tasks/Edit', [
-            'task' => $task->load(['assignee', 'creator', 'taskable']),
+            'task' => [
+                'id' => $task->id,
+                'title' => $task->title,
+                'description' => $task->description,
+                'status' => $task->status,
+                'due_date' => $task->due_date?->toDateString(),
+                'taskable_type' => $task->taskable_type === 'App\\Models\\Lead' ? 'lead' : 'client',
+                'taskable_id' => $task->taskable_id,
+                'assignee' => $task->assignee ? [
+                    'id' => $task->assignee->id,
+                    'name' => $task->assignee->name,
+                ] : null,
+                'creator' => $task->creator ? [
+                    'id' => $task->creator->id,
+                    'name' => $task->creator->name,
+                ] : null,
+                'taskable' => $task->taskable ? [
+                    'id' => $task->taskable->id,
+                    'name' => $task->taskable->name,
+                    'type' => class_basename($task->taskable_type),
+                ] : null,
+                'created_by' => $task->created_by,
+                'assigned_to' => $task->assigned_to,
+                'created_at' => $task->created_at->toDateString(),
+                'updated_at' => $task->updated_at->toDateString(),
+            ],
             'users' => User::select('id', 'name')->get(),
             'leads' => Lead::select('id', 'name')->get(),
             'clients' => Client::select('id', 'name')->get(),
