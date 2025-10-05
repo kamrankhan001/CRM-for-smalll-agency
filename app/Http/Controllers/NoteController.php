@@ -171,6 +171,6 @@ class NoteController extends Controller
 
         $note->delete();
 
-        return back()->with('success', 'Note deleted successfully.');
+        return redirect()->route('notes.index')->with('success', 'Note deleted successfully.');
     }
 }

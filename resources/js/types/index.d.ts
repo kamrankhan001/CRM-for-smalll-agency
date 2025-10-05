@@ -24,6 +24,7 @@ export type AppPageProps<
     quote: { message: string; author: string };
     auth: Auth;
     sidebarOpen: boolean;
+    flash: Flash;
 };
 
 export interface User {
@@ -35,6 +36,11 @@ export interface User {
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;
+}
+
+export interface Flash {
+  success?: string | null
+  error?: string | null
 }
 
 export type BreadcrumbItemType = BreadcrumbItem;
