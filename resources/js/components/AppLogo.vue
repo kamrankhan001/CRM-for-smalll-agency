@@ -10,7 +10,7 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
     </div>
     <div class="ml-2 grid flex-1 text-left">
         <span class="mb-0.5 truncate leading-tight font-semibold"
-            >CRM System</span
+            >AgencyCRM</span
         >
     </div>
 </template>
