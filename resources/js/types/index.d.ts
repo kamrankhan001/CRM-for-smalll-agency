@@ -25,6 +25,7 @@ export type AppPageProps<
     auth: Auth;
     sidebarOpen: boolean;
     flash: Flash;
+    unreadNotificationsCount: number;
 };
 
 export interface User {

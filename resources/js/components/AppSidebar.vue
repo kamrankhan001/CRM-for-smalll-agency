@@ -14,7 +14,7 @@ import {
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Users, UserCircle, ClipboardList, StickyNote, Activity } from 'lucide-vue-next';
+import { Bell, LayoutGrid, Users, UserCircle, ClipboardList, StickyNote, Activity } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const page = usePage();
@@ -65,14 +65,9 @@ if (user?.role === 'admin') {
 
 const footerNavItems: NavItem[] = [
     {
-        title: 'Github Repo',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
+        title: 'Notifications',
+        href: '/notifications',
+        icon: Bell,
     },
 ];
 </script>

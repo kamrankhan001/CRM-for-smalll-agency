@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Task;
 use App\Models\Note;
 use App\Models\Activity;
+use App\Models\Notification;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -18,7 +19,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create core users
+        //Create core users
         $admin = User::factory()->admin()->create(['name' => 'Admin User']);
         $manager = User::factory()->manager()->create(['name' => 'Manager User']);
         $members = User::factory()->count(10)->member()->create();
@@ -31,5 +32,7 @@ class DatabaseSeeder extends Seeder
         Task::factory(50)->create();
         Note::factory(60)->create();
         Activity::factory(100)->create();
+
+        Notification::factory(30)->create();
     }
 }

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Activity;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Models\User;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -12,7 +12,7 @@ class ActivityController extends Controller
 {
     use AuthorizesRequests;
 
-     public function index(Request $request)
+    public function index(Request $request)
     {
         $user = $request->user();
         $this->authorize('viewAny', Activity::class);
@@ -20,7 +20,7 @@ class ActivityController extends Controller
         $activities = Activity::with(['causer'])
             ->when($user->role === 'manager', function ($query) {
                 // Managers cannot see admin activities
-                $query->whereHas('causer', fn($q) => $q->where('role', '!=', 'admin'));
+                $query->whereHas('causer', fn ($q) => $q->where('role', '!=', 'admin'));
             })
             ->when($user->role === 'member', function ($query) use ($user) {
                 // Members can only see their own activities

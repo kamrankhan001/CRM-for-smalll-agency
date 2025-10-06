@@ -6,8 +6,10 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { toUrl } from '@/lib/utils';
+import { toUrl, urlIsActive } from '@/lib/utils';
 import { type NavItem } from '@/types';
+import { Link, usePage } from '@inertiajs/vue3';
+import { Badge } from '@/components/ui/badge'; // Import Badge component
 
 interface Props {
     items: NavItem[];
@@ -15,6 +17,9 @@ interface Props {
 }
 
 defineProps<Props>();
+
+const page = usePage();
+const unreadCount = page.props.unreadNotificationsCount || 0;
 </script>
 
 <template>
@@ -25,17 +30,26 @@ defineProps<Props>();
             <SidebarMenu>
                 <SidebarMenuItem v-for="item in items" :key="item.title">
                     <SidebarMenuButton
-                        class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"
+                        class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100 relative"
                         as-child
+                        :is-active="urlIsActive(item.href, page.url)"
+                        :tooltip="item.title"
                     >
-                        <a
+                        <Link
                             :href="toUrl(item.href)"
-                            target="_blank"
-                            rel="noopener noreferrer"
                         >
                             <component :is="item.icon" />
                             <span>{{ item.title }}</span>
-                        </a>
+                            
+                            <!-- Unread notifications badge -->
+                            <Badge 
+                                v-if="item.title === 'Notifications' && unreadCount > 0"
+                                variant="destructive" 
+                                class="absolute right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                            >
+                                {{ unreadCount > 99 ? '99+' : unreadCount }}
+                            </Badge>
+                        </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
             </SidebarMenu>

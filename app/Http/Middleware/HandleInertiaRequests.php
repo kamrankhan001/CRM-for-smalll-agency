@@ -4,8 +4,8 @@ namespace App\Http\Middleware;
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
-use Inertia\Middleware;
 use Illuminate\Support\Facades\Session;
+use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -51,6 +51,18 @@ class HandleInertiaRequests extends Middleware
                     'success' => Session::has('success') ? Session::get('success') : null,
                     'error' => Session::has('error') ? Session::get('error') : null,
                 ];
+            },
+            'unreadNotificationsCount' => function () use ($request) {
+                if (! $request->user()) {
+                    return 0;
+                }
+
+                $user = $request->user();
+                if ($user->role === 'admin') {
+                    return \App\Models\Notification::whereNull('read_at')->count();
+                } else {
+                    return $user->unreadNotifications()->count();
+                }
             },
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
