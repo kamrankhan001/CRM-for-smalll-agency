@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\Lead;
 use App\Models\Task;
 use App\Models\User;
+use App\Notifications\TaskAssignedNotification;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -121,7 +122,13 @@ class TaskController extends Controller
         $validated['taskable_type'] = $validated['taskable_type'] === 'lead' ? Lead::class : Client::class;
         $validated['created_by'] = Auth::id();
 
-        Task::create($validated);
+        $task = Task::create($validated);
+
+        // Send notification to assigned user
+        if ($task->assigned_to && $task->assigned_to != Auth::id()) {
+            $assignedUser = User::find($task->assigned_to);
+            $assignedUser->notify(new TaskAssignedNotification($task));
+        }
 
         return redirect()->route('tasks.index')->with('success', 'Task created successfully.');
     }
@@ -177,9 +184,19 @@ class TaskController extends Controller
             'assigned_to' => 'nullable|exists:users,id',
         ]);
 
+        // Check if assignment is changing
+        $oldAssignedTo = $task->assigned_to;
+        $newAssignedTo = $validated['assigned_to'] ?? null;
+
         $validated['taskable_type'] = $validated['taskable_type'] === 'lead' ? Lead::class : Client::class;
 
         $task->update($validated);
+
+        // Send notification if assigned to a different user (and not the current user)
+        if ($newAssignedTo && $newAssignedTo != $oldAssignedTo && $newAssignedTo != Auth::id()) {
+            $assignedUser = User::find($newAssignedTo);
+            $assignedUser->notify(new TaskAssignedNotification($task));
+        }
 
         return redirect()->route('tasks.index')->with('success', 'Task updated successfully.');
     }

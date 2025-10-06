@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\Lead;
 use App\Models\Note;
+use App\Models\User;
+use App\Notifications\NoteAddedNotification;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -66,7 +68,7 @@ class NoteController extends Controller
                 'updated_at' => $note->updated_at->toISOString(),
             ]);
 
-        $users = \App\Models\User::select('id', 'name')->get();
+        $users = User::select('id', 'name')->get();
 
         return Inertia::render('notes/Index', [
             'notes' => [
@@ -114,7 +116,13 @@ class NoteController extends Controller
             : 'App\\Models\\Client';
         $validated['user_id'] = auth()->id();
 
-        Note::create($validated);
+        $note = Note::create($validated);
+
+        // Send notification to ALL users in the system
+        $allUsers = User::all();
+        foreach ($allUsers as $user) {
+            $user->notify(new NoteAddedNotification($note));
+        }
 
         return redirect()->route('notes.index')->with('success', 'Note created successfully.');
     }

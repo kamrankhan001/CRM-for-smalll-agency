@@ -6,11 +6,15 @@ use App\Exports\LeadsExport;
 use App\Imports\LeadsImport;
 use App\Models\Lead;
 use App\Models\User;
+use App\Notifications\LeadAssignedNotification;
+use App\Notifications\LeadConvertedNotification;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\DB;
+use App\Models\Client;
 
 class LeadController extends Controller
 {
@@ -127,7 +131,13 @@ class LeadController extends Controller
 
         $validated['created_by'] = $request->user()->id;
 
-        Lead::create($validated);
+        $lead = Lead::create($validated);
+
+        // Send notification if assigned to someone else
+        if ($lead->assigned_to && $lead->assigned_to != $request->user()->id) {
+            $assignedUser = User::find($lead->assigned_to);
+            $assignedUser->notify(new LeadAssignedNotification($lead));
+        }
 
         return redirect()->route('leads.index')
             ->with('success', 'Lead created successfully.');
@@ -185,10 +195,50 @@ class LeadController extends Controller
             'assigned_to' => 'nullable|exists:users,id',
         ]);
 
-        $lead->update($validated);
+        // Check if status is changing to qualified
+        $isConvertingToClient = $validated['status'] === 'qualified' && $lead->status !== 'qualified';
 
-        return redirect()->route('leads.index')
-            ->with('success', 'Lead updated successfully.');
+        // Check if assignment is changing to a different user
+        $oldAssignedTo = $lead->assigned_to;
+        $newAssignedTo = $validated['assigned_to'] ?? null;
+
+        try {
+            DB::transaction(function () use ($lead, $validated, $isConvertingToClient, $request, $newAssignedTo, $oldAssignedTo) {
+                $lead->update($validated);
+
+                // Convert lead to client if status changed to qualified
+                if ($isConvertingToClient) {
+                    $client = Client::create([
+                        'name' => $lead->name,
+                        'email' => $lead->email,
+                        'phone' => $lead->phone,
+                        'company' => $lead->company,
+                        'lead_id' => $lead->id,
+                        'assigned_to' => null, // Default unassigned
+                        'created_by' => $request->user()->id,
+                    ]);
+
+                    // Send notification to admin users
+                    $adminUsers = User::where('role', 'admin')->get();
+                    foreach ($adminUsers as $admin) {
+                        $admin->notify(new LeadConvertedNotification($lead, $client));
+                    }
+                }
+
+                // Send assignment notification
+                if ($newAssignedTo && $newAssignedTo != $oldAssignedTo && $newAssignedTo != $request->user()->id) {
+                    $assignedUser = User::find($newAssignedTo);
+                    $assignedUser->notify(new LeadAssignedNotification($lead));
+                }
+            });
+
+            return redirect()->route('leads.index')
+                ->with('success', 'Lead updated successfully.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to update lead: '.$e->getMessage());
+        }
     }
 
     /**
