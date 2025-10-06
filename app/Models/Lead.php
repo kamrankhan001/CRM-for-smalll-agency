@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Lead extends Model
 {
-     use HasFactory;
+    use HasFactory;
 
     protected $fillable = [
         'name', 'email', 'phone', 'company', 'source', 'status',
-        'assigned_to', 'created_by'
+        'assigned_to', 'created_by',
     ];
 
     public function creator()
@@ -37,5 +37,10 @@ class Lead extends Model
     public function client()
     {
         return $this->hasOne(Client::class);
+    }
+
+    public function activities()
+    {
+        return $this->morphMany(Activity::class, 'subject')->latest();
     }
 }

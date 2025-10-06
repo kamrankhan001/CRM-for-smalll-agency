@@ -2,17 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Task extends Model
 {
-     use HasFactory;
+    use HasFactory;
 
     protected $fillable = [
         'title', 'description', 'status', 'due_date',
         'taskable_id', 'taskable_type',
-        'assigned_to', 'created_by'
+        'assigned_to', 'created_by',
     ];
 
     protected function casts(): array
@@ -35,5 +35,10 @@ class Task extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function activities()
+    {
+        return $this->morphMany(Activity::class, 'subject')->latest();
     }
 }

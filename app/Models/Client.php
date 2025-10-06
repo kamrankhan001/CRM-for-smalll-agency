@@ -5,14 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-
 class Client extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'name', 'email', 'phone', 'company', 'address',
-        'lead_id', 'assigned_to', 'created_by'
+        'lead_id', 'assigned_to', 'created_by',
     ];
 
     public function lead()
@@ -38,5 +37,10 @@ class Client extends Model
     public function notes()
     {
         return $this->morphMany(Note::class, 'noteable');
+    }
+
+    public function activities()
+    {
+        return $this->morphMany(Activity::class, 'subject')->latest();
     }
 }
