@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Pencil, Trash2, Eye } from 'lucide-vue-next';
-import { Button } from '@/Components/ui/button';
+import { Button } from '@/components/ui/button';
 
 defineProps<{
   onEdit?: () => void;

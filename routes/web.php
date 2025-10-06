@@ -6,6 +6,7 @@ use App\Http\Controllers\LeadController;
 use App\Http\Controllers\NoteController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ActivityController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -31,6 +32,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('notes', NoteController::class);
 
     Route::resource('users', UserController::class);
+
+    Route::resource('activities', ActivityController::class)->only(['index', 'show', 'destroy']);
+
 
 });
 
