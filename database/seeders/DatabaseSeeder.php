@@ -9,6 +9,7 @@ use App\Models\Task;
 use App\Models\Note;
 use App\Models\Activity;
 use App\Models\Notification;
+use App\Models\Document;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -34,5 +35,7 @@ class DatabaseSeeder extends Seeder
         Activity::factory(100)->create();
 
         Notification::factory(30)->create();
+
+        Document::factory()->count(10)->create();
     }
 }

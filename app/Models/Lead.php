@@ -39,6 +39,11 @@ class Lead extends Model
         return $this->hasOne(Client::class);
     }
 
+    public function documents()
+    {
+        return $this->morphMany(Document::class, 'documentable');
+    }
+
     public function activities()
     {
         return $this->morphMany(Activity::class, 'subject')->latest();
