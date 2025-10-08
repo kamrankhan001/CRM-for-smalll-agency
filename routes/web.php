@@ -8,6 +8,7 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\DocumentController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -32,9 +33,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('notes', NoteController::class);
 
-    Route::resource('users', UserController::class);
+    Route::resource('documents', DocumentController::class);
 
     Route::resource('activities', ActivityController::class)->only(['index', 'show', 'destroy']);
+    
+    Route::resource('users', UserController::class);
 
 
     Route::get('/notifications', [NotificationController::class, 'index'])

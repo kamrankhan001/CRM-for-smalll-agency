@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Client;
+use App\Models\Document;
 use App\Models\Lead;
 use App\Models\Note;
 use App\Models\Task;
@@ -26,10 +27,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Automatically log activity for these models
         Task::observe(ActivityObserver::class);
         Lead::observe(ActivityObserver::class);
         Client::observe(ActivityObserver::class);
         Note::observe(ActivityObserver::class);
+        Document::observe(ActivityObserver::class);
 
         // Only log user actions if admin performs them
         User::observe(new class extends ActivityObserver
