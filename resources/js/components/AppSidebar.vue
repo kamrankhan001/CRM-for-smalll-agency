@@ -74,6 +74,15 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
+// Add Invoice link for admin & manager
+if (['admin', 'manager'].includes(user?.role)) {
+    mainNavItems.push({
+        title: 'Invoices',
+        href: '/invoices',
+        icon: FileText,
+    });
+}
+
 // Conditionally add Users link if role === 'admin'
 if (user?.role === 'admin') {
     mainNavItems.push({

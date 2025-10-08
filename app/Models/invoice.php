@@ -23,6 +23,15 @@ class invoice extends Model
         'created_by',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'issue_date' => 'datetime',
+            'due_date' => 'datetime',
+            'paid_at' => 'datetime',
+        ];
+    }
+
     public function project()
     {
         return $this->belongsTo(Project::class);

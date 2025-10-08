@@ -9,6 +9,7 @@ use App\Models\Note;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Project;
+use App\Models\Invoice;
 use App\Observers\ActivityObserver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
@@ -35,6 +36,7 @@ class AppServiceProvider extends ServiceProvider
         Note::observe(ActivityObserver::class);
         Project::observe(ActivityObserver::class);
         Document::observe(ActivityObserver::class);
+        Invoice::observe(ActivityObserver::class);
 
         // Only log user actions if admin performs them
         User::observe(new class extends ActivityObserver

@@ -10,6 +10,7 @@ use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\InvoiceController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -40,6 +41,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('activities', ActivityController::class)->only(['index', 'show', 'destroy']);
     
+    Route::resource('invoices', InvoiceController::class);
+
     Route::resource('users', UserController::class);
 
 
