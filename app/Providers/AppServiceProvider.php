@@ -8,6 +8,7 @@ use App\Models\Lead;
 use App\Models\Note;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\Project;
 use App\Observers\ActivityObserver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
@@ -32,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
         Lead::observe(ActivityObserver::class);
         Client::observe(ActivityObserver::class);
         Note::observe(ActivityObserver::class);
+        Project::observe(ActivityObserver::class);
         Document::observe(ActivityObserver::class);
 
         // Only log user actions if admin performs them

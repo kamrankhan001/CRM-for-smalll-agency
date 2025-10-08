@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\Lead;
 use App\Models\Project;
 use App\Models\User;
+use App\Notifications\ProjectAssignedNotification;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -137,11 +138,19 @@ class ProjectController extends Controller
 
         $project = Project::create($validated);
 
-        if (!empty($validated['members'])) {
+        if (! empty($validated['members'])) {
             $project->members()->sync($validated['members']);
-        }
 
-        // 🔜 You'll later add a ProjectCreatedNotification here
+            // Notify only assigned members (excluding creator)
+            foreach ($validated['members'] as $memberId) {
+                if ($memberId != Auth::id()) {
+                    $member = User::find($memberId);
+                    if ($member) {
+                        $member->notify(new ProjectAssignedNotification($project));
+                    }
+                }
+            }
+        }
 
         return redirect()->route('projects.index')->with('success', 'Project created successfully.');
     }
@@ -199,10 +208,25 @@ class ProjectController extends Controller
             'members.*' => 'exists:users,id',
         ]);
 
+        // Get old members before update
+        $oldMembers = $project->members()->pluck('users.id')->toArray();
+
         $project->update($validated);
 
         if (isset($validated['members'])) {
             $project->members()->sync($validated['members']);
+
+            // Find new members only
+            $newMembers = array_diff($validated['members'], $oldMembers);
+
+            foreach ($newMembers as $memberId) {
+                if ($memberId != Auth::id()) {
+                    $member = User::find($memberId);
+                    if ($member) {
+                        $member->notify(new ProjectAssignedNotification($project));
+                    }
+                }
+            }
         }
 
         return redirect()->route('projects.index')->with('success', 'Project updated successfully.');
