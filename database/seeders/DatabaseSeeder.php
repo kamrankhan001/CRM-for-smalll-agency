@@ -44,11 +44,14 @@ class DatabaseSeeder extends Seeder
         Project::factory()
             ->count(10)
             ->afterCreating(function ($project) {
-                // Get some existing users (random 2–3)
-                $users = User::inRandomOrder()->take(rand(2, 3))->pluck('id');
-                $project->members()->attach($users);
+                $members = User::inRandomOrder()->take(rand(2, 3))->pluck('id');
+                $project->members()->attach($members);
+
+                // Ensure the creator is also a member
+                if (! $members->contains($project->created_by)) {
+                    $project->members()->attach($project->created_by);
+                }
             })
             ->create();
-
     }
 }

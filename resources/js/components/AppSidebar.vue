@@ -14,7 +14,17 @@ import {
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { Bell, LayoutGrid, Users, UserCircle, ClipboardList, StickyNote, FileText, Activity } from 'lucide-vue-next';
+import {
+    Activity,
+    Bell,
+    ClipboardList,
+    FileText,
+    FolderKanban,
+    LayoutGrid,
+    StickyNote,
+    UserCircle,
+    Users,
+} from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const page = usePage();
@@ -37,6 +47,11 @@ const mainNavItems: NavItem[] = [
         href: '/clients',
         icon: Users,
     },
+        {
+        title: 'Projects',
+        href: '/projects',
+        icon: FolderKanban,
+    },
     {
         title: 'Tasks',
         href: '/tasks',
@@ -47,7 +62,7 @@ const mainNavItems: NavItem[] = [
         href: '/notes',
         icon: StickyNote,
     },
-     {
+    {
         title: 'Documents',
         href: '/documents',
         icon: FileText,
