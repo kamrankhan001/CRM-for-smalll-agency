@@ -18,19 +18,21 @@ import {
     Activity,
     Bell,
     ClipboardList,
-    FileText,
     FolderKanban,
     LayoutGrid,
     StickyNote,
-    UserCircle,
     Users,
+    DollarSign,
+    Target,
+    UserCheck,
+    FileSearch,
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const page = usePage();
 const user = page.props.auth?.user;
 
-// Main navigation links
+// Main navigation links with improved icons
 const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
@@ -40,14 +42,14 @@ const mainNavItems: NavItem[] = [
     {
         title: 'Leads',
         href: '/leads',
-        icon: UserCircle,
+        icon: Target, // Better for "target" leads
     },
     {
         title: 'Clients',
         href: '/clients',
-        icon: Users,
+        icon: UserCheck, // Represents verified/active clients
     },
-        {
+    {
         title: 'Projects',
         href: '/projects',
         icon: FolderKanban,
@@ -65,7 +67,7 @@ const mainNavItems: NavItem[] = [
     {
         title: 'Documents',
         href: '/documents',
-        icon: FileText,
+        icon: FileSearch, // More specific than generic FileText
     },
     {
         title: 'Activities',
@@ -74,12 +76,12 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
-// Add Invoice link for admin & manager
+// Add Invoice link for admin & manager with better icon
 if (['admin', 'manager'].includes(user?.role)) {
     mainNavItems.push({
         title: 'Invoices',
         href: '/invoices',
-        icon: FileText,
+        icon: DollarSign, // Much better for invoices than FileText
     });
 }
 
