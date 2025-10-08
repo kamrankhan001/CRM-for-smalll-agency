@@ -4,9 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Activity;
 use App\Models\Client;
+use App\Models\Document;
+use App\Models\Invoice;
 use App\Models\Lead;
+use App\Models\Note;
+use App\Models\Project;
 use App\Models\Task;
+use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -16,6 +22,7 @@ class DashboardController extends Controller
     {
         $currentMonth = now()->month;
         $currentYear = now()->year;
+        $user = Auth::user();
 
         // Leads by Status - Current Month Only
         $leadByStatus = Lead::select('status', DB::raw('count(*) as total'))
@@ -76,17 +83,81 @@ class DashboardController extends Controller
             ->take(5)
             ->get(['id', 'action', 'subject_type', 'subject_id', 'causer_id', 'created_at']);
 
+        // Base stats for all users
+        $stats = [
+            'leads' => Lead::count(),
+            'clients' => Client::count(),
+            'pending_tasks' => Task::where('status', 'pending')->count(),
+            'notes' => Note::count(),
+            'projects' => Project::count(),
+            'documents' => Document::count(),
+        ];
+
+        // Add admin/manager specific stats
+        if ($user->role === 'admin' || $user->role === 'manager') {
+            $stats['invoices'] = Invoice::count();
+            $stats['total_invoice_amount'] = Invoice::sum('amount');
+            $stats['paid_invoice_amount'] = Invoice::where('status', 'paid')->sum('amount');
+            
+            if ($user->role === 'admin') {
+                $stats['users'] = User::count();
+            }
+        }
+
+        // Recent data for dashboard widgets
+        $recentData = [
+            'recent_leads' => Lead::with('creator')->latest()->take(5)->get(),
+            'recent_tasks' => Task::with(['assignee', 'creator'])->latest()->take(5)->get(),
+            'recent_clients' => Client::with('creator')->latest()->take(5)->get(),
+            'recent_notes' => Note::with('user')->latest()->take(5)->get(), // Changed from 'creator' to 'user'
+            'recent_projects' => Project::with(['client', 'creator'])->latest()->take(5)->get(),
+            'recent_documents' => Document::with(['uploader', 'documentable'])->latest()->take(5)->get(),
+        ];
+
+        // Add admin/manager specific recent data
+        if ($user->role === 'admin' || $user->role === 'manager') {
+            $recentData['recent_invoices'] = Invoice::with(['client', 'project', 'creator'])
+                ->latest()
+                ->take(5)
+                ->get();
+            
+            if ($user->role === 'admin') {
+                $recentData['recent_users'] = User::latest()->take(5)->get();
+            }
+        }
+
+        // Task statistics for current user
+        $userTaskStats = [
+            'total_tasks' => Task::where('assigned_to', $user->id)->count(),
+            'pending_tasks' => Task::where('assigned_to', $user->id)->where('status', 'pending')->count(),
+            'in_progress_tasks' => Task::where('assigned_to', $user->id)->where('status', 'in_progress')->count(),
+            'completed_tasks' => Task::where('assigned_to', $user->id)->where('status', 'completed')->count(),
+        ];
+
+        // Invoice statistics for admin/manager
+        $invoiceStats = [];
+        if ($user->role === 'admin' || $user->role === 'manager') {
+            $invoiceStats = [
+                'total_invoices' => Invoice::count(),
+                'draft_invoices' => Invoice::where('status', 'draft')->count(),
+                'sent_invoices' => Invoice::where('status', 'sent')->count(),
+                'partially_paid_invoices' => Invoice::where('status', 'partially_paid')->count(),
+                'paid_invoices' => Invoice::where('status', 'paid')->count(),
+                'cancelled_invoices' => Invoice::where('status', 'cancelled')->count(),
+            ];
+        }
+
         return Inertia::render('Dashboard', [
-            'stats' => [
-                'leads' => Lead::count(),
-                'clients' => Client::count(),
-                'pending_tasks' => Task::where('status', 'pending')->count(),
-            ],
+            'stats' => $stats,
             'leadByStatus' => $leadByStatus,
             'taskByStatus' => $taskByStatus,
             'monthlyStats' => $formattedMonthlyStats,
             'topPerformers' => $topPerformers,
             'recentActivities' => $recentActivities,
+            'recentData' => $recentData,
+            'userTaskStats' => $userTaskStats,
+            'invoiceStats' => $invoiceStats,
+            'userRole' => $user->role,
         ]);
     }
 }
