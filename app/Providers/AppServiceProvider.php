@@ -2,6 +2,13 @@
 
 namespace App\Providers;
 
+use App\Models\Client;
+use App\Models\Lead;
+use App\Models\Note;
+use App\Models\Task;
+use App\Models\User;
+use App\Observers\ActivityObserver;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +26,34 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Task::observe(ActivityObserver::class);
+        Lead::observe(ActivityObserver::class);
+        Client::observe(ActivityObserver::class);
+        Note::observe(ActivityObserver::class);
+
+        // Only log user actions if admin performs them
+        User::observe(new class extends ActivityObserver
+        {
+            public function created($model)
+            {
+                if (Auth::check() && Auth::user()->role === 'admin') {
+                    parent::created($model);
+                }
+            }
+
+            public function updated($model)
+            {
+                if (Auth::check() && Auth::user()->role === 'admin') {
+                    parent::updated($model);
+                }
+            }
+
+            public function deleted($model)
+            {
+                if (Auth::check() && Auth::user()->role === 'admin') {
+                    parent::deleted($model);
+                }
+            }
+        });
     }
 }
