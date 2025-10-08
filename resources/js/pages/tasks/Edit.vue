@@ -28,6 +28,10 @@ interface User {
     id: number;
     name: string;
 }
+interface Project {
+    id: number;
+    name: string;
+}
 interface Lead {
     id: number;
     name: string;
@@ -46,7 +50,7 @@ interface Task {
     taskable_id: number;
     assigned_to?: number;
     assignee?: User | null;
-    taskable?: Lead | Client | null;
+    taskable?: Lead | Client | Project | null;
     created_at: string;
 }
 
@@ -55,6 +59,7 @@ interface Props {
     users: User[];
     leads: Lead[];
     clients: Client[];
+    projects: Project[];
 }
 
 const props = defineProps<Props>();
@@ -66,7 +71,9 @@ const form = reactive({
     due_date: props.task.due_date || '',
     taskable_type: props.task.taskable_type.includes('Lead')
         ? 'lead'
-        : 'client',
+        : props.task.taskable_type.includes('Project') // Add this condition
+          ? 'project'
+          : 'client',
     taskable_id: props.task.taskable_id,
     assigned_to: props.task.assigned_to || null,
 });
@@ -208,6 +215,9 @@ function submit() {
                                                 <SelectItem value="client"
                                                     >Client</SelectItem
                                                 >
+                                                <SelectItem value="project"
+                                                    >Project</SelectItem
+                                                >
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -219,8 +229,15 @@ function submit() {
                                             for="taskable_id"
                                             >Select Lead</Label
                                         >
-                                        <Label v-else for="taskable_id"
+                                        <Label
+                                            v-else-if="
+                                                form.taskable_type === 'client'
+                                            "
+                                            for="taskable_id"
                                             >Select Client</Label
+                                        >
+                                        <Label v-else for="taskable_id"
+                                            >Select Project</Label
                                         >
                                         <Select v-model="form.taskable_id">
                                             <SelectTrigger class="w-full">
@@ -229,7 +246,10 @@ function submit() {
                                                         form.taskable_type ===
                                                         'lead'
                                                             ? 'Select a lead'
-                                                            : 'Select a client'
+                                                            : form.taskable_type ===
+                                                                'client'
+                                                              ? 'Select a client'
+                                                              : 'Select a project'
                                                     "
                                                 />
                                             </SelectTrigger>
@@ -248,13 +268,27 @@ function submit() {
                                                         {{ lead.name }}
                                                     </SelectItem>
                                                 </template>
-                                                <template v-else>
+                                                <template
+                                                    v-else-if="
+                                                        form.taskable_type ===
+                                                        'client'
+                                                    "
+                                                >
                                                     <SelectItem
                                                         v-for="client in clients"
                                                         :key="client.id"
                                                         :value="client.id"
                                                     >
                                                         {{ client.name }}
+                                                    </SelectItem>
+                                                </template>
+                                                <template v-else>
+                                                    <SelectItem
+                                                        v-for="project in projects"
+                                                        :key="project.id"
+                                                        :value="project.id"
+                                                    >
+                                                        {{ project.name }}
                                                     </SelectItem>
                                                 </template>
                                             </SelectContent>
@@ -376,6 +410,21 @@ function submit() {
                                             props.task.taskable?.name ||
                                             'Not linked'
                                         }}
+                                        <span
+                                            class="text-xs text-muted-foreground capitalize"
+                                        >
+                                            ({{
+                                                props.task.taskable_type.includes(
+                                                    'Lead',
+                                                )
+                                                    ? 'lead'
+                                                    : props.task.taskable_type.includes(
+                                                            'Project',
+                                                        )
+                                                      ? 'project'
+                                                      : 'client'
+                                            }})
+                                        </span>
                                     </span>
                                 </div>
                             </div>

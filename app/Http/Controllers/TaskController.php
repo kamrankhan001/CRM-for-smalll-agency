@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\Lead;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\Project;
 use App\Notifications\TaskAssignedNotification;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
@@ -102,6 +103,7 @@ class TaskController extends Controller
             'users' => User::select('id', 'name')->get(),
             'leads' => Lead::select('id', 'name')->get(),
             'clients' => Client::select('id', 'name')->get(),
+            'projects' => Project::select('id', 'name')->get(), // Add this line
         ]);
     }
 
@@ -114,12 +116,17 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'status' => 'required|in:pending,in_progress,completed',
             'due_date' => 'nullable|date',
-            'taskable_type' => 'required|string|in:lead,client',
+            'taskable_type' => 'required|string|in:lead,client,project',
             'taskable_id' => 'required|integer',
             'assigned_to' => 'nullable|exists:users,id',
         ]);
 
-        $validated['taskable_type'] = $validated['taskable_type'] === 'lead' ? Lead::class : Client::class;
+        $validated['taskable_type'] = match($validated['taskable_type']) {
+            'lead' => Lead::class,
+            'client' => Client::class,
+            'project' => Project::class,
+        };
+
         $validated['created_by'] = Auth::id();
 
         $task = Task::create($validated);
@@ -167,6 +174,7 @@ class TaskController extends Controller
             'users' => User::select('id', 'name')->get(),
             'leads' => Lead::select('id', 'name')->get(),
             'clients' => Client::select('id', 'name')->get(),
+            'projects' => Project::select('id', 'name')->get(), // Add this line
         ]);
     }
 
@@ -179,7 +187,7 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'status' => 'required|in:pending,in_progress,completed',
             'due_date' => 'nullable|date',
-            'taskable_type' => 'required|string|in:lead,client',
+            'taskable_type' => 'required|string|in:lead,client,project',
             'taskable_id' => 'required|integer',
             'assigned_to' => 'nullable|exists:users,id',
         ]);
@@ -188,7 +196,12 @@ class TaskController extends Controller
         $oldAssignedTo = $task->assigned_to;
         $newAssignedTo = $validated['assigned_to'] ?? null;
 
-        $validated['taskable_type'] = $validated['taskable_type'] === 'lead' ? Lead::class : Client::class;
+        $validated['taskable_type'] = match($validated['taskable_type']) {
+            'lead' => Lead::class,
+            'client' => Client::class,
+            'project' => Project::class,
+        };
+
 
         $task->update($validated);
 

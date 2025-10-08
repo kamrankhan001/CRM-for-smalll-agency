@@ -28,6 +28,10 @@ interface User {
     id: number;
     name: string;
 }
+interface Project {
+    id: number;
+    name: string;
+}
 interface Lead {
     id: number;
     name: string;
@@ -41,6 +45,7 @@ interface Props {
     users: User[];
     leads: Lead[];
     clients: Client[];
+    projects: Project[];
 }
 
 defineProps<Props>();
@@ -50,7 +55,7 @@ const form = reactive({
     description: '',
     status: 'pending' as 'pending' | 'in_progress' | 'completed',
     due_date: '',
-    taskable_type: 'lead' as 'lead' | 'client',
+    taskable_type: 'lead' as 'lead' | 'client' | 'project',
     taskable_id: null as number | null,
     assigned_to: null as number | null,
 });
@@ -192,6 +197,10 @@ function submit() {
                                                 <SelectItem value="client"
                                                     >Client</SelectItem
                                                 >
+                                                <SelectItem value="project"
+                                                    >Project</SelectItem
+                                                >
+                                                <!-- Add this -->
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -203,9 +212,17 @@ function submit() {
                                             for="taskable_id"
                                             >Select Lead</Label
                                         >
-                                        <Label v-else for="taskable_id"
+                                        <Label
+                                            v-else-if="
+                                                form.taskable_type === 'client'
+                                            "
+                                            for="taskable_id"
                                             >Select Client</Label
                                         >
+                                        <Label v-else for="taskable_id"
+                                            >Select Project</Label
+                                        >
+                                        <!-- Add this -->
                                         <Select v-model="form.taskable_id">
                                             <SelectTrigger class="w-full">
                                                 <SelectValue
@@ -213,7 +230,10 @@ function submit() {
                                                         form.taskable_type ===
                                                         'lead'
                                                             ? 'Select a lead'
-                                                            : 'Select a client'
+                                                            : form.taskable_type ===
+                                                                'client'
+                                                              ? 'Select a client'
+                                                              : 'Select a project'
                                                     "
                                                 />
                                             </SelectTrigger>
@@ -232,13 +252,28 @@ function submit() {
                                                         {{ lead.name }}
                                                     </SelectItem>
                                                 </template>
-                                                <template v-else>
+                                                <template
+                                                    v-else-if="
+                                                        form.taskable_type ===
+                                                        'client'
+                                                    "
+                                                >
                                                     <SelectItem
                                                         v-for="client in clients"
                                                         :key="client.id"
                                                         :value="client.id"
                                                     >
                                                         {{ client.name }}
+                                                    </SelectItem>
+                                                </template>
+                                                <template v-else>
+                                                    <!-- Add this template for projects -->
+                                                    <SelectItem
+                                                        v-for="project in projects"
+                                                        :key="project.id"
+                                                        :value="project.id"
+                                                    >
+                                                        {{ project.name }}
                                                     </SelectItem>
                                                 </template>
                                             </SelectContent>
@@ -332,6 +367,17 @@ function submit() {
                                 <p class="text-muted-foreground">
                                     Tasks for client management, support, and
                                     ongoing relationship maintenance.
+                                </p>
+                            </div>
+
+                            <!-- Project Tasks -->
+                            <div class="space-y-2 rounded-lg border border-green-200 bg-green-50 p-4">
+                                <div class="flex items-center gap-2">
+                                    <div class="h-2.5 w-2.5 rounded-sm bg-green-600"></div>
+                                    <span class="font-medium text-green-700">Project Tasks</span>
+                                </div>
+                                <p class="text-green-600">
+                                    Tasks associated with specific projects for better organization and tracking.
                                 </p>
                             </div>
                         </CardContent>

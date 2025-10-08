@@ -105,6 +105,9 @@ const props = defineProps<{
     };
 }>();
 
+console.log(props.tasks);
+
+
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Tasks', href: '#' }];
 
 const showFilters = ref(false);
@@ -209,6 +212,8 @@ const getTaskableTypeVariant = (type: string | undefined) => {
             return 'default';
         case 'client':
             return 'secondary';
+        case 'project':
+            return 'default';
         default:
             return 'outline';
     }
