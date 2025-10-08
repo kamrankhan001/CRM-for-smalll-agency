@@ -5,14 +5,33 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Client extends Model
+class Project extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'name', 'email', 'phone', 'company', 'address',
-        'lead_id', 'assigned_to', 'created_by',
+        'name',
+        'description',
+        'status',
+        'start_date',
+        'end_date',
+        'client_id',
+        'lead_id',
+        'created_by',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'start_date' => 'datetime',
+            'end_date' => 'datetime',
+        ];
+    }
+
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
+    }
 
     public function lead()
     {
@@ -24,24 +43,19 @@ class Client extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function assignee()
+    public function members()
     {
-        return $this->belongsTo(User::class, 'assigned_to');
+        return $this->belongsToMany(User::class, 'project_user')->withTimestamps();
     }
 
     public function tasks()
     {
-        return $this->morphMany(Task::class, 'taskable');
+        return $this->hasMany(Task::class);
     }
 
     public function notes()
     {
-        return $this->morphMany(Note::class, 'noteable');
-    }
-
-    public function projects()
-    {
-        return $this->hasMany(Project::class);
+        return $this->morphMany(Note::class, 'notable');
     }
 
     public function documents()
