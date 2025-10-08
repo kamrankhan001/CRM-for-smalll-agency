@@ -11,6 +11,7 @@ use App\Models\Notification;
 use App\Models\project;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\Invoice;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -22,22 +23,22 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Create core users
-        // $admin = User::factory()->admin()->create(['name' => 'Admin User']);
-        // $manager = User::factory()->manager()->create(['name' => 'Manager User']);
-        // $members = User::factory()->count(10)->member()->create();
+        $admin = User::factory()->admin()->create(['name' => 'Admin User']);
+        $manager = User::factory()->manager()->create(['name' => 'Manager User']);
+        $members = User::factory()->count(10)->member()->create();
 
-        // // Create leads and clients
-        // $leads = Lead::factory(30)->create();
-        // $clients = Client::factory(15)->create();
+        // Create leads and clients
+        $leads = Lead::factory(30)->create();
+        $clients = Client::factory(15)->create();
 
-        // // Create tasks & notes
-        // Task::factory(50)->create();
-        // Note::factory(60)->create();
-        // Activity::factory(100)->create();
+        // Create tasks & notes
+        Task::factory(50)->create();
+        Note::factory(60)->create();
+        Activity::factory(100)->create();
 
-        // Notification::factory(30)->create();
+        Notification::factory(30)->create();
 
-        // Document::factory()->count(10)->create();
+        Document::factory()->count(10)->create();
 
         Project::factory()->count(5)->create();
 
@@ -53,5 +54,8 @@ class DatabaseSeeder extends Seeder
                 }
             })
             ->create();
+
+        Invoice::factory()->count(30)->create();
+
     }
 }

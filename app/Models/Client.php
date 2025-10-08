@@ -49,6 +49,11 @@ class Client extends Model
         return $this->morphMany(Document::class, 'documentable');
     }
 
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
     public function activities()
     {
         return $this->morphMany(Activity::class, 'subject')->latest();
