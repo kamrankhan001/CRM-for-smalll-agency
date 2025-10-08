@@ -34,10 +34,16 @@ interface Client {
     id: number;
     name: string;
 }
+interface Project {
+    id: number;
+    name: string;
+}
 
 const props = defineProps<{
     leads: Lead[];
     clients: Client[];
+    projects: Project[];
+    types: string[];
     auth: {
         user: {
             id: number;
@@ -48,8 +54,8 @@ const props = defineProps<{
 
 const form = reactive({
     title: '',
-    type: '' as 'proposal' | 'contract' | 'invoice' | '',
-    documentable_type: 'lead' as 'lead' | 'client',
+    type: '' as string,
+    documentable_type: 'lead' as 'lead' | 'client' | 'project',
     documentable_id: null as number | null,
     file: null as File | null,
 });
@@ -89,7 +95,7 @@ function submit() {
                             Upload Document
                         </h1>
                         <p class="mt-1 text-muted-foreground">
-                            Attach a file to a Lead or Client
+                            Attach a file to a Lead, Client, or Project
                         </p>
                     </div>
                 </div>
@@ -97,16 +103,15 @@ function submit() {
 
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 <!-- Form -->
-                <Card class="border lg:col-span-2">
+                <Card class="border lg:col-span-2 self-start">
                     <CardHeader>
                         <CardTitle class="flex items-center gap-2">
                             <FilePlus class="h-5 w-5" />
                             Document Details
                         </CardTitle>
-                        <CardDescription
-                            >Provide basic details and upload your
-                            file</CardDescription
-                        >
+                        <CardDescription>
+                            Provide basic details and upload your file
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form @submit.prevent="submit" class="space-y-6">
@@ -121,7 +126,7 @@ function submit() {
                                     required
                                 />
                             </div>
-    
+
                             <!-- Type -->
                             <div class="space-y-2">
                                 <Label for="type">Type</Label>
@@ -132,48 +137,60 @@ function submit() {
                                         />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="proposal"
-                                            >Proposal</SelectItem
+                                        <SelectItem
+                                            v-for="type in props.types"
+                                            :key="type"
+                                            :value="type"
                                         >
-                                        <SelectItem value="contract"
-                                            >Contract</SelectItem
-                                        >
-                                        <SelectItem value="invoice"
-                                            >Invoice</SelectItem
-                                        >
+                                            {{
+                                                type.charAt(0).toUpperCase() +
+                                                type.slice(1)
+                                            }}
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
-    
+
                             <!-- Linked Entity -->
                             <div class="space-y-4">
                                 <Label>Link To</Label>
-                                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div
+                                    class="grid grid-cols-1 gap-4 md:grid-cols-2"
+                                >
                                     <div class="space-y-2">
                                         <Label>Entity Type</Label>
-                                        <Select v-model="form.documentable_type">
+                                        <Select
+                                            v-model="form.documentable_type"
+                                        >
                                             <SelectTrigger>
                                                 <SelectValue
                                                     placeholder="Select type"
                                                 />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="lead"
-                                                    >Lead
+                                                <SelectItem value="lead">
+                                                    Lead
                                                 </SelectItem>
-                                                <SelectItem value="client"
-                                                    >Client
+                                                <SelectItem value="client">
+                                                    Client
+                                                </SelectItem>
+                                                <SelectItem value="project">
+                                                    Project
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
-    
+
                                     <div class="space-y-2">
                                         <Label>
                                             {{
-                                                form.documentable_type === 'lead'
+                                                form.documentable_type ===
+                                                'lead'
                                                     ? 'Select Lead'
-                                                    : 'Select Client'
+                                                    : form.documentable_type ===
+                                                        'client'
+                                                      ? 'Select Client'
+                                                      : 'Select Project'
                                             }}
                                         </Label>
                                         <Select v-model="form.documentable_id">
@@ -183,7 +200,10 @@ function submit() {
                                                         form.documentable_type ===
                                                         'lead'
                                                             ? 'Choose a lead'
-                                                            : 'Choose a client'
+                                                            : form.documentable_type ===
+                                                                'client'
+                                                              ? 'Choose a client'
+                                                              : 'Choose a project'
                                                     "
                                                 />
                                             </SelectTrigger>
@@ -202,7 +222,12 @@ function submit() {
                                                         {{ lead.name }}
                                                     </SelectItem>
                                                 </template>
-                                                <template v-else>
+                                                <template
+                                                    v-else-if="
+                                                        form.documentable_type ===
+                                                        'client'
+                                                    "
+                                                >
                                                     <SelectItem
                                                         v-for="client in props.clients"
                                                         :key="client.id"
@@ -211,12 +236,21 @@ function submit() {
                                                         {{ client.name }}
                                                     </SelectItem>
                                                 </template>
+                                                <template v-else>
+                                                    <SelectItem
+                                                        v-for="project in props.projects"
+                                                        :key="project.id"
+                                                        :value="project.id"
+                                                    >
+                                                        {{ project.name }}
+                                                    </SelectItem>
+                                                </template>
                                             </SelectContent>
                                         </Select>
                                     </div>
                                 </div>
                             </div>
-    
+
                             <!-- File Upload -->
                             <div class="space-y-2">
                                 <Label for="file">File</Label>
@@ -224,13 +258,14 @@ function submit() {
                                     id="file"
                                     type="file"
                                     @change="
-                                        (e: any) => (form.file = e.target.files[0])
+                                        (e: any) =>
+                                            (form.file = e.target.files[0])
                                     "
                                     accept=".pdf,.doc,.docx,.jpg,.png"
                                     required
                                 />
                             </div>
-    
+
                             <!-- Actions -->
                             <div class="flex gap-3 pt-4">
                                 <Button
@@ -242,78 +277,99 @@ function submit() {
                                     Upload
                                 </Button>
                                 <Link :href="index.url()" class="flex-1">
-                                    <Button variant="outline" class="w-full"
-                                        >Cancel</Button
-                                    >
+                                    <Button variant="outline" class="w-full">
+                                        Cancel
+                                    </Button>
                                 </Link>
                             </div>
                         </form>
                     </CardContent>
                 </Card>
-    
+
+                <!-- Side Info -->
                 <div class="space-y-6">
-                    <!-- Document Types Card -->
                     <Card class="border">
                         <CardHeader>
-                            <CardTitle class="text-lg">Document Types</CardTitle>
+                            <CardTitle class="text-lg"
+                                >Document Types</CardTitle
+                            >
                         </CardHeader>
                         <CardContent class="space-y-4 text-sm">
-                            <!-- Proposal -->
-                            <div
-                                class="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-4"
-                            >
-                                <div class="flex items-center gap-2">
-                                    <div
-                                        class="h-2.5 w-2.5 rounded-sm bg-primary"
-                                    ></div>
-                                    <span class="font-medium text-primary"
-                                        >Proposal</span
-                                    >
+                            <template v-for="type in props.types" :key="type">
+                                <div
+                                    :class="[
+                                        'space-y-2 rounded-lg border p-4',
+                                        type === 'proposal'
+                                            ? 'border-primary/20 bg-primary/5'
+                                            : type === 'contract'
+                                              ? 'border-secondary/20 bg-secondary/5'
+                                              : type === 'invoice'
+                                                ? 'border-destructive/20 bg-destructive/5'
+                                                : type === 'report'
+                                                  ? 'border-blue-400/20 bg-blue-400/5'
+                                                  : type === 'brief'
+                                                    ? 'border-amber-400/20 bg-amber-400/5'
+                                                    : 'border-muted/20 bg-muted/5',
+                                    ]"
+                                >
+                                    <div class="flex items-center gap-2">
+                                        <div
+                                            :class="[
+                                                'h-2.5 w-2.5 rounded-sm',
+                                                type === 'proposal'
+                                                    ? 'bg-primary'
+                                                    : type === 'contract'
+                                                      ? 'bg-secondary'
+                                                      : type === 'invoice'
+                                                        ? 'bg-destructive'
+                                                        : type === 'report'
+                                                          ? 'bg-blue-400'
+                                                          : type === 'brief'
+                                                            ? 'bg-amber-400'
+                                                            : 'bg-muted',
+                                            ]"
+                                        ></div>
+                                        <span
+                                            :class="[
+                                                'font-medium',
+                                                type === 'proposal'
+                                                    ? 'text-primary'
+                                                    : type === 'contract'
+                                                      ? 'text-secondary'
+                                                      : type === 'invoice'
+                                                        ? 'text-destructive'
+                                                        : type === 'report'
+                                                          ? 'text-blue-500'
+                                                          : type === 'brief'
+                                                            ? 'text-amber-500'
+                                                            : 'text-muted-foreground',
+                                            ]"
+                                        >
+                                            {{
+                                                type.charAt(0).toUpperCase() +
+                                                type.slice(1)
+                                            }}
+                                        </span>
+                                    </div>
+                                    <p class="text-muted-foreground">
+                                        {{
+                                            type === 'proposal'
+                                                ? 'Business proposals and quotes.'
+                                                : type === 'contract'
+                                                  ? 'Legal agreements and contracts.'
+                                                  : type === 'invoice'
+                                                    ? 'Billing and financial documents.'
+                                                    : type === 'report'
+                                                      ? 'Progress or performance reports.'
+                                                      : type === 'brief'
+                                                        ? 'Summary briefs or outlines.'
+                                                        : 'Miscellaneous documents.'
+                                        }}
+                                    </p>
                                 </div>
-                                <p class="text-muted-foreground">
-                                    Business proposals, quotes, and service
-                                    offerings for potential clients.
-                                </p>
-                            </div>
-    
-                            <!-- Contract -->
-                            <div
-                                class="space-y-2 rounded-lg border border-secondary/20 bg-secondary/5 p-4"
-                            >
-                                <div class="flex items-center gap-2">
-                                    <div
-                                        class="h-2.5 w-2.5 rounded-sm bg-secondary"
-                                    ></div>
-                                    <span class="font-medium text-secondary"
-                                        >Contract</span
-                                    >
-                                </div>
-                                <p class="text-muted-foreground">
-                                    Legal agreements, service contracts, and
-                                    partnership documents.
-                                </p>
-                            </div>
-    
-                            <!-- Invoice -->
-                            <div
-                                class="space-y-2 rounded-lg border border-destructive/20 bg-destructive/5 p-4"
-                            >
-                                <div class="flex items-center gap-2">
-                                    <div
-                                        class="h-2.5 w-2.5 rounded-sm bg-destructive"
-                                    ></div>
-                                    <span class="font-medium text-destructive"
-                                        >Invoice</span
-                                    >
-                                </div>
-                                <p class="text-muted-foreground">
-                                    Billing documents, payment requests, and
-                                    financial statements.
-                                </p>
-                            </div>
+                            </template>
                         </CardContent>
                     </Card>
-
                 </div>
             </div>
         </div>

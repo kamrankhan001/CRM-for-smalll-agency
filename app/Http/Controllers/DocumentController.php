@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\Lead;
+use App\Models\Project;
 use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
@@ -22,14 +23,16 @@ class DocumentController extends Controller
 
         $documents = Document::query()
             ->with(['documentable', 'uploader'])
-            ->when($request->search, function ($query, $search) {
-                $query->where('title', 'like', "%{$search}%");
-            })
-            ->when($request->type, function ($query, $type) {
-                $query->where('type', $type);
-            })
-            ->when($request->uploaded_by, function ($query, $uploadedBy) {
-                $query->where('uploaded_by', $uploadedBy);
+            ->when($request->search, fn ($q, $search) => $q->where('title', 'like', "%{$search}%"))
+            ->when($request->type, fn ($q, $type) => $q->where('type', $type))
+            ->when($request->uploaded_by, fn ($q, $uploadedBy) => $q->where('uploaded_by', $uploadedBy))
+            ->when($request->documentable_type, function ($q, $documentableType) {
+                $map = [
+                    'lead' => Lead::class,
+                    'client' => Client::class,
+                    'project' => Project::class,
+                ];
+                $q->where('documentable_type', $map[$documentableType]);
             })
             ->latest()
             ->paginate(10)
@@ -38,8 +41,7 @@ class DocumentController extends Controller
                 'title' => $doc->title,
                 'type' => $doc->type,
                 'file_path' => Storage::url($doc->file_path),
-                'uploaded_by' => $doc->uploader?->id, // Make sure this is the user ID
-                'uploader' => $doc->uploader?->only(['id', 'name']), // This should contain the user name
+                'uploader' => $doc->uploader?->only(['id', 'name']),
                 'documentable' => $doc->documentable ? [
                     'id' => $doc->documentable->id,
                     'name' => $doc->documentable->name,
@@ -48,8 +50,7 @@ class DocumentController extends Controller
                 'created_at' => $doc->created_at->toDateString(),
             ]);
 
-        // Get users for the filter dropdown
-        $users = User::select('id', 'name')->get();
+        $documentTypes = ['proposal', 'contract', 'invoice', 'report', 'brief', 'misc'];
 
         return Inertia::render('documents/Index', [
             'documents' => [
@@ -59,13 +60,14 @@ class DocumentController extends Controller
                     'last_page' => $documents->lastPage(),
                     'per_page' => $documents->perPage(),
                     'total' => $documents->total(),
-                    'from' => $documents->firstItem(), // Add this
-                    'to' => $documents->lastItem(), // Add this
+                    'from' => $documents->firstItem(),
+                    'to' => $documents->lastItem(),
                 ],
                 'links' => $documents->linkCollection()->toArray(),
             ],
-            'filters' => $request->only(['search', 'type', 'uploaded_by']),
-            'users' => $users, // Add this line
+            'filters' => $request->only(['search', 'type', 'uploaded_by', 'documentable_type']), // Add documentable_type
+            'users' => User::select('id', 'name')->get(),
+            'types' => $documentTypes,
         ]);
     }
 
@@ -76,6 +78,8 @@ class DocumentController extends Controller
         return Inertia::render('documents/Create', [
             'leads' => Lead::select('id', 'name')->get(),
             'clients' => Client::select('id', 'name')->get(),
+            'projects' => Project::select('id', 'name')->get(),
+            'types' => ['proposal', 'contract', 'invoice', 'report', 'brief', 'misc'],
         ]);
     }
 
@@ -85,16 +89,20 @@ class DocumentController extends Controller
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'type' => 'required|string|in:proposal,contract,invoice',
+            'type' => 'required|string|in:proposal,contract,invoice,report,brief,misc',
             'file' => 'required|file|mimes:pdf,doc,docx,png,jpg,jpeg|max:5120',
-            'documentable_type' => 'required|string|in:lead,client',
+            'documentable_type' => 'required|string|in:lead,client,project',
             'documentable_id' => 'required|integer',
         ]);
 
-        $validated['documentable_type'] = $validated['documentable_type'] === 'lead' ? Lead::class : Client::class;
-        $validated['uploaded_by'] = Auth::id();
+        $map = [
+            'lead' => Lead::class,
+            'client' => Client::class,
+            'project' => Project::class,
+        ];
 
-        // Store file
+        $validated['documentable_type'] = $map[$validated['documentable_type']];
+        $validated['uploaded_by'] = Auth::id();
         $validated['file_path'] = $request->file('file')->store('documents', 'public');
 
         Document::create($validated);
@@ -112,11 +120,13 @@ class DocumentController extends Controller
                 'title' => $document->title,
                 'type' => $document->type,
                 'file_url' => Storage::url($document->file_path),
-                'documentable_type' => class_basename($document->documentable_type),
+                'documentable_type' => strtolower(class_basename($document->documentable_type)),
                 'documentable_id' => $document->documentable_id,
             ],
             'leads' => Lead::select('id', 'name')->get(),
             'clients' => Client::select('id', 'name')->get(),
+            'projects' => Project::select('id', 'name')->get(),
+            'types' => ['proposal', 'contract', 'invoice', 'report', 'brief', 'misc'],
         ]);
     }
 
@@ -126,15 +136,20 @@ class DocumentController extends Controller
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'type' => 'required|string|in:proposal,contract,invoice',
+            'type' => 'required|string|in:proposal,contract,invoice,report,brief,misc',
             'file' => 'nullable|file|mimes:pdf,doc,docx,png,jpg,jpeg|max:5120',
-            'documentable_type' => 'required|string|in:lead,client',
+            'documentable_type' => 'required|string|in:lead,client,project',
             'documentable_id' => 'required|integer',
         ]);
 
-        $validated['documentable_type'] = $validated['documentable_type'] === 'lead' ? Lead::class : Client::class;
+        $map = [
+            'lead' => Lead::class,
+            'client' => Client::class,
+            'project' => Project::class,
+        ];
 
-        // Handle file replacement
+        $validated['documentable_type'] = $map[$validated['documentable_type']];
+
         if ($request->hasFile('file')) {
             Storage::disk('public')->delete($document->file_path);
             $validated['file_path'] = $request->file('file')->store('documents', 'public');

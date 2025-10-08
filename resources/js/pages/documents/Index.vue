@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import {
+    create,
+    destroy,
+    edit,
+    index,
+} from '@/actions/App/Http/Controllers/DocumentController';
 import ActionButtons from '@/components/ActionButtons.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import { Badge } from '@/components/ui/badge';
@@ -23,9 +29,16 @@ import {
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
+import {
+    ChevronLeft,
+    ChevronRight,
+    FileText,
+    Filter,
+    Plus,
+    Search,
+    X,
+} from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import { ChevronLeft, ChevronRight, Filter, Plus, Search, X, FileText } from 'lucide-vue-next';
-import { create, destroy, edit, index } from '@/actions/App/Http/Controllers/DocumentController';
 
 interface User {
     id: number;
@@ -75,8 +88,10 @@ const props = defineProps<{
         search?: string;
         type?: string;
         uploaded_by?: string;
+        documentable_type?: string;
     };
-    users: User[]; // This should now be available from the controller
+    users: User[];
+    types: string[];
     auth: {
         user: {
             id: number;
@@ -106,6 +121,7 @@ const filters = ref({
     search: props.filters.search || '',
     type: props.filters.type || null,
     uploaded_by: props.filters.uploaded_by || null,
+    documentable_type: props.filters.documentable_type || null,
 });
 
 function applyFilters() {
@@ -113,17 +129,31 @@ function applyFilters() {
         search: filters.value.search || '',
         type: filters.value.type || '',
         uploaded_by: filters.value.uploaded_by || '',
+        documentable_type: filters.value.documentable_type || '',
     };
-    router.get(index.url(), backendFilters, { preserveState: true, replace: true });
+    router.get(index.url(), backendFilters, {
+        preserveState: true,
+        replace: true,
+    });
 }
 
 function resetFilters() {
-    filters.value = { search: '', type: null, uploaded_by: null };
+    filters.value = {
+        search: '',
+        type: null,
+        uploaded_by: null,
+        documentable_type: null,
+    };
     router.get(index.url(), {}, { preserveState: true, replace: true });
 }
 
 const hasActiveFilters = computed(() => {
-    return filters.value.search || filters.value.type || filters.value.uploaded_by;
+    return (
+        filters.value.search ||
+        filters.value.type ||
+        filters.value.uploaded_by ||
+        filters.value.documentable_type
+    );
 });
 
 function goToEdit(id: number) {
@@ -159,7 +189,9 @@ function goToPage(url: string | null) {
 
 const pageLinks = computed(() => {
     if (!props.documents.links) return [];
-    return props.documents.links.filter((_, i) => i !== 0 && i !== props.documents.links.length - 1);
+    return props.documents.links.filter(
+        (_, i) => i !== 0 && i !== props.documents.links.length - 1,
+    );
 });
 
 const showingFrom = computed(() => props.documents.meta.from || 0);
@@ -175,10 +207,16 @@ const total = computed(() => props.documents.meta.total || 0);
             <div class="mb-6 flex items-center justify-between">
                 <div>
                     <h1 class="text-3xl font-bold tracking-tight">Documents</h1>
-                    <p class="mt-1 text-muted-foreground">Manage uploaded documents</p>
+                    <p class="mt-1 text-muted-foreground">
+                        Manage uploaded documents
+                    </p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <Button variant="outline" @click="showFilters = !showFilters" class="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        @click="showFilters = !showFilters"
+                        class="flex items-center gap-2"
+                    >
                         <Filter class="h-4 w-4" />
                         {{ showFilters ? 'Hide' : 'Show' }} Filters
                     </Button>
@@ -193,12 +231,15 @@ const total = computed(() => props.documents.meta.total || 0);
 
             <!-- Filters -->
             <div v-if="showFilters" class="mb-6 rounded-lg border p-4">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <!-- Change from grid-cols-3 to grid-cols-4 -->
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
                     <!-- Search -->
                     <div class="space-y-2">
                         <Label for="search">Search</Label>
                         <div class="relative">
-                            <Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Search
+                                class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                            />
                             <Input
                                 id="search"
                                 v-model="filters.search"
@@ -215,12 +256,36 @@ const total = computed(() => props.documents.meta.total || 0);
                         <Label for="type">Type</Label>
                         <Select v-model="filters.type">
                             <SelectTrigger class="w-full">
-                                <SelectValue placeholder="All types" /></SelectTrigger>
+                                <SelectValue placeholder="All types" />
+                            </SelectTrigger>
                             <SelectContent>
                                 <SelectItem :value="null">All</SelectItem>
-                                <SelectItem value="proposal">Proposal</SelectItem>
-                                <SelectItem value="contract">Contract</SelectItem>
-                                <SelectItem value="invoice">Invoice</SelectItem>
+                                <SelectItem
+                                    v-for="type in props.types"
+                                    :key="type"
+                                    :value="type"
+                                >
+                                    {{
+                                        type.charAt(0).toUpperCase() +
+                                        type.slice(1)
+                                    }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <!-- Linked To -->
+                    <div class="space-y-2">
+                        <Label for="documentable_type">Linked To</Label>
+                        <Select v-model="filters.documentable_type">
+                            <SelectTrigger class="w-full">
+                                <SelectValue placeholder="All entities" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem :value="null">All</SelectItem>
+                                <SelectItem value="lead">Lead</SelectItem>
+                                <SelectItem value="client">Client</SelectItem>
+                                <SelectItem value="project">Project</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -230,10 +295,15 @@ const total = computed(() => props.documents.meta.total || 0);
                         <Label for="uploaded_by">Uploaded By</Label>
                         <Select v-model="filters.uploaded_by">
                             <SelectTrigger class="w-full">
-                                <SelectValue placeholder="All users" /></SelectTrigger>
+                                <SelectValue placeholder="All users" />
+                            </SelectTrigger>
                             <SelectContent>
                                 <SelectItem :value="null">All</SelectItem>
-                                <SelectItem v-for="user in users" :key="user.id" :value="user.id.toString()">
+                                <SelectItem
+                                    v-for="user in users"
+                                    :key="user.id"
+                                    :value="user.id.toString()"
+                                >
                                     {{ user.name }}
                                 </SelectItem>
                             </SelectContent>
@@ -242,15 +312,22 @@ const total = computed(() => props.documents.meta.total || 0);
                 </div>
 
                 <div class="mt-4 flex justify-between">
-                    <Button variant="outline" size="sm" @click="resetFilters" :disabled="!hasActiveFilters">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        @click="resetFilters"
+                        :disabled="!hasActiveFilters"
+                    >
                         <X class="h-4 w-4" /> Clear Filters
                     </Button>
-                    <Button size="sm" @click="applyFilters">Apply Filters</Button>
+                    <Button size="sm" @click="applyFilters"
+                        >Apply Filters</Button
+                    >
                 </div>
             </div>
 
             <!-- Table -->
-            <div class="rounded-lg border overflow-x-auto">
+            <div class="overflow-x-auto rounded-lg border">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -259,47 +336,76 @@ const total = computed(() => props.documents.meta.total || 0);
                             <TableHead>Linked To</TableHead>
                             <TableHead>Uploaded By</TableHead>
                             <TableHead>Uploaded On</TableHead>
-                            <TableHead class="w-[120px] text-right">Actions</TableHead>
+                            <TableHead class="w-[120px] text-right"
+                                >Actions</TableHead
+                            >
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        <TableRow v-for="document in documents.data" :key="document.id">
+                        <TableRow
+                            v-for="document in documents.data"
+                            :key="document.id"
+                        >
                             <TableCell>
                                 <div class="flex items-center gap-2">
                                     <FileText class="h-4 w-4 text-primary" />
-                                    <span class="font-medium">{{ document.title }}</span>
+                                    <span class="font-medium">{{
+                                        document.title
+                                    }}</span>
                                 </div>
                             </TableCell>
                             <TableCell>
-                                <Badge variant="outline" class="capitalize">{{ document.type }}</Badge>
+                                <Badge variant="outline" class="capitalize">{{
+                                    document.type
+                                }}</Badge>
                             </TableCell>
                             <TableCell>
-                                <div v-if="document.documentable" class="flex items-center gap-2">
-                                    <Badge variant="secondary" class="text-xs capitalize">
+                                <div
+                                    v-if="document.documentable"
+                                    class="flex items-center gap-2"
+                                >
+                                    <Badge
+                                        variant="secondary"
+                                        class="text-xs capitalize"
+                                    >
                                         {{ document.documentable.type }}
                                     </Badge>
-                                    <span class="text-sm text-muted-foreground">{{ document.documentable.name }}</span>
+                                    <span
+                                        class="text-sm text-muted-foreground"
+                                        >{{ document.documentable.name }}</span
+                                    >
                                 </div>
-                                <span v-else class="text-muted-foreground">—</span>
+                                <span v-else class="text-muted-foreground"
+                                    >—</span
+                                >
                             </TableCell>
                             <TableCell>
                                 <!-- FIX: Use document.uploader.name instead of document.uploader?.name -->
                                 {{ document.uploader?.name ?? '—' }}
                             </TableCell>
                             <TableCell class="text-sm text-muted-foreground">
-                                {{ new Date(document.created_at).toLocaleDateString() }}
+                                {{
+                                    new Date(
+                                        document.created_at,
+                                    ).toLocaleDateString()
+                                }}
                             </TableCell>
                             <TableCell>
                                 <ActionButtons
                                     :show-edit="canEditDocument(document)"
                                     :show-delete="canDelete"
                                     :on-edit="() => goToEdit(document.id)"
-                                    :on-delete="() => confirmDelete(document.id)"
+                                    :on-delete="
+                                        () => confirmDelete(document.id)
+                                    "
                                 />
                             </TableCell>
                         </TableRow>
                         <TableRow v-if="documents.data.length === 0">
-                            <TableCell colspan="6" class="py-6 text-center text-muted-foreground">
+                            <TableCell
+                                colspan="6"
+                                class="py-6 text-center text-muted-foreground"
+                            >
                                 No documents found.
                             </TableCell>
                         </TableRow>
@@ -308,12 +414,18 @@ const total = computed(() => props.documents.meta.total || 0);
             </div>
 
             <!-- Pagination -->
-            <div class="border-t bg-muted/30 px-6 py-4 flex flex-col items-center sm:flex-row sm:justify-between">
+            <div
+                class="flex flex-col items-center border-t bg-muted/30 px-6 py-4 sm:flex-row sm:justify-between"
+            >
                 <div class="text-sm text-muted-foreground">
                     <!-- FIX: This will now show correct numbers like "1 to 5 of 10" -->
-                    Showing <b>{{ showingFrom }}</b> to <b>{{ showingTo }}</b> of <b>{{ total }}</b> results
+                    Showing <b>{{ showingFrom }}</b> to
+                    <b>{{ showingTo }}</b> of <b>{{ total }}</b> results
                 </div>
-                <nav v-if="props.documents.meta.last_page > 1" class="flex items-center border rounded-md">
+                <nav
+                    v-if="props.documents.meta.last_page > 1"
+                    class="flex items-center rounded-md border"
+                >
                     <button
                         class="px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
                         :disabled="!props.documents.links[0].url"
@@ -336,8 +448,18 @@ const total = computed(() => props.documents.meta.total || 0);
                     </button>
                     <button
                         class="border-l px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
-                        :disabled="!props.documents.links[props.documents.links.length - 1].url"
-                        @click="goToPage(props.documents.links[props.documents.links.length - 1].url)"
+                        :disabled="
+                            !props.documents.links[
+                                props.documents.links.length - 1
+                            ].url
+                        "
+                        @click="
+                            goToPage(
+                                props.documents.links[
+                                    props.documents.links.length - 1
+                                ].url,
+                            )
+                        "
                     >
                         <ChevronRight class="h-4 w-4" />
                     </button>

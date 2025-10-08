@@ -34,13 +34,17 @@ interface Client {
     id: number;
     name: string;
 }
+interface Project {
+    id: number;
+    name: string;
+}
 interface Document {
     id: number;
     title: string;
     type: string;
     documentable_type: string;
     documentable_id: number;
-    documentable?: Lead | Client | null;
+    documentable?: Lead | Client | Project | null;
     file_path: string;
 }
 
@@ -48,14 +52,18 @@ const props = defineProps<{
     document: Document;
     leads: Lead[];
     clients: Client[];
+    projects: Project[];
+    types: string[];
 }>();
 
 const form = reactive({
     title: props.document.title,
-    type: props.document.type as 'proposal' | 'contract' | 'invoice',
+    type: props.document.type as string,
     documentable_type: props.document.documentable_type.includes('Lead')
         ? 'lead'
-        : 'client',
+        : props.document.documentable_type.includes('Project')
+          ? 'project'
+          : 'client',
     documentable_id: props.document.documentable_id,
     file: null as File | null,
 });
@@ -136,15 +144,16 @@ function submit() {
                                         />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="proposal"
-                                            >Proposal</SelectItem
+                                        <SelectItem
+                                            v-for="type in props.types"
+                                            :key="type"
+                                            :value="type"
                                         >
-                                        <SelectItem value="contract"
-                                            >Contract</SelectItem
-                                        >
-                                        <SelectItem value="invoice"
-                                            >Invoice</SelectItem
-                                        >
+                                            {{
+                                                type.charAt(0).toUpperCase() +
+                                                type.slice(1)
+                                            }}
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -171,16 +180,23 @@ function submit() {
                                                 <SelectItem value="client"
                                                     >Client</SelectItem
                                                 >
+                                                <SelectItem value="project"
+                                                    >Project</SelectItem
+                                                >
                                             </SelectContent>
                                         </Select>
                                     </div>
+                                    <!-- Entity Selection -->
                                     <div class="space-y-2">
                                         <Label>
                                             {{
                                                 form.documentable_type ===
                                                 'lead'
                                                     ? 'Select Lead'
-                                                    : 'Select Client'
+                                                    : form.documentable_type ===
+                                                        'client'
+                                                      ? 'Select Client'
+                                                      : 'Select Project'
                                             }}
                                         </Label>
                                         <Select v-model="form.documentable_id">
@@ -190,7 +206,10 @@ function submit() {
                                                         form.documentable_type ===
                                                         'lead'
                                                             ? 'Choose a lead'
-                                                            : 'Choose a client'
+                                                            : form.documentable_type ===
+                                                                'client'
+                                                              ? 'Choose a client'
+                                                              : 'Choose a project'
                                                     "
                                                 />
                                             </SelectTrigger>
@@ -209,13 +228,28 @@ function submit() {
                                                         {{ lead.name }}
                                                     </SelectItem>
                                                 </template>
-                                                <template v-else>
+                                                <template
+                                                    v-else-if="
+                                                        form.documentable_type ===
+                                                        'client'
+                                                    "
+                                                >
                                                     <SelectItem
                                                         v-for="client in props.clients"
                                                         :key="client.id"
                                                         :value="client.id"
                                                     >
                                                         {{ client.name }}
+                                                    </SelectItem>
+                                                </template>
+                                                <template v-else>
+                                                    <!-- Add this template for projects -->
+                                                    <SelectItem
+                                                        v-for="project in props.projects"
+                                                        :key="project.id"
+                                                        :value="project.id"
+                                                    >
+                                                        {{ project.name }}
                                                     </SelectItem>
                                                 </template>
                                             </SelectContent>
@@ -327,12 +361,11 @@ function submit() {
                                     >
                                     <span class="font-medium capitalize">
                                         {{
-                                            props.document.documentable_type.includes(
-                                                'Lead',
-                                            )
-                                                ? 'Lead'
-                                                : 'Client'
-                                        }}
+                                        props.document.documentable_type.includes('Lead')
+                                        ? 'Lead' :
+                                        props.document.documentable_type.includes('Project')
+                                        ? 'Project'
+                                        : 'Client' }}
                                     </span>
                                 </div>
                             </div>

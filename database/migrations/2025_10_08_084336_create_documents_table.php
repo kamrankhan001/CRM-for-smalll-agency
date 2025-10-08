@@ -14,11 +14,14 @@ return new class extends Migration
         Schema::create('documents', function (Blueprint $table) {
             $table->id();
             $table->string('title');
-            $table->string('type')->comment('proposal, contract, invoice');
+            $table->string('type')->comment('proposal, contract, invoice, report, brief, misc');
             $table->string('file_path');
             $table->morphs('documentable'); // documentable_type + documentable_id
             $table->foreignId('uploaded_by')->constrained('users')->cascadeOnDelete();
             $table->timestamps();
+
+            // index for faster queries (recommended for large datasets)
+            $table->index(['type', 'uploaded_by']);
         });
     }
 

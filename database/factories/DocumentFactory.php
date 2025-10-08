@@ -18,12 +18,19 @@ class DocumentFactory extends Factory
      */
     public function definition(): array
     {
-        $documentableType = Arr::random(['App\\Models\\Lead', 'App\\Models\\Client']);
+        $documentableType = Arr::random(['App\\Models\\Lead', 'App\\Models\\Client', 'App\\Models\\Project']);
         $documentableId = $documentableType::inRandomOrder()->first()?->id;
 
         return [
             'title' => $this->faker->sentence(3),
-            'type' => $this->faker->randomElement(['proposal', 'contract', 'invoice']),
+            'type' => $this->faker->randomElement([
+                'proposal',
+                'contract',
+                'invoice',
+                'report',
+                'brief',
+                'misc',
+            ]),
             'file_path' => 'documents/'.$this->faker->uuid().'.pdf',
             'documentable_id' => $documentableId,
             'documentable_type' => $documentableType,
