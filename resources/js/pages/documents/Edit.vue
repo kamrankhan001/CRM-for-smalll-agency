@@ -48,13 +48,16 @@ interface Document {
     file_path: string;
 }
 
-const props = defineProps<{
+interface Props {
     document: Document;
     leads: Lead[];
     clients: Client[];
     projects: Project[];
     types: string[];
-}>();
+    errors: Record<string, string>;
+}
+
+const props = defineProps<Props>();
 
 const form = reactive({
     title: props.document.title,
@@ -91,7 +94,7 @@ function submit() {
     <Head :title="`Edit ${props.document.title}`" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6">
-            <!-- Header -->
+            <!-- Header Section -->
             <div class="mb-6 flex items-center justify-between">
                 <div class="flex items-center gap-4">
                     <Link :href="index.url()">
@@ -108,10 +111,17 @@ function submit() {
                         </p>
                     </div>
                 </div>
+                <!-- Hide on small devices, show on medium and above -->
+                <Link :href="index.url()" class="hidden md:block">
+                    <Button variant="outline" class="flex items-center gap-2">
+                        <ArrowLeft class="h-4 w-4" />
+                        Back to Documents
+                    </Button>
+                </Link>
             </div>
 
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <!-- Form -->
+                <!-- Main Form Card -->
                 <Card class="border lg:col-span-2">
                     <CardHeader>
                         <CardTitle class="flex items-center gap-2">
@@ -122,8 +132,9 @@ function submit() {
                             >Update document details</CardDescription
                         >
                     </CardHeader>
-                    <CardContent>
+                    <CardContent class="space-y-6">
                         <form @submit.prevent="submit" class="space-y-6">
+                            <!-- Title Field -->
                             <div class="space-y-2">
                                 <Label for="title">Title</Label>
                                 <Input
@@ -131,14 +142,20 @@ function submit() {
                                     v-model="form.title"
                                     type="text"
                                     placeholder="Enter document title"
+                                    class="w-full"
+                                    :class="props.errors.title ? 'border-destructive' : ''"
                                     required
                                 />
+                                <p v-if="props.errors.title" class="text-sm text-destructive">
+                                    {{ props.errors.title }}
+                                </p>
                             </div>
 
+                            <!-- Type Field -->
                             <div class="space-y-2">
                                 <Label for="type">Type</Label>
                                 <Select v-model="form.type">
-                                    <SelectTrigger>
+                                    <SelectTrigger class="w-full" :class="props.errors.type ? 'border-destructive' : ''">
                                         <SelectValue
                                             placeholder="Select document type"
                                         />
@@ -156,19 +173,26 @@ function submit() {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <p v-if="props.errors.type" class="text-sm text-destructive">
+                                    {{ props.errors.type }}
+                                </p>
                             </div>
 
+                            <!-- Linked Entity Section -->
                             <div class="space-y-4">
                                 <Label>Linked To</Label>
                                 <div
-                                    class="grid grid-cols-1 gap-4 md:grid-cols-2"
+                                    class="grid grid-cols-1 gap-6 md:grid-cols-2"
                                 >
+                                    <!-- Entity Type -->
                                     <div class="space-y-2">
-                                        <Label>Entity Type</Label>
+                                        <Label for="documentable_type"
+                                            >Entity Type</Label
+                                        >
                                         <Select
                                             v-model="form.documentable_type"
                                         >
-                                            <SelectTrigger>
+                                            <SelectTrigger class="w-full" :class="props.errors.documentable_type ? 'border-destructive' : ''">
                                                 <SelectValue
                                                     placeholder="Select type"
                                                 />
@@ -185,22 +209,30 @@ function submit() {
                                                 >
                                             </SelectContent>
                                         </Select>
+                                        <p v-if="props.errors.documentable_type" class="text-sm text-destructive">
+                                            {{ props.errors.documentable_type }}
+                                        </p>
                                     </div>
+
                                     <!-- Entity Selection -->
                                     <div class="space-y-2">
-                                        <Label>
-                                            {{
-                                                form.documentable_type ===
-                                                'lead'
-                                                    ? 'Select Lead'
-                                                    : form.documentable_type ===
-                                                        'client'
-                                                      ? 'Select Client'
-                                                      : 'Select Project'
-                                            }}
-                                        </Label>
+                                        <Label
+                                            v-if="form.documentable_type === 'lead'"
+                                            for="documentable_id"
+                                            >Select Lead</Label
+                                        >
+                                        <Label
+                                            v-else-if="
+                                                form.documentable_type === 'client'
+                                            "
+                                            for="documentable_id"
+                                            >Select Client</Label
+                                        >
+                                        <Label v-else for="documentable_id"
+                                            >Select Project</Label
+                                        >
                                         <Select v-model="form.documentable_id">
-                                            <SelectTrigger>
+                                            <SelectTrigger class="w-full" :class="props.errors.documentable_id ? 'border-destructive' : ''">
                                                 <SelectValue
                                                     :placeholder="
                                                         form.documentable_type ===
@@ -243,7 +275,6 @@ function submit() {
                                                     </SelectItem>
                                                 </template>
                                                 <template v-else>
-                                                    <!-- Add this template for projects -->
                                                     <SelectItem
                                                         v-for="project in props.projects"
                                                         :key="project.id"
@@ -254,10 +285,14 @@ function submit() {
                                                 </template>
                                             </SelectContent>
                                         </Select>
+                                        <p v-if="props.errors.documentable_id" class="text-sm text-destructive">
+                                            {{ props.errors.documentable_id }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
 
+                            <!-- File Field -->
                             <div class="space-y-2">
                                 <Label for="file"
                                     >Replace File (optional)</Label
@@ -270,7 +305,12 @@ function submit() {
                                             (form.file = e.target.files[0])
                                     "
                                     accept=".pdf,.doc,.docx,.jpg,.png"
+                                    class="w-full"
+                                    :class="props.errors.file ? 'border-destructive' : ''"
                                 />
+                                <p v-if="props.errors.file" class="text-sm text-destructive">
+                                    {{ props.errors.file }}
+                                </p>
                                 <p class="text-xs text-muted-foreground">
                                     Current file:
                                     <a
@@ -282,22 +322,27 @@ function submit() {
                                 </p>
                             </div>
 
+                            <!-- Action Buttons -->
                             <div class="flex gap-3 pt-4">
-                                <Button type="submit" class="flex-1 gap-2">
+                                <Button
+                                    type="submit"
+                                    class="flex-1 gap-2"
+                                    :disabled="!form.title"
+                                >
                                     <Save class="h-4 w-4" />
                                     Save Changes
                                 </Button>
                                 <Link :href="index.url()" class="flex-1">
-                                    <Button variant="outline" class="w-full"
-                                        >Cancel</Button
-                                    >
+                                    <Button variant="outline" class="w-full">
+                                        Cancel
+                                    </Button>
                                 </Link>
                             </div>
                         </form>
                     </CardContent>
                 </Card>
 
-                <!-- ADD THIS: Sidebar Information Section -->
+                <!-- Sidebar Information -->
                 <div class="space-y-6">
                     <!-- Document Summary Card -->
                     <Card class="border">

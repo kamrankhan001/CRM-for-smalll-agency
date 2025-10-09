@@ -20,6 +20,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -107,7 +113,6 @@ const props = defineProps<{
 
 console.log(props.tasks);
 
-
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Tasks', href: '#' }];
 
 const showFilters = ref(false);
@@ -174,34 +179,6 @@ const getStatusVariant = (status: string) => {
             return 'default';
         default:
             return 'secondary';
-    }
-};
-
-// Format date to relative time or specific format
-const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'No due date';
-
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = date.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) {
-        return 'Today';
-    } else if (diffDays === 1) {
-        return 'Tomorrow';
-    } else if (diffDays === -1) {
-        return 'Yesterday';
-    } else if (diffDays < 0) {
-        return `${Math.abs(diffDays)} days overdue`;
-    } else if (diffDays < 7) {
-        return `In ${diffDays} days`;
-    } else {
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-        });
     }
 };
 
@@ -295,36 +272,68 @@ const total = computed(() => props.tasks.meta?.total || 0);
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6">
             <!-- Header -->
-            <div class="mb-6 flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold tracking-tight">Tasks</h1>
-                    <p class="mt-1 text-muted-foreground">
-                        Manage your team's tasks and assignments
-                    </p>
-                </div>
-                <div class="flex items-center gap-3">
-                    <Button
-                        variant="outline"
-                        @click="showFilters = !showFilters"
-                        class="flex items-center gap-2"
-                    >
-                        <Filter class="h-4 w-4" />
-                        {{ showFilters ? 'Hide' : 'Show' }} Filters
-                    </Button>
-                    <Link :href="create.url()" class="shrink-0">
-                        <Button class="flex items-center gap-2">
-                            <Plus class="h-4 w-4" />
-                            Add Task
-                        </Button>
-                    </Link>
+            <div class="mb-6">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div class="space-y-1">
+                        <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">
+                            Tasks
+                        </h1>
+                        <p class="text-sm text-muted-foreground sm:text-base">
+                            Manage your team's tasks and assignments
+                        </p>
+                    </div>
+
+                    <!-- All buttons container -->
+                    <div class="flex w-full items-center justify-end gap-2 lg:w-auto lg:justify-normal lg:gap-3">
+                        <!-- Filter Button -->
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Button
+                                        variant="outline"
+                                        @click="showFilters = !showFilters"
+                                        class="h-9 w-9 p-0 md:px-4 md:py-2 lg:h-auto lg:w-auto"
+                                        size="sm"
+                                    >
+                                        <Filter class="h-4 w-4" />
+                                        <span class="hidden lg:inline">
+                                            {{ showFilters ? 'Hide' : 'Show' }}
+                                            Filters
+                                        </span>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent class="lg:hidden">
+                                    <p>{{ showFilters ? 'Hide' : 'Show' }} filters</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                        <!-- Add Task Button -->
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Link :href="create.url()" class="shrink-0">
+                                        <Button
+                                            class="h-9 w-9 p-0 md:px-4 md:py-2 lg:h-auto lg:w-auto"
+                                            size="sm"
+                                        >
+                                            <Plus class="h-4 w-4" />
+                                            <span class="hidden lg:inline">Add Task</span>
+                                        </Button>
+                                    </Link>
+                                </TooltipTrigger>
+                                <TooltipContent class="lg:hidden">
+                                    <p>Create new task</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                 </div>
             </div>
 
             <!-- Filters -->
             <div v-if="showFilters" class="mb-6 rounded-lg border p-4">
-                <div
-                    class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5"
-                >
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
                     <!-- Search -->
                     <div class="space-y-2">
                         <Label for="search">Search</Label>
@@ -413,16 +422,27 @@ const total = computed(() => props.tasks.meta?.total || 0);
 
                 <!-- Filter Actions -->
                 <div class="mt-4 flex justify-between">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        @click="resetFilters"
-                        :disabled="!hasActiveFilters"
-                        class="flex items-center gap-2"
-                    >
-                        <X class="h-4 w-4" />
-                        Clear Filters
-                    </Button>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <div class="inline-block">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        @click="resetFilters"
+                                        :disabled="!hasActiveFilters"
+                                        class="flex items-center gap-2"
+                                    >
+                                        <X class="h-4 w-4" />
+                                        Clear Filters
+                                    </Button>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent v-if="!hasActiveFilters">
+                                <p>No active filters to clear</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     <Button size="sm" @click="applyFilters">
                         Apply Filters
                     </Button>
@@ -487,10 +507,10 @@ const total = computed(() => props.tasks.meta?.total || 0);
                                         {{ task.status.replace('_', ' ') }}
                                     </Badge>
                                 </TableCell>
-                                <TableCell
-                                    class="text-sm text-muted-foreground"
-                                >
-                                    {{ formatDate(task.due_date) }}
+                                <TableCell>
+                                    <p class="text-sm font-medium">
+                                        {{ task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}
+                                    </p>
                                 </TableCell>
                                 <TableCell class="text-muted-foreground">
                                     {{ task.assignee?.name ?? 'Unassigned' }}
@@ -519,10 +539,13 @@ const total = computed(() => props.tasks.meta?.total || 0);
                                         >—</span
                                     >
                                 </TableCell>
-                                <TableCell
-                                    class="text-sm text-muted-foreground"
-                                >
-                                    {{ formatDate(task.updated_at) }}
+                                <TableCell>
+                                    <p class="text-sm font-medium">
+                                        {{ new Date(task.updated_at).toLocaleDateString() }}
+                                    </p>
+                                    <p class="text-xs text-muted-foreground">
+                                        {{ new Date(task.updated_at).toLocaleTimeString() }}
+                                    </p>
                                 </TableCell>
                                 <TableCell>
                                     <ActionButtons
@@ -532,6 +555,8 @@ const total = computed(() => props.tasks.meta?.total || 0);
                                         :on-delete="
                                             () => confirmDelete(task.id)
                                         "
+                                        edit-tooltip="Edit task"
+                                        delete-tooltip="Delete task"
                                     />
                                 </TableCell>
                             </TableRow>
@@ -565,48 +590,60 @@ const total = computed(() => props.tasks.meta?.total || 0);
                         </div>
 
                         <!-- Pagination Controls -->
-                        <nav
-                            class="flex items-center overflow-hidden rounded-md border"
-                        >
-                            <!-- Prev -->
-                            <button
-                                class="px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-                                :disabled="!tasks.links[0].url"
-                                @click="goToPage(tasks.links[0].url)"
-                            >
-                                <ChevronLeft class="h-4 w-4" />
-                            </button>
+                        <TooltipProvider>
+                            <nav class="flex items-center overflow-hidden rounded-md border">
+                                <!-- Prev Button -->
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <div class="inline-block">
+                                            <button
+                                                class="px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                                                :disabled="!tasks.links[0].url"
+                                                @click="goToPage(tasks.links[0].url)"
+                                            >
+                                                <ChevronLeft class="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent v-if="!tasks.links[0].url">
+                                        <p>You're on the first page</p>
+                                    </TooltipContent>
+                                </Tooltip>
 
-                            <!-- Page Numbers -->
-                            <button
-                                v-for="link in pageLinks"
-                                :key="link.label"
-                                class="border-l px-3 py-2 text-sm font-medium transition-colors"
-                                @click="goToPage(link.url)"
-                                :class="[
-                                    link.active
-                                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                        : 'text-muted-foreground hover:bg-muted',
-                                ]"
-                            >
-                                {{ link.label }}
-                            </button>
+                                <!-- Page Numbers -->
+                                <button
+                                    v-for="link in pageLinks"
+                                    :key="link.label"
+                                    class="border-l px-3 py-2 text-sm font-medium transition-colors"
+                                    @click="goToPage(link.url)"
+                                    :class="[
+                                        link.active
+                                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                            : 'text-muted-foreground hover:bg-muted',
+                                    ]"
+                                >
+                                    {{ link.label }}
+                                </button>
 
-                            <!-- Next -->
-                            <button
-                                class="border-l px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-                                :disabled="
-                                    !tasks.links[tasks.links.length - 1].url
-                                "
-                                @click="
-                                    goToPage(
-                                        tasks.links[tasks.links.length - 1].url,
-                                    )
-                                "
-                            >
-                                <ChevronRight class="h-4 w-4" />
-                            </button>
-                        </nav>
+                                <!-- Next Button -->
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <div class="inline-block">
+                                            <button
+                                                class="border-l px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                                                :disabled="!tasks.links[tasks.links.length - 1].url"
+                                                @click="goToPage(tasks.links[tasks.links.length - 1].url)"
+                                            >
+                                                <ChevronRight class="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent v-if="!tasks.links[tasks.links.length - 1].url">
+                                        <p>You're on the last page</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </nav>
+                        </TooltipProvider>
                     </div>
                     <div
                         v-else

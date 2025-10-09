@@ -20,6 +20,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -50,6 +56,7 @@ const props = defineProps<{
             name: string;
         };
     };
+    errors: Record<string, string>;
 }>();
 
 const form = reactive({
@@ -99,6 +106,13 @@ function submit() {
                         </p>
                     </div>
                 </div>
+                <!-- Hide on small devices, show on medium and above -->
+                <Link :href="index.url()" class="hidden md:block">
+                    <Button variant="outline" class="flex items-center gap-2">
+                        <ArrowLeft class="h-4 w-4" />
+                        Back to Documents
+                    </Button>
+                </Link>
             </div>
 
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -123,15 +137,19 @@ function submit() {
                                     v-model="form.title"
                                     type="text"
                                     placeholder="Enter document title"
+                                    :class="errors.title ? 'border-destructive' : ''"
                                     required
                                 />
+                                <p v-if="errors.title" class="text-sm text-destructive">
+                                    {{ errors.title }}
+                                </p>
                             </div>
 
                             <!-- Type -->
                             <div class="space-y-2">
                                 <Label for="type">Type</Label>
                                 <Select v-model="form.type">
-                                    <SelectTrigger class="w-full">
+                                    <SelectTrigger class="w-full" :class="errors.type ? 'border-destructive' : ''">
                                         <SelectValue
                                             placeholder="Select document type"
                                         />
@@ -149,6 +167,9 @@ function submit() {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <p v-if="errors.type" class="text-sm text-destructive">
+                                    {{ errors.type }}
+                                </p>
                             </div>
 
                             <!-- Linked Entity -->
@@ -162,7 +183,7 @@ function submit() {
                                         <Select
                                             v-model="form.documentable_type"
                                         >
-                                            <SelectTrigger>
+                                            <SelectTrigger :class="errors.documentable_type ? 'border-destructive' : ''">
                                                 <SelectValue
                                                     placeholder="Select type"
                                                 />
@@ -179,6 +200,9 @@ function submit() {
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>
+                                        <p v-if="errors.documentable_type" class="text-sm text-destructive">
+                                            {{ errors.documentable_type }}
+                                        </p>
                                     </div>
 
                                     <div class="space-y-2">
@@ -194,7 +218,7 @@ function submit() {
                                             }}
                                         </Label>
                                         <Select v-model="form.documentable_id">
-                                            <SelectTrigger>
+                                            <SelectTrigger :class="errors.documentable_id ? 'border-destructive' : ''">
                                                 <SelectValue
                                                     :placeholder="
                                                         form.documentable_type ===
@@ -247,6 +271,9 @@ function submit() {
                                                 </template>
                                             </SelectContent>
                                         </Select>
+                                        <p v-if="errors.documentable_id" class="text-sm text-destructive">
+                                            {{ errors.documentable_id }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -262,20 +289,36 @@ function submit() {
                                             (form.file = e.target.files[0])
                                     "
                                     accept=".pdf,.doc,.docx,.jpg,.png"
+                                    :class="errors.file ? 'border-destructive' : ''"
                                     required
                                 />
+                                <p v-if="errors.file" class="text-sm text-destructive">
+                                    {{ errors.file }}
+                                </p>
                             </div>
 
                             <!-- Actions -->
                             <div class="flex gap-3 pt-4">
-                                <Button
-                                    type="submit"
-                                    class="flex-1 gap-2"
-                                    :disabled="!form.title || !form.file"
-                                >
-                                    <Upload class="h-4 w-4" />
-                                    Upload
-                                </Button>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger as-child>
+                                            <div class="inline-block flex-1">
+                                                <Button
+                                                    type="submit"
+                                                    class="w-full gap-2"
+                                                    :disabled="!form.title || !form.file"
+                                                >
+                                                    <Upload class="h-4 w-4" />
+                                                    Upload
+                                                </Button>
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent v-if="!form.title || !form.file">
+                                            <p v-if="!form.title">Title is required</p>
+                                            <p v-else-if="!form.file">File is required</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                                 <Link :href="index.url()" class="flex-1">
                                     <Button variant="outline" class="w-full">
                                         Cancel

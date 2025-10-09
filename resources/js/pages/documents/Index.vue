@@ -26,6 +26,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -204,34 +210,67 @@ const total = computed(() => props.documents.meta.total || 0);
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6">
             <!-- Header -->
-            <div class="mb-6 flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold tracking-tight">Documents</h1>
-                    <p class="mt-1 text-muted-foreground">
-                        Manage uploaded documents
-                    </p>
-                </div>
-                <div class="flex items-center gap-3">
-                    <Button
-                        variant="outline"
-                        @click="showFilters = !showFilters"
-                        class="flex items-center gap-2"
-                    >
-                        <Filter class="h-4 w-4" />
-                        {{ showFilters ? 'Hide' : 'Show' }} Filters
-                    </Button>
-                    <Link :href="create.url()" class="shrink-0">
-                        <Button class="flex items-center gap-2">
-                            <Plus class="h-4 w-4" />
-                            Upload Document
-                        </Button>
-                    </Link>
+            <div class="mb-6">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div class="space-y-1">
+                        <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">
+                            Documents
+                        </h1>
+                        <p class="text-sm text-muted-foreground sm:text-base">
+                            Manage uploaded documents
+                        </p>
+                    </div>
+
+                    <!-- All buttons container -->
+                    <div class="flex w-full items-center justify-end gap-2 lg:w-auto lg:justify-normal lg:gap-3">
+                        <!-- Filter Button -->
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Button
+                                        variant="outline"
+                                        @click="showFilters = !showFilters"
+                                        class="h-9 w-9 p-0 md:px-4 md:py-2 lg:h-auto lg:w-auto"
+                                        size="sm"
+                                    >
+                                        <Filter class="h-4 w-4" />
+                                        <span class="hidden lg:inline">
+                                            {{ showFilters ? 'Hide' : 'Show' }}
+                                            Filters
+                                        </span>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent class="lg:hidden">
+                                    <p>{{ showFilters ? 'Hide' : 'Show' }} filters</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                        <!-- Upload Document Button -->
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Link :href="create.url()" class="shrink-0">
+                                        <Button
+                                            class="h-9 w-9 p-0 md:px-4 md:py-2 lg:h-auto lg:w-auto"
+                                            size="sm"
+                                        >
+                                            <Plus class="h-4 w-4" />
+                                            <span class="hidden lg:inline">Upload Document</span>
+                                        </Button>
+                                    </Link>
+                                </TooltipTrigger>
+                                <TooltipContent class="lg:hidden">
+                                    <p>Upload new document</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                 </div>
             </div>
 
             <!-- Filters -->
             <div v-if="showFilters" class="mb-6 rounded-lg border p-4">
-                <!-- Change from grid-cols-3 to grid-cols-4 -->
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
                     <!-- Search -->
                     <div class="space-y-2">
@@ -312,14 +351,27 @@ const total = computed(() => props.documents.meta.total || 0);
                 </div>
 
                 <div class="mt-4 flex justify-between">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        @click="resetFilters"
-                        :disabled="!hasActiveFilters"
-                    >
-                        <X class="h-4 w-4" /> Clear Filters
-                    </Button>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <div class="inline-block">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        @click="resetFilters"
+                                        :disabled="!hasActiveFilters"
+                                        class="flex items-center gap-2"
+                                    >
+                                        <X class="h-4 w-4" />
+                                        Clear Filters
+                                    </Button>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent v-if="!hasActiveFilters">
+                                <p>No active filters to clear</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     <Button size="sm" @click="applyFilters"
                         >Apply Filters</Button
                     >
@@ -380,15 +432,15 @@ const total = computed(() => props.documents.meta.total || 0);
                                 >
                             </TableCell>
                             <TableCell>
-                                <!-- FIX: Use document.uploader.name instead of document.uploader?.name -->
                                 {{ document.uploader?.name ?? '—' }}
                             </TableCell>
-                            <TableCell class="text-sm text-muted-foreground">
-                                {{
-                                    new Date(
-                                        document.created_at,
-                                    ).toLocaleDateString()
-                                }}
+                            <TableCell>
+                                <p class="text-sm font-medium">
+                                    {{ new Date(document.created_at).toLocaleDateString() }}
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ new Date(document.created_at).toLocaleTimeString() }}
+                                </p>
                             </TableCell>
                             <TableCell>
                                 <ActionButtons
@@ -398,6 +450,8 @@ const total = computed(() => props.documents.meta.total || 0);
                                     :on-delete="
                                         () => confirmDelete(document.id)
                                     "
+                                    edit-tooltip="Edit document"
+                                    delete-tooltip="Delete document"
                                 />
                             </TableCell>
                         </TableRow>
@@ -414,56 +468,70 @@ const total = computed(() => props.documents.meta.total || 0);
             </div>
 
             <!-- Pagination -->
-            <div
-                class="flex flex-col items-center border-t bg-muted/30 px-6 py-4 sm:flex-row sm:justify-between"
-            >
-                <div class="text-sm text-muted-foreground">
-                    <!-- FIX: This will now show correct numbers like "1 to 5 of 10" -->
-                    Showing <b>{{ showingFrom }}</b> to
-                    <b>{{ showingTo }}</b> of <b>{{ total }}</b> results
+            <div class="border-t bg-muted/30 px-6 py-4">
+                <div v-if="props.documents.meta.last_page > 1" class="flex flex-col items-center justify-between gap-4 sm:flex-row">
+                    <div class="text-sm text-muted-foreground">
+                        Showing <span class="font-medium">{{ showingFrom }}</span> to
+                        <span class="font-medium">{{ showingTo }}</span> of <span class="font-medium">{{ total }}</span> results
+                    </div>
+                    <TooltipProvider>
+                        <nav class="flex items-center rounded-md border">
+                            <!-- Prev Button -->
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <div class="inline-block">
+                                        <button
+                                            class="px-3 py-2 text-sm text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                                            :disabled="!props.documents.links[0].url"
+                                            @click="goToPage(props.documents.links[0].url)"
+                                        >
+                                            <ChevronLeft class="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent v-if="!props.documents.links[0].url">
+                                    <p>You're on the first page</p>
+                                </TooltipContent>
+                            </Tooltip>
+
+                            <!-- Page Numbers -->
+                            <button
+                                v-for="link in pageLinks"
+                                :key="link.label"
+                                class="border-l px-3 py-2 text-sm"
+                                :class="[
+                                    link.active
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'text-muted-foreground hover:bg-muted',
+                                ]"
+                                @click="goToPage(link.url)"
+                            >
+                                {{ link.label }}
+                            </button>
+
+                            <!-- Next Button -->
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <div class="inline-block">
+                                        <button
+                                            class="border-l px-3 py-2 text-sm text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                                            :disabled="!props.documents.links[props.documents.links.length - 1].url"
+                                            @click="goToPage(props.documents.links[props.documents.links.length - 1].url)"
+                                        >
+                                            <ChevronRight class="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent v-if="!props.documents.links[props.documents.links.length - 1].url">
+                                    <p>You're on the last page</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </nav>
+                    </TooltipProvider>
                 </div>
-                <nav
-                    v-if="props.documents.meta.last_page > 1"
-                    class="flex items-center rounded-md border"
-                >
-                    <button
-                        class="px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
-                        :disabled="!props.documents.links[0].url"
-                        @click="goToPage(props.documents.links[0].url)"
-                    >
-                        <ChevronLeft class="h-4 w-4" />
-                    </button>
-                    <button
-                        v-for="link in pageLinks"
-                        :key="link.label"
-                        class="border-l px-3 py-2 text-sm"
-                        :class="[
-                            link.active
-                                ? 'bg-primary text-primary-foreground'
-                                : 'text-muted-foreground hover:bg-muted',
-                        ]"
-                        @click="goToPage(link.url)"
-                    >
-                        {{ link.label }}
-                    </button>
-                    <button
-                        class="border-l px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
-                        :disabled="
-                            !props.documents.links[
-                                props.documents.links.length - 1
-                            ].url
-                        "
-                        @click="
-                            goToPage(
-                                props.documents.links[
-                                    props.documents.links.length - 1
-                                ].url,
-                            )
-                        "
-                    >
-                        <ChevronRight class="h-4 w-4" />
-                    </button>
-                </nav>
+                <div v-else class="text-center text-sm text-muted-foreground">
+                    {{ total }} document{{ total !== 1 ? 's' : '' }} total
+                </div>
             </div>
 
             <!-- Delete Confirmation -->
