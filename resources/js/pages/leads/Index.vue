@@ -185,29 +185,6 @@ const getStatusVariant = (status: string) => {
     }
 };
 
-// Format date to relative time or specific format
-const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 1) {
-        return 'Yesterday';
-    } else if (diffDays < 7) {
-        return `${diffDays} days ago`;
-    } else if (diffDays < 30) {
-        const weeks = Math.floor(diffDays / 7);
-        return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
-    } else {
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-        });
-    }
-};
-
 // Filter functions
 function applyFilters() {
     const backendFilters = {
@@ -375,7 +352,7 @@ async function submitImport(file: File) {
                                             >
                                         </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent>
+                                    <TooltipContent class="lg:hidden">
                                         <p>Export leads to Excel</p>
                                     </TooltipContent>
                                 </Tooltip>
@@ -395,7 +372,7 @@ async function submitImport(file: File) {
                                             >
                                         </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent>
+                                    <TooltipContent class="lg:hidden">
                                         <p>Import leads from Excel</p>
                                     </TooltipContent>
                                 </Tooltip>
@@ -415,7 +392,7 @@ async function submitImport(file: File) {
                                             >
                                         </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent>
+                                    <TooltipContent class="lg:hidden">
                                         <p>Download import template</p>
                                     </TooltipContent>
                                 </Tooltip>
@@ -445,7 +422,7 @@ async function submitImport(file: File) {
                                             </span>
                                         </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent>
+                                    <TooltipContent class="lg:hidden">
                                         <p>
                                             {{ showFilters ? 'Hide' : 'Show' }}
                                             filters
@@ -471,7 +448,7 @@ async function submitImport(file: File) {
                                             </Button>
                                         </Link>
                                     </TooltipTrigger>
-                                    <TooltipContent>
+                                    <TooltipContent class="lg:hidden">
                                         <p>Create new lead</p>
                                     </TooltipContent>
                                 </Tooltip>
@@ -575,16 +552,27 @@ async function submitImport(file: File) {
 
                 <!-- Filter Actions -->
                 <div class="mt-4 flex justify-between">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        @click="resetFilters"
-                        :disabled="!hasActiveFilters"
-                        class="flex items-center gap-2"
-                    >
-                        <X class="h-4 w-4" />
-                        Clear Filters
-                    </Button>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <div class="inline-block">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        @click="resetFilters"
+                                        :disabled="!hasActiveFilters"
+                                        class="flex items-center gap-2"
+                                    >
+                                        <X class="h-4 w-4" />
+                                        Clear Filters
+                                    </Button>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent v-if="!hasActiveFilters">
+                                <p>No active filters to clear</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     <Button size="sm" @click="applyFilters">
                         Apply Filters
                     </Button>
@@ -662,10 +650,13 @@ async function submitImport(file: File) {
                                 <TableCell class="text-muted-foreground">
                                     {{ lead.assignee?.name ?? 'Unassigned' }}
                                 </TableCell>
-                                <TableCell
-                                    class="text-sm text-muted-foreground"
-                                >
-                                    {{ formatDate(lead.updated_at) }}
+                                <TableCell>
+                                <p class="text-sm font-medium">
+                                    {{ new Date(lead.updated_at).toLocaleDateString() }}
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ new Date(lead.updated_at).toLocaleTimeString() }}
+                                </p>
                                 </TableCell>
                                 <TableCell>
                                     <ActionButtons
@@ -675,6 +666,8 @@ async function submitImport(file: File) {
                                         :on-delete="
                                             () => confirmDelete(lead.id)
                                         "
+                                        edit-tooltip="Edit lead"
+                                        delete-tooltip="Delete lead"
                                     />
                                 </TableCell>
                             </TableRow>
@@ -708,48 +701,80 @@ async function submitImport(file: File) {
                         </div>
 
                         <!-- Pagination Controls -->
-                        <nav
-                            class="flex items-center overflow-hidden rounded-md border"
-                        >
-                            <!-- Prev -->
-                            <button
-                                class="px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-                                :disabled="!leads.links[0].url"
-                                @click="goToPage(leads.links[0].url)"
+                        <TooltipProvider>
+                            <nav
+                                class="flex items-center overflow-hidden rounded-md border"
                             >
-                                <ChevronLeft class="h-4 w-4" />
-                            </button>
+                                <!-- Prev Button -->
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <div class="inline-block">
+                                            <button
+                                                class="px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                                                :disabled="!leads.links[0].url"
+                                                @click="
+                                                    goToPage(leads.links[0].url)
+                                                "
+                                            >
+                                                <ChevronLeft class="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent v-if="!leads.links[0].url">
+                                        <p>You're on the first page</p>
+                                    </TooltipContent>
+                                </Tooltip>
 
-                            <!-- Page Numbers -->
-                            <button
-                                v-for="link in pageLinks"
-                                :key="link.label"
-                                class="border-l px-3 py-2 text-sm font-medium transition-colors"
-                                @click="goToPage(link.url)"
-                                :class="[
-                                    link.active
-                                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                        : 'text-muted-foreground hover:bg-muted',
-                                ]"
-                            >
-                                {{ link.label }}
-                            </button>
+                                <!-- Page Numbers -->
+                                <button
+                                    v-for="link in pageLinks"
+                                    :key="link.label"
+                                    class="border-l px-3 py-2 text-sm font-medium transition-colors"
+                                    @click="goToPage(link.url)"
+                                    :class="[
+                                        link.active
+                                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                            : 'text-muted-foreground hover:bg-muted',
+                                    ]"
+                                >
+                                    {{ link.label }}
+                                </button>
 
-                            <!-- Next -->
-                            <button
-                                class="border-l px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-                                :disabled="
-                                    !leads.links[leads.links.length - 1].url
-                                "
-                                @click="
-                                    goToPage(
-                                        leads.links[leads.links.length - 1].url,
-                                    )
-                                "
-                            >
-                                <ChevronRight class="h-4 w-4" />
-                            </button>
-                        </nav>
+                                <!-- Next Button -->
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <div class="inline-block">
+                                            <button
+                                                class="border-l px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                                                :disabled="
+                                                    !leads.links[
+                                                        leads.links.length - 1
+                                                    ].url
+                                                "
+                                                @click="
+                                                    goToPage(
+                                                        leads.links[
+                                                            leads.links.length -
+                                                                1
+                                                        ].url,
+                                                    )
+                                                "
+                                            >
+                                                <ChevronRight class="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                        v-if="
+                                            !leads.links[leads.links.length - 1]
+                                                .url
+                                        "
+                                    >
+                                        <p>You're on the last page</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </nav>
+                        </TooltipProvider>
                     </div>
                     <div
                         v-else

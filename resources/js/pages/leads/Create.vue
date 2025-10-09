@@ -17,6 +17,12 @@ import {
     SelectTrigger, 
     SelectValue 
 } from '@/components/ui/select'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip'
 import AppLayout from '@/layouts/AppLayout.vue'
 import type { BreadcrumbItem } from '@/types'
 import { ArrowLeft, UserPlus } from 'lucide-vue-next'
@@ -29,6 +35,7 @@ interface User {
 
 interface Props {
   users: User[]
+  errors: Record<string, string>
 }
 
 defineProps<Props>()
@@ -74,7 +81,8 @@ function submit() {
             </p>
           </div>
         </div>
-        <Link :href="index.url()">
+        <!-- Hide on small devices, show on medium and above -->
+        <Link :href="index.url()" class="hidden md:block">
           <Button variant="outline" class="flex items-center gap-2">
             <ArrowLeft class="h-4 w-4" />
             Back to Leads
@@ -106,8 +114,12 @@ function submit() {
                     type="text"
                     placeholder="Enter full name"
                     class="w-full"
+                    :class="errors.name ? 'border-destructive' : ''"
                     required
                   />
+                  <p v-if="errors.name" class="text-sm text-destructive">
+                    {{ errors.name }}
+                  </p>
                 </div>
 
                 <!-- Email Field -->
@@ -119,7 +131,11 @@ function submit() {
                     type="email"
                     placeholder="Enter email address"
                     class="w-full"
+                    :class="errors.email ? 'border-destructive' : ''"
                   />
+                  <p v-if="errors.email" class="text-sm text-destructive">
+                    {{ errors.email }}
+                  </p>
                 </div>
               </div>
 
@@ -133,7 +149,11 @@ function submit() {
                     type="text"
                     placeholder="Enter phone number"
                     class="w-full"
+                    :class="errors.phone ? 'border-destructive' : ''"
                   />
+                  <p v-if="errors.phone" class="text-sm text-destructive">
+                    {{ errors.phone }}
+                  </p>
                 </div>
 
                 <!-- Company Field -->
@@ -145,7 +165,11 @@ function submit() {
                     type="text"
                     placeholder="Enter company name"
                     class="w-full"
+                    :class="errors.company ? 'border-destructive' : ''"
                   />
+                  <p v-if="errors.company" class="text-sm text-destructive">
+                    {{ errors.company }}
+                  </p>
                 </div>
               </div>
 
@@ -158,7 +182,11 @@ function submit() {
                   type="text"
                   placeholder="e.g. Website, Referral, Social Media"
                   class="w-full"
+                  :class="errors.source ? 'border-destructive' : ''"
                 />
+                <p v-if="errors.source" class="text-sm text-destructive">
+                  {{ errors.source }}
+                </p>
                 <p class="text-xs text-muted-foreground">
                   How did this lead find out about your business?
                 </p>
@@ -169,7 +197,7 @@ function submit() {
                 <div class="space-y-2">
                   <Label for="status">Status</Label>
                   <Select v-model="form.status">
-                    <SelectTrigger class="w-full">
+                    <SelectTrigger class="w-full" :class="errors.status ? 'border-destructive' : ''">
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -179,13 +207,16 @@ function submit() {
                       <SelectItem value="lost">Lost</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p v-if="errors.status" class="text-sm text-destructive">
+                    {{ errors.status }}
+                  </p>
                 </div>
 
                 <!-- Assigned To Field -->
                 <div class="space-y-2">
                   <Label for="assigned_to">Assigned To</Label>
                   <Select v-model="form.assigned_to">
-                    <SelectTrigger class="w-full">
+                    <SelectTrigger class="w-full" :class="errors.assigned_to ? 'border-destructive' : ''">
                       <SelectValue placeholder="Select user" />
                     </SelectTrigger>
                     <SelectContent>
@@ -195,19 +226,34 @@ function submit() {
                       </SelectItem>
                     </SelectContent>
                   </Select>
+                  <p v-if="errors.assigned_to" class="text-sm text-destructive">
+                    {{ errors.assigned_to }}
+                  </p>
                 </div>
               </div>
 
               <!-- Action Buttons -->
               <div class="flex gap-3 pt-4">
-                <Button 
-                  type="submit" 
-                  class="flex-1 gap-2"
-                  :disabled="form.processing || !form.name"
-                >
-                  <UserPlus class="h-4 w-4" />
-                  Create Lead
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <div class="inline-block flex-1">
+                        <Button 
+                          type="submit" 
+                          class="w-full gap-2"
+                          :disabled="form.processing || !form.name"
+                        >
+                          <UserPlus class="h-4 w-4" />
+                          Create Lead
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent v-if="form.processing || !form.name">
+                      <p v-if="form.processing">Creating lead...</p>
+                      <p v-else-if="!form.name">Name is required to create lead</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Link :href="index.url()" class="flex-1">
                   <Button variant="outline" class="w-full">
                     Cancel
