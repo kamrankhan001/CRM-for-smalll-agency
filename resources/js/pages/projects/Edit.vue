@@ -21,7 +21,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ArrowLeft, FolderKanban, Users, Calendar, Target, Building } from 'lucide-vue-next';
+import { ArrowLeft, FolderKanban, Users, Calendar, Target, Building, Save } from 'lucide-vue-next';
 import { reactive } from 'vue';
 
 interface User {
@@ -57,6 +57,7 @@ interface Props {
     clients: Client[];
     leads: Lead[];
     users: User[];
+    errors: Record<string, string>;
 }
 
 const props = defineProps<Props>();
@@ -103,7 +104,8 @@ function submit() {
                         </p>
                     </div>
                 </div>
-                <Link :href="index.url()">
+                <!-- Hide on small devices, show on medium and above -->
+                <Link :href="index.url()" class="hidden md:block">
                     <Button variant="outline" class="flex items-center gap-2">
                         <ArrowLeft class="h-4 w-4" />
                         Back to Projects
@@ -134,8 +136,12 @@ function submit() {
                                     type="text"
                                     placeholder="Enter project name"
                                     class="w-full"
+                                    :class="errors.name ? 'border-destructive' : ''"
                                     required
                                 />
+                                <p v-if="errors.name" class="text-sm text-destructive">
+                                    {{ errors.name }}
+                                </p>
                             </div>
 
                             <!-- Description Field -->
@@ -146,7 +152,11 @@ function submit() {
                                     v-model="form.description"
                                     placeholder="Enter project description and objectives..."
                                     class="min-h-[100px] w-full"
+                                    :class="errors.description ? 'border-destructive' : ''"
                                 />
+                                <p v-if="errors.description" class="text-sm text-destructive">
+                                    {{ errors.description }}
+                                </p>
                             </div>
 
                             <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -154,7 +164,7 @@ function submit() {
                                 <div class="space-y-2">
                                     <Label for="status">Status</Label>
                                     <Select v-model="form.status">
-                                        <SelectTrigger class="w-full">
+                                        <SelectTrigger class="w-full" :class="errors.status ? 'border-destructive' : ''">
                                             <SelectValue placeholder="Select status" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -164,6 +174,9 @@ function submit() {
                                             <SelectItem value="completed">Completed</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    <p v-if="errors.status" class="text-sm text-destructive">
+                                        {{ errors.status }}
+                                    </p>
                                 </div>
 
                                 <!-- Timeline Fields -->
@@ -175,7 +188,11 @@ function submit() {
                                             v-model="form.start_date"
                                             type="date"
                                             class="w-full"
+                                            :class="errors.start_date ? 'border-destructive' : ''"
                                         />
+                                        <p v-if="errors.start_date" class="text-sm text-destructive">
+                                            {{ errors.start_date }}
+                                        </p>
                                     </div>
                                     <div class="space-y-2">
                                         <Label for="end_date">End Date</Label>
@@ -184,7 +201,11 @@ function submit() {
                                             v-model="form.end_date"
                                             type="date"
                                             class="w-full"
+                                            :class="errors.end_date ? 'border-destructive' : ''"
                                         />
+                                        <p v-if="errors.end_date" class="text-sm text-destructive">
+                                            {{ errors.end_date }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -197,7 +218,7 @@ function submit() {
                                     <div class="space-y-2">
                                         <Label for="client_id">Client</Label>
                                         <Select v-model="form.client_id">
-                                            <SelectTrigger class="w-full">
+                                            <SelectTrigger class="w-full" :class="errors.client_id ? 'border-destructive' : ''">
                                                 <SelectValue placeholder="Select client" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -211,13 +232,16 @@ function submit() {
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>
+                                        <p v-if="errors.client_id" class="text-sm text-destructive">
+                                            {{ errors.client_id }}
+                                        </p>
                                     </div>
 
                                     <!-- Lead Selection -->
                                     <div class="space-y-2">
                                         <Label for="lead_id">Lead</Label>
                                         <Select v-model="form.lead_id">
-                                            <SelectTrigger class="w-full">
+                                            <SelectTrigger class="w-full" :class="errors.lead_id ? 'border-destructive' : ''">
                                                 <SelectValue placeholder="Select lead" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -231,6 +255,9 @@ function submit() {
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>
+                                        <p v-if="errors.lead_id" class="text-sm text-destructive">
+                                            {{ errors.lead_id }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -239,7 +266,7 @@ function submit() {
                             <div class="space-y-2">
                                 <Label for="members">Team Members</Label>
                                 <Select v-model="form.members" multiple>
-                                    <SelectTrigger class="w-full">
+                                    <SelectTrigger class="w-full" :class="errors.members ? 'border-destructive' : ''">
                                         <SelectValue placeholder="Select team members" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -252,6 +279,9 @@ function submit() {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <p v-if="errors.members" class="text-sm text-destructive">
+                                    {{ errors.members }}
+                                </p>
                                 <p class="text-xs text-muted-foreground">
                                     Select multiple team members to collaborate on this project
                                 </p>

@@ -17,6 +17,12 @@ import {
     SelectTrigger, 
     SelectValue 
 } from '@/components/ui/select'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip'
 import AppLayout from '@/layouts/AppLayout.vue'
 import type { BreadcrumbItem } from '@/types'
 import { ArrowLeft, UserPlus } from 'lucide-vue-next'
@@ -36,6 +42,7 @@ interface Lead {
 interface Props {
   users: User[]
   leads: Lead[]
+  errors: Record<string, string>
 }
 
 defineProps<Props>()
@@ -81,7 +88,8 @@ function submit() {
             </p>
           </div>
         </div>
-        <Link :href="index.url()">
+        <!-- Hide on small devices, show on medium and above -->
+        <Link :href="index.url()" class="hidden md:block">
           <Button variant="outline" class="flex items-center gap-2">
             <ArrowLeft class="h-4 w-4" />
             Back to Clients
@@ -113,8 +121,12 @@ function submit() {
                     type="text"
                     placeholder="Enter client name"
                     class="w-full"
+                    :class="errors.name ? 'border-destructive' : ''"
                     required
                   />
+                  <p v-if="errors.name" class="text-sm text-destructive">
+                    {{ errors.name }}
+                  </p>
                 </div>
 
                 <!-- Email Field -->
@@ -126,7 +138,11 @@ function submit() {
                     type="email"
                     placeholder="Enter email address"
                     class="w-full"
+                    :class="errors.email ? 'border-destructive' : ''"
                   />
+                  <p v-if="errors.email" class="text-sm text-destructive">
+                    {{ errors.email }}
+                  </p>
                 </div>
               </div>
 
@@ -140,7 +156,11 @@ function submit() {
                     type="text"
                     placeholder="Enter phone number"
                     class="w-full"
+                    :class="errors.phone ? 'border-destructive' : ''"
                   />
+                  <p v-if="errors.phone" class="text-sm text-destructive">
+                    {{ errors.phone }}
+                  </p>
                 </div>
 
                 <!-- Company Field -->
@@ -152,7 +172,11 @@ function submit() {
                     type="text"
                     placeholder="Enter company name"
                     class="w-full"
+                    :class="errors.company ? 'border-destructive' : ''"
                   />
+                  <p v-if="errors.company" class="text-sm text-destructive">
+                    {{ errors.company }}
+                  </p>
                 </div>
               </div>
 
@@ -165,7 +189,11 @@ function submit() {
                   type="text"
                   placeholder="Enter full address"
                   class="w-full"
+                  :class="errors.address ? 'border-destructive' : ''"
                 />
+                <p v-if="errors.address" class="text-sm text-destructive">
+                  {{ errors.address }}
+                </p>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -173,7 +201,7 @@ function submit() {
                 <div class="space-y-2">
                   <Label for="lead_id">Linked Lead</Label>
                   <Select v-model="form.lead_id">
-                    <SelectTrigger class="w-full">
+                    <SelectTrigger class="w-full" :class="errors.lead_id ? 'border-destructive' : ''">
                       <SelectValue placeholder="Select a lead (optional)" />
                     </SelectTrigger>
                     <SelectContent>
@@ -183,6 +211,9 @@ function submit() {
                       </SelectItem>
                     </SelectContent>
                   </Select>
+                  <p v-if="errors.lead_id" class="text-sm text-destructive">
+                    {{ errors.lead_id }}
+                  </p>
                   <p class="text-xs text-muted-foreground">
                     Link this client to an existing lead for tracking
                   </p>
@@ -192,7 +223,7 @@ function submit() {
                 <div class="space-y-2">
                   <Label for="assigned_to">Assigned To</Label>
                   <Select v-model="form.assigned_to">
-                    <SelectTrigger class="w-full">
+                    <SelectTrigger class="w-full" :class="errors.assigned_to ? 'border-destructive' : ''">
                       <SelectValue placeholder="Select user" />
                     </SelectTrigger>
                     <SelectContent>
@@ -202,19 +233,33 @@ function submit() {
                       </SelectItem>
                     </SelectContent>
                   </Select>
+                  <p v-if="errors.assigned_to" class="text-sm text-destructive">
+                    {{ errors.assigned_to }}
+                  </p>
                 </div>
               </div>
 
               <!-- Action Buttons -->
               <div class="flex gap-3 pt-4">
-                <Button 
-                  type="submit" 
-                  class="flex-1 gap-2"
-                  :disabled="!form.name"
-                >
-                  <UserPlus class="h-4 w-4" />
-                  Create Client
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <div class="inline-block flex-1">
+                        <Button 
+                          type="submit" 
+                          class="w-full gap-2"
+                          :disabled="!form.name"
+                        >
+                          <UserPlus class="h-4 w-4" />
+                          Create Client
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent v-if="!form.name">
+                      <p>Name is required to create client</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Link :href="index.url()" class="flex-1">
                   <Button variant="outline" class="w-full">
                     Cancel
