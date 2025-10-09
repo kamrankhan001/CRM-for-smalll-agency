@@ -145,7 +145,8 @@ class ProjectController extends Controller
             foreach ($validated['members'] as $memberId) {
                 if ($memberId != Auth::id()) {
                     $member = User::find($memberId);
-                    if ($member) {
+                    // Add this condition to exclude admin users
+                    if ($member && $member->role !== 'admin') {
                         $member->notify(new ProjectAssignedNotification($project));
                     }
                 }
@@ -222,7 +223,8 @@ class ProjectController extends Controller
             foreach ($newMembers as $memberId) {
                 if ($memberId != Auth::id()) {
                     $member = User::find($memberId);
-                    if ($member) {
+                    // Add this condition to exclude admin users
+                    if ($member && $member->role !== 'admin') {
                         $member->notify(new ProjectAssignedNotification($project));
                     }
                 }
