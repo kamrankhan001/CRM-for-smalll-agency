@@ -2,17 +2,44 @@
 
 An open-source CRM solution tailored for small agencies, featuring lead/client management, task tracking, and collaborative notes. Built by [kamrankhan.dev](https://kamrankhan.dev).
 
-![Project Banner](public/apple-touch-icon.png)
+![Project Banner](screenshot.png)
 
 ## Features
 
 ### Core Modules
-- **Leads Management** - Track potential clients from initial contact to conversion
-- **Clients** - Manage client profiles and interaction history
-- **Tasks** - Assign and monitor team workflows with deadlines
-- **Notes** - Collaborative documentation system
-- **Users** - Secure role-based access (Admin/Manager/Member)
+- **Leads Management** - Track prospects from first contact to client conversion
+- **Clients** - Manage client relationships and communication history
+- **Projects** - Organize client work with tasks and timelines  
+- **Tasks** - Team workflow management with due dates and priorities
+- **Documents** - Central repository for contracts and files
+- **Invoices** - Create and track billing/collections
+- **Activities** - System log of user actions and events
+- **Notifications** - Real-time user alerts and reminders
+- **Notes** - Collaborative documentation system  
+- **Users** - Role-based access (Admin/Manager/Member)
 
+### Database Structure
+#### Entity Relationships
+- Clients (1) ↔ (∞) Projects ↔ (∞) Tasks
+- Users (∞) ↔ (∞) Projects via Project Members
+- Leads → Clients (when converted)
+- Invoices (1) ↔ (1) Clients
+
+#### Key Tables
+```
++---------------+-----------------------------+
+| Table         | Key Fields                  |
++---------------+-----------------------------+
+| leads         | status, source, score       |
+| clients       | name, industry, revenue     |
+| projects      | name, deadline, budget      |  
+| tasks         | title, due_date, progress   |
+| invoices      | number, amount, status      |
+| documents     | name, type, version         |
+| activities    | type, description, changes  |
+| notifications| type, read_at, recipient_id  |
++---------------+-----------------------------+
+```
 ### Key Functionality
 - Role-based access control system
 - Dashboard analytics
@@ -73,8 +100,32 @@ DB_USERNAME=root
 DB_PASSWORD=
 ```
 
+## User Guide
+
+### For End Users
+**Managing Clients**
+1. Add new clients with contact/company details
+2. Track communication history and documents
+3. Convert qualified leads to clients
+
+**Working with Projects**
+- Create projects with budgets and timelines
+- Assign team members and track progress
+- Generate invoices from project milestones
+
+**Invoice Workflow**  
+1. Create invoices with line items
+2. Send to client email directly
+3. Track payment status (Paid/Unpaid/Partial)
+
+### For Developers
+**Schema Conventions**
+- All tables use UUID primary keys
+- Polymorphic relationships for activities/notes
+- Soft deletes implemented globally
+- Notification system uses Laravel Echo
+
 ## License
-Open-source under [MIT License](LICENSE).
 
 ## Contributing
 PRs welcome! Follow standard GitHub flow:
