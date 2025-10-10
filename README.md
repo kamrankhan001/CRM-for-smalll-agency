@@ -2,7 +2,7 @@
 
 An open-source CRM solution tailored for small agencies, featuring lead/client management, task tracking, and collaborative notes. Built by [kamrankhan.dev](https://kamrankhan.dev).
 
-![Project Banner](screenshot.png)
+![Project Banner](public/screenshot.png)
 
 ## Features
 
