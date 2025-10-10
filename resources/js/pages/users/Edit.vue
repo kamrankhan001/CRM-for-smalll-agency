@@ -20,19 +20,34 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { ArrowLeft, Save, User } from 'lucide-vue-next';
 
 // Import Wayfinder-generated actions
 import { index, update } from '@/actions/App/Http/Controllers/UserController';
 
-const props = defineProps<{
+interface Props {
   user: {
     id: number;
     name: string;
     email: string;
     role: string;
   };
-}>();
+  auth: {
+    user: {
+      id: number;
+      name: string;
+    };
+  };
+  errors: Record<string, string>;
+}
+
+const props = defineProps<Props>();
 
 const form = reactive({
   name: props.user.name,
@@ -50,10 +65,15 @@ const breadcrumbs: BreadcrumbItem[] = [
 function submit() {
   router.put(update.url(props.user.id), form);
 }
+
+// Check if form is valid for submit button tooltip
+const isFormValid = () => {
+  return form.name && form.email;
+};
 </script>
 
 <template>
-  <Head title="Edit User" />
+  <Head :title="`Edit ${props.user.name}`" />
   <AppLayout :breadcrumbs="breadcrumbs">
     <div class="p-6">
       <!-- Header Section -->
@@ -71,7 +91,8 @@ function submit() {
             </p>
           </div>
         </div>
-        <Link :href="index.url()">
+        <!-- Hide on small devices, show on medium and above -->
+        <Link :href="index.url()" class="hidden md:block">
           <Button variant="outline" class="flex items-center gap-2">
             <ArrowLeft class="h-4 w-4" />
             Back to Users
@@ -81,7 +102,7 @@ function submit() {
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Main Form Card -->
-        <Card class="lg:col-span-2 border">
+        <Card class="lg:col-span-2 border self-start">
           <CardHeader>
             <CardTitle class="flex items-center gap-2">
               <User class="h-5 w-5" />
@@ -102,7 +123,12 @@ function submit() {
                   type="text"
                   placeholder="Enter full name"
                   class="w-full"
+                  :class="props.errors.name ? 'border-destructive' : ''"
+                  required
                 />
+                <p v-if="props.errors.name" class="text-sm text-destructive">
+                  {{ props.errors.name }}
+                </p>
               </div>
 
               <!-- Email Field -->
@@ -114,7 +140,12 @@ function submit() {
                   type="email"
                   placeholder="Enter email address"
                   class="w-full"
+                  :class="props.errors.email ? 'border-destructive' : ''"
+                  required
                 />
+                <p v-if="props.errors.email" class="text-sm text-destructive">
+                  {{ props.errors.email }}
+                </p>
               </div>
             </div>
 
@@ -128,7 +159,11 @@ function submit() {
                   type="password"
                   placeholder="Leave blank to keep current"
                   class="w-full"
+                  :class="props.errors.password ? 'border-destructive' : ''"
                 />
+                <p v-if="props.errors.password" class="text-sm text-destructive">
+                  {{ props.errors.password }}
+                </p>
                 <p class="text-xs text-muted-foreground">
                   Only enter if you want to change the password
                 </p>
@@ -143,7 +178,11 @@ function submit() {
                   type="password"
                   placeholder="Confirm new password"
                   class="w-full"
+                  :class="props.errors.password_confirmation ? 'border-destructive' : ''"
                 />
+                <p v-if="props.errors.password_confirmation" class="text-sm text-destructive">
+                  {{ props.errors.password_confirmation }}
+                </p>
               </div>
             </div>
 
@@ -151,7 +190,7 @@ function submit() {
             <div class="space-y-2">
               <Label for="role">User Role</Label>
               <Select v-model="form.role">
-                <SelectTrigger class="w-full">
+                <SelectTrigger class="w-full" :class="props.errors.role ? 'border-destructive' : ''">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -175,6 +214,9 @@ function submit() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+              <p v-if="props.errors.role" class="text-sm text-destructive">
+                {{ props.errors.role }}
+              </p>
               <p class="text-sm text-muted-foreground">
                 <span v-if="form.role === 'admin'" class="text-destructive font-medium">Admin</span>
                 <span v-else-if="form.role === 'manager'" class="text-primary font-medium">Manager</span>
@@ -191,14 +233,25 @@ function submit() {
 
             <!-- Action Buttons -->
             <div class="flex gap-3 pt-4">
-              <Button 
-                @click="submit" 
-                class="flex-1 gap-2"
-                :disabled="!form.name || !form.email"
-              >
-                <Save class="h-4 w-4" />
-                Save Changes
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <div class="inline-block flex-1">
+                      <Button 
+                        @click="submit" 
+                        class="w-full gap-2"
+                        :disabled="!isFormValid()"
+                      >
+                        <Save class="h-4 w-4" />
+                        Save Changes
+                      </Button>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent v-if="!isFormValid()">
+                    <p>Please fill in all required fields</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <Link :href="index.url()" class="flex-1">
                 <Button variant="outline" class="w-full">
                   Cancel
@@ -262,6 +315,10 @@ function submit() {
               <div class="flex items-start gap-2">
                 <div class="w-1.5 h-1.5 bg-primary rounded-full mt-1.5"></div>
                 <p class="text-muted-foreground">User will be notified of significant permission changes</p>
+              </div>
+              <div class="flex items-start gap-2">
+                <div class="w-1.5 h-1.5 bg-primary rounded-full mt-1.5"></div>
+                <p class="text-muted-foreground">Email changes may require verification</p>
               </div>
             </CardContent>
           </Card>

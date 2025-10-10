@@ -20,6 +20,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -230,7 +236,6 @@ const hasActiveFilters = computed(() => {
 });
 
 // Pagination logic
-// Pagination logic
 function goToPage(url: string | null) {
     if (url) router.visit(url);
 }
@@ -284,28 +289,59 @@ const total = computed(() => props.invoices.meta?.total || 0);
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6">
             <!-- Header -->
-            <div class="mb-6 flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold tracking-tight">Invoices</h1>
-                    <p class="mt-1 text-muted-foreground">
-                        Manage your billing and invoices
-                    </p>
-                </div>
-                <div class="flex items-center gap-3">
-                    <Button
-                        variant="outline"
-                        @click="showFilters = !showFilters"
-                        class="flex items-center gap-2"
-                    >
-                        <Filter class="h-4 w-4" />
-                        {{ showFilters ? 'Hide' : 'Show' }} Filters
-                    </Button>
-                    <Link :href="create.url()" class="shrink-0">
-                        <Button class="flex items-center gap-2">
-                            <Plus class="h-4 w-4" />
-                            Create Invoice
-                        </Button>
-                    </Link>
+            <div class="mb-6">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div class="space-y-1">
+                        <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">Invoices</h1>
+                        <p class="text-sm text-muted-foreground sm:text-base">
+                            Manage your billing and invoices
+                        </p>
+                    </div>
+
+                    <!-- All buttons container -->
+                    <div class="flex w-full items-center justify-end gap-2 lg:w-auto lg:justify-normal lg:gap-3">
+                        <!-- Filter Button -->
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Button
+                                        variant="outline"
+                                        @click="showFilters = !showFilters"
+                                        class="h-9 w-9 p-0 md:px-4 md:py-2 lg:h-auto lg:w-auto"
+                                        size="sm"
+                                    >
+                                        <Filter class="h-4 w-4" />
+                                        <span class="hidden lg:inline">
+                                            {{ showFilters ? 'Hide' : 'Show' }} Filters
+                                        </span>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent class="lg:hidden">
+                                    <p>{{ showFilters ? 'Hide' : 'Show' }} filters</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                        <!-- Create Invoice Button -->
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Link :href="create.url()" class="shrink-0">
+                                        <Button
+                                            class="h-9 w-9 p-0 md:px-4 md:py-2 lg:h-auto lg:w-auto"
+                                            size="sm"
+                                        >
+                                            <Plus class="h-4 w-4" />
+                                            <span class="hidden lg:inline">Create Invoice</span>
+                                        </Button>
+                                    </Link>
+                                </TooltipTrigger>
+                                <TooltipContent class="lg:hidden">
+                                    <p>Create new invoice</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                 </div>
             </div>
 
@@ -377,16 +413,27 @@ const total = computed(() => props.invoices.meta?.total || 0);
 
                 <!-- Filter Actions -->
                 <div class="mt-4 flex justify-between">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        @click="resetFilters"
-                        :disabled="!hasActiveFilters"
-                        class="flex items-center gap-2"
-                    >
-                        <X class="h-4 w-4" />
-                        Clear Filters
-                    </Button>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <div class="inline-block">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        @click="resetFilters"
+                                        :disabled="!hasActiveFilters"
+                                        class="flex items-center gap-2"
+                                    >
+                                        <X class="h-4 w-4" />
+                                        Clear Filters
+                                    </Button>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent v-if="!hasActiveFilters">
+                                <p>No active filters to clear</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     <Button size="sm" @click="applyFilters">
                         Apply Filters
                     </Button>
@@ -523,6 +570,8 @@ const total = computed(() => props.invoices.meta?.total || 0);
                                     :show-delete="canDelete"
                                     :on-edit="() => goToEdit(invoice.id)"
                                     :on-delete="() => confirmDelete(invoice.id)"
+                                    edit-tooltip="Edit invoice"
+                                    delete-tooltip="Delete invoice"
                                 />
                             </TableCell>
                         </TableRow>
@@ -541,46 +590,80 @@ const total = computed(() => props.invoices.meta?.total || 0);
             </div>
 
             <!-- Pagination -->
-            <div
-                class="flex flex-col items-center border-t bg-muted/30 px-6 py-4 sm:flex-row sm:justify-between"
-            >
-                <div class="text-sm text-muted-foreground">
-                    Showing <b>{{ showingFrom }}</b> to
-                    <b>{{ showingTo }}</b> of <b>{{ total }}</b> results
-                </div>
-                <nav
+            <div class="border-t bg-muted/30 px-6 py-4">
+                <div
                     v-if="invoices.meta?.last_page > 1"
-                    class="flex items-center rounded-md border"
+                    class="flex flex-col items-center justify-between gap-4 sm:flex-row"
                 >
-                    <button
-                        class="px-3 py-2 text-sm text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-                        :disabled="!firstPageUrl"
-                        @click="goToPage(firstPageUrl)"
-                    >
-                        <ChevronLeft class="h-4 w-4" />
-                    </button>
-                    <button
-                        v-for="link in pageLinks"
-                        :key="link.label"
-                        class="border-l px-3 py-2 text-sm transition-colors"
-                        :class="[
-                            link.active
-                                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                : 'text-muted-foreground hover:bg-muted',
-                        ]"
-                        @click="goToPage(link.url)"
-                        :disabled="!link.url"
-                    >
-                        {{ link.label }}
-                    </button>
-                    <button
-                        class="border-l px-3 py-2 text-sm text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-                        :disabled="!lastPageUrl"
-                        @click="goToPage(lastPageUrl)"
-                    >
-                        <ChevronRight class="h-4 w-4" />
-                    </button>
-                </nav>
+                    <!-- Info -->
+                    <div class="text-sm text-muted-foreground">
+                        Showing <span class="font-medium">{{ showingFrom }}</span> to
+                        <span class="font-medium">{{ showingTo }}</span> of 
+                        <span class="font-medium">{{ total }}</span> results
+                    </div>
+
+                    <!-- Pagination Controls -->
+                    <TooltipProvider>
+                        <nav class="flex items-center overflow-hidden rounded-md border">
+                            <!-- Prev Button -->
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <div class="inline-block">
+                                        <button
+                                            class="px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                                            :disabled="!firstPageUrl"
+                                            @click="goToPage(firstPageUrl)"
+                                        >
+                                            <ChevronLeft class="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent v-if="!firstPageUrl">
+                                    <p>You're on the first page</p>
+                                </TooltipContent>
+                            </Tooltip>
+
+                            <!-- Page Numbers -->
+                            <button
+                                v-for="link in pageLinks"
+                                :key="link.label"
+                                class="border-l px-3 py-2 text-sm font-medium transition-colors"
+                                @click="goToPage(link.url)"
+                                :class="[
+                                    link.active
+                                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                        : 'text-muted-foreground hover:bg-muted',
+                                ]"
+                            >
+                                {{ link.label }}
+                            </button>
+
+                            <!-- Next Button -->
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <div class="inline-block">
+                                        <button
+                                            class="border-l px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                                            :disabled="!lastPageUrl"
+                                            @click="goToPage(lastPageUrl)"
+                                        >
+                                            <ChevronRight class="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent v-if="!lastPageUrl">
+                                    <p>You're on the last page</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </nav>
+                    </TooltipProvider>
+                </div>
+                <div
+                    v-else
+                    class="text-center text-sm text-muted-foreground"
+                >
+                    {{ total }} invoice{{ total !== 1 ? 's' : '' }} total
+                </div>
             </div>
 
             <!-- Delete Confirmation -->

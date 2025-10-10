@@ -20,10 +20,23 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ChevronLeft, ChevronRight, Plus, Search, X, Filter } from 'lucide-vue-next';
+import {
+    ChevronLeft,
+    ChevronRight,
+    Filter,
+    Plus,
+    Search,
+    X,
+} from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 // Import Wayfinder-generated actions
@@ -34,23 +47,47 @@ import {
     index,
 } from '@/actions/App/Http/Controllers/UserController';
 
-const props = defineProps<{
-    users: {
-        data: Array<{
-            id: number;
-            name: string;
-            email: string;
-            role: string;
-            created_at: string;
-        }>;
-        links: any[];
-        meta: any;
+interface User {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+    created_at: string;
+}
+
+interface PaginationLinks {
+    url: string | null;
+    label: string;
+    active: boolean;
+}
+
+interface PaginatedUsers {
+    data: User[];
+    links: PaginationLinks[];
+    meta: {
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+        from: number;
+        to: number;
     };
+}
+
+const props = defineProps<{
+    users: PaginatedUsers;
     filters: {
         search?: string;
         role?: string;
         date_from?: string;
         date_to?: string;
+    };
+    auth: {
+        user: {
+            id: number;
+            role: 'admin' | 'manager' | 'member';
+            name: string;
+        };
     };
 }>();
 
@@ -60,10 +97,20 @@ const showDeleteDialog = ref(false);
 const userToDelete = ref<number | null>(null);
 const showFilters = ref(false);
 
+// Permission checks
+const canDelete = computed(() => props.auth.user.role === 'admin');
+
+const canEditUser = (user: User) => {
+    const currentUser = props.auth.user;
+    if (currentUser.role === 'admin') return true;
+    // Managers and members can only edit their own profile
+    return user.id === currentUser.id;
+};
+
 // Filters
 const filters = ref({
     search: props.filters.search || '',
-    role: props.filters.role || null, // Use null for "All Roles"
+    role: props.filters.role || null,
     date_from: props.filters.date_from || '',
     date_to: props.filters.date_to || '',
 });
@@ -123,7 +170,7 @@ function applyFilters() {
 function resetFilters() {
     filters.value = {
         search: '',
-        role: null, // Reset to null
+        role: null,
         date_from: '',
         date_to: '',
     };
@@ -179,31 +226,79 @@ const total = computed(() => props.users.meta?.total || 0);
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6">
             <!-- Header -->
-            <div class="mb-6 flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold tracking-tight">Users</h1>
-                    <p class="mt-1 text-muted-foreground">
-                        Manage your system users and permissions
-                    </p>
-                </div>
-                <div class="flex items-center gap-3">
-                    <Button
-                        variant="outline"
-                        @click="showFilters = !showFilters"
-                        class="flex items-center gap-2"
+            <div class="mb-6">
+                <div
+                    class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+                >
+                    <div class="space-y-1">
+                        <h1
+                            class="text-2xl font-bold tracking-tight sm:text-3xl"
+                        >
+                            Users
+                        </h1>
+                        <p class="text-sm text-muted-foreground sm:text-base">
+                            Manage your system users and permissions
+                        </p>
+                    </div>
+
+                    <!-- All buttons container -->
+                    <div
+                        class="flex w-full items-center justify-end gap-2 lg:w-auto lg:justify-normal lg:gap-3"
                     >
-                        <Filter class="h-4 w-4" />
-                        {{ showFilters ? 'Hide' : 'Show' }} Filters
-                    </Button>
-                    <Link :href="create.url()">
-                        <Button class="flex items-center gap-2">
-                            <Plus class="h-4 w-4" />
-                            New User
-                        </Button>
-                    </Link>
+                        <!-- Filter Button -->
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Button
+                                        variant="outline"
+                                        @click="showFilters = !showFilters"
+                                        class="h-9 w-9 p-0 md:px-4 md:py-2 lg:h-auto lg:w-auto"
+                                        size="sm"
+                                    >
+                                        <Filter class="h-4 w-4" />
+                                        <span class="hidden lg:inline">
+                                            {{
+                                                showFilters ? 'Hide' : 'Show'
+                                            }}
+                                            Filters
+                                        </span>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent class="lg:hidden">
+                                    <p>
+                                        {{
+                                            showFilters ? 'Hide' : 'Show'
+                                        }}
+                                        filters
+                                    </p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                        <!-- Add User Button -->
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Link :href="create.url()" class="shrink-0">
+                                        <Button
+                                            class="h-9 w-9 p-0 md:px-4 md:py-2 lg:h-auto lg:w-auto"
+                                            size="sm"
+                                        >
+                                            <Plus class="h-4 w-4" />
+                                            <span class="hidden lg:inline"
+                                                >New User</span
+                                            >
+                                        </Button>
+                                    </Link>
+                                </TooltipTrigger>
+                                <TooltipContent class="lg:hidden">
+                                    <p>Create new user</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                 </div>
             </div>
-
 
             <!-- Filters -->
             <div v-if="showFilters" class="mb-6 rounded-lg border p-4">
@@ -222,7 +317,7 @@ const total = computed(() => props.users.meta?.total || 0);
                                 v-model="filters.search"
                                 type="text"
                                 placeholder="Search by name or email..."
-                                class="pl-10"
+                                class="w-full pl-10"
                                 @keyup.enter="applyFilters"
                             />
                         </div>
@@ -251,6 +346,7 @@ const total = computed(() => props.users.meta?.total || 0);
                             id="date_from"
                             v-model="filters.date_from"
                             type="date"
+                            class="w-full"
                         />
                     </div>
 
@@ -261,22 +357,34 @@ const total = computed(() => props.users.meta?.total || 0);
                             id="date_to"
                             v-model="filters.date_to"
                             type="date"
+                            class="w-full"
                         />
                     </div>
                 </div>
 
                 <!-- Filter Actions -->
                 <div class="mt-4 flex justify-between">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        @click="resetFilters"
-                        :disabled="!hasActiveFilters"
-                        class="flex items-center gap-2"
-                    >
-                        <X class="h-4 w-4" />
-                        Clear Filters
-                    </Button>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <div class="inline-block">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        @click="resetFilters"
+                                        :disabled="!hasActiveFilters"
+                                        class="flex items-center gap-2"
+                                    >
+                                        <X class="h-4 w-4" />
+                                        Clear Filters
+                                    </Button>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent v-if="!hasActiveFilters">
+                                <p>No active filters to clear</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     <Button size="sm" @click="applyFilters">
                         Apply Filters
                     </Button>
@@ -298,7 +406,7 @@ const total = computed(() => props.users.meta?.total || 0);
                                 >
                             </TableRow>
                         </TableHeader>
-    
+
                         <TableBody>
                             <TableRow v-for="user in users.data" :key="user.id">
                                 <TableCell class="font-medium">
@@ -319,9 +427,9 @@ const total = computed(() => props.users.meta?.total || 0);
                                         <span>{{ user.name }}</span>
                                     </div>
                                 </TableCell>
-                                <TableCell class="text-muted-foreground">{{
-                                    user.email
-                                }}</TableCell>
+                                <TableCell class="text-muted-foreground">
+                                    {{ user.email }}
+                                </TableCell>
                                 <TableCell>
                                     <Badge
                                         :variant="getBadgeVariant(user.role)"
@@ -330,15 +438,32 @@ const total = computed(() => props.users.meta?.total || 0);
                                         {{ user.role }}
                                     </Badge>
                                 </TableCell>
-                                <TableCell class="text-muted-foreground">
-                                    {{ user.created_at }}
+                                <TableCell>
+                                    <p class="text-sm font-medium">
+                                        {{
+                                            new Date(
+                                                user.created_at,
+                                            ).toLocaleDateString()
+                                        }}
+                                    </p>
+                                    <p class="text-xs text-muted-foreground">
+                                        {{
+                                            new Date(
+                                                user.created_at,
+                                            ).toLocaleTimeString()
+                                        }}
+                                    </p>
                                 </TableCell>
                                 <TableCell>
                                     <ActionButtons
-                                        :show-edit="true"
-                                        :show-delete="true"
+                                        :show-edit="canEditUser(user)"
+                                        :show-delete="canDelete"
                                         :on-edit="() => goToEdit(user.id)"
-                                        :on-delete="() => confirmDelete(user.id)"
+                                        :on-delete="
+                                            () => confirmDelete(user.id)
+                                        "
+                                        edit-tooltip="Edit user"
+                                        delete-tooltip="Delete user"
                                     />
                                 </TableCell>
                             </TableRow>
@@ -372,48 +497,80 @@ const total = computed(() => props.users.meta?.total || 0);
                         </div>
 
                         <!-- Pagination Controls -->
-                        <nav
-                            class="flex items-center overflow-hidden rounded-md border"
-                        >
-                            <!-- Prev -->
-                            <button
-                                class="px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-                                :disabled="!users.links[0].url"
-                                @click="goToPage(users.links[0].url)"
+                        <TooltipProvider>
+                            <nav
+                                class="flex items-center overflow-hidden rounded-md border"
                             >
-                                <ChevronLeft class="h-4 w-4" />
-                            </button>
+                                <!-- Prev Button -->
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <div class="inline-block">
+                                            <button
+                                                class="px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                                                :disabled="!users.links[0].url"
+                                                @click="
+                                                    goToPage(users.links[0].url)
+                                                "
+                                            >
+                                                <ChevronLeft class="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent v-if="!users.links[0].url">
+                                        <p>You're on the first page</p>
+                                    </TooltipContent>
+                                </Tooltip>
 
-                            <!-- Page Numbers -->
-                            <button
-                                v-for="link in pageLinks"
-                                :key="link.label"
-                                class="border-l px-3 py-2 text-sm font-medium transition-colors"
-                                @click="goToPage(link.url)"
-                                :class="[
-                                    link.active
-                                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                        : 'text-muted-foreground hover:bg-muted',
-                                ]"
-                            >
-                                {{ link.label }}
-                            </button>
+                                <!-- Page Numbers -->
+                                <button
+                                    v-for="link in pageLinks"
+                                    :key="link.label"
+                                    class="border-l px-3 py-2 text-sm font-medium transition-colors"
+                                    @click="goToPage(link.url)"
+                                    :class="[
+                                        link.active
+                                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                            : 'text-muted-foreground hover:bg-muted',
+                                    ]"
+                                >
+                                    {{ link.label }}
+                                </button>
 
-                            <!-- Next -->
-                            <button
-                                class="border-l px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-                                :disabled="
-                                    !users.links[users.links.length - 1].url
-                                "
-                                @click="
-                                    goToPage(
-                                        users.links[users.links.length - 1].url,
-                                    )
-                                "
-                            >
-                                <ChevronRight class="h-4 w-4" />
-                            </button>
-                        </nav>
+                                <!-- Next Button -->
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <div class="inline-block">
+                                            <button
+                                                class="border-l px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                                                :disabled="
+                                                    !users.links[
+                                                        users.links.length - 1
+                                                    ].url
+                                                "
+                                                @click="
+                                                    goToPage(
+                                                        users.links[
+                                                            users.links.length -
+                                                                1
+                                                        ].url,
+                                                    )
+                                                "
+                                            >
+                                                <ChevronRight class="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                        v-if="
+                                            !users.links[users.links.length - 1]
+                                                .url
+                                        "
+                                    >
+                                        <p>You're on the last page</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </nav>
+                        </TooltipProvider>
                     </div>
                     <div
                         v-else

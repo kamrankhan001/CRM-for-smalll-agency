@@ -18,6 +18,12 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -52,6 +58,7 @@ interface Props {
     invoice: Invoice;
     clients: Client[];
     projects: Project[];
+    errors: Record<string, string>;
 }
 
 const props = defineProps<Props>();
@@ -76,6 +83,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 function submit() {
     router.put(update.url(props.invoice.id), form);
 }
+
+// Check if form is valid for submit button
+const isFormValid = () => {
+    return form.title && form.amount && form.issue_date && form.due_date;
+};
 </script>
 
 <template>
@@ -130,8 +142,12 @@ function submit() {
                                     type="text"
                                     placeholder="Enter invoice title"
                                     class="w-full"
+                                    :class="props.errors.title ? 'border-destructive' : ''"
                                     required
                                 />
+                                <p v-if="props.errors.title" class="text-sm text-destructive">
+                                    {{ props.errors.title }}
+                                </p>
                             </div>
 
                             <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -144,17 +160,21 @@ function submit() {
                                         type="number"
                                         placeholder="0.00"
                                         class="w-full"
+                                        :class="props.errors.amount ? 'border-destructive' : ''"
                                         min="0"
                                         step="0.01"
                                         required
                                     />
+                                    <p v-if="props.errors.amount" class="text-sm text-destructive">
+                                        {{ props.errors.amount }}
+                                    </p>
                                 </div>
 
                                 <!-- Status Field -->
                                 <div class="space-y-2">
                                     <Label for="status">Status</Label>
                                     <Select v-model="form.status">
-                                        <SelectTrigger class="w-full">
+                                        <SelectTrigger class="w-full" :class="props.errors.status ? 'border-destructive' : ''">
                                             <SelectValue placeholder="Select status" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -165,6 +185,9 @@ function submit() {
                                             <SelectItem value="cancelled">Cancelled</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    <p v-if="props.errors.status" class="text-sm text-destructive">
+                                        {{ props.errors.status }}
+                                    </p>
                                 </div>
                             </div>
 
@@ -177,10 +200,14 @@ function submit() {
                                     type="number"
                                     placeholder="0.00"
                                     class="w-full"
+                                    :class="props.errors.amount_paid ? 'border-destructive' : ''"
                                     min="0"
                                     step="0.01"
                                     :max="form.amount"
                                 />
+                                <p v-if="props.errors.amount_paid" class="text-sm text-destructive">
+                                    {{ props.errors.amount_paid }}
+                                </p>
                                 <p class="text-xs text-muted-foreground">
                                     Enter the amount that has been paid so far
                                 </p>
@@ -195,8 +222,12 @@ function submit() {
                                         v-model="form.issue_date"
                                         type="date"
                                         class="w-full"
+                                        :class="props.errors.issue_date ? 'border-destructive' : ''"
                                         required
                                     />
+                                    <p v-if="props.errors.issue_date" class="text-sm text-destructive">
+                                        {{ props.errors.issue_date }}
+                                    </p>
                                 </div>
 
                                 <!-- Due Date Field -->
@@ -207,8 +238,12 @@ function submit() {
                                         v-model="form.due_date"
                                         type="date"
                                         class="w-full"
+                                        :class="props.errors.due_date ? 'border-destructive' : ''"
                                         required
                                     />
+                                    <p v-if="props.errors.due_date" class="text-sm text-destructive">
+                                        {{ props.errors.due_date }}
+                                    </p>
                                 </div>
                             </div>
 
@@ -220,7 +255,7 @@ function submit() {
                                     <div class="space-y-2">
                                         <Label for="client_id">Client</Label>
                                         <Select v-model="form.client_id">
-                                            <SelectTrigger class="w-full">
+                                            <SelectTrigger class="w-full" :class="props.errors.client_id ? 'border-destructive' : ''">
                                                 <SelectValue placeholder="Select client" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -234,13 +269,16 @@ function submit() {
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>
+                                        <p v-if="props.errors.client_id" class="text-sm text-destructive">
+                                            {{ props.errors.client_id }}
+                                        </p>
                                     </div>
 
                                     <!-- Project Selection -->
                                     <div class="space-y-2">
                                         <Label for="project_id">Project</Label>
                                         <Select v-model="form.project_id">
-                                            <SelectTrigger class="w-full">
+                                            <SelectTrigger class="w-full" :class="props.errors.project_id ? 'border-destructive' : ''">
                                                 <SelectValue placeholder="Select project" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -254,6 +292,9 @@ function submit() {
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>
+                                        <p v-if="props.errors.project_id" class="text-sm text-destructive">
+                                            {{ props.errors.project_id }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -266,19 +307,39 @@ function submit() {
                                     v-model="form.notes"
                                     placeholder="Add any additional notes or terms..."
                                     class="min-h-[100px] w-full"
+                                    :class="props.errors.notes ? 'border-destructive' : ''"
                                 />
+                                <p v-if="props.errors.notes" class="text-sm text-destructive">
+                                    {{ props.errors.notes }}
+                                </p>
                             </div>
 
                             <!-- Action Buttons -->
                             <div class="flex gap-3 pt-4">
-                                <Button
-                                    type="submit"
-                                    class="flex-1 gap-2"
-                                    :disabled="!form.title || !form.amount || !form.issue_date || !form.due_date"
-                                >
-                                    <Save class="h-4 w-4" />
-                                    Save Changes
-                                </Button>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger as-child>
+                                            <div class="inline-block flex-1">
+                                                <Button
+                                                    type="submit"
+                                                    class="w-full gap-2"
+                                                    :disabled="!isFormValid()"
+                                                >
+                                                    <Save class="h-4 w-4" />
+                                                    Save Changes
+                                                </Button>
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent v-if="!isFormValid()">
+                                            <div class="space-y-1">
+                                                <p v-if="!form.title" class="text-sm">Title is required</p>
+                                                <p v-else-if="!form.amount" class="text-sm">Amount is required</p>
+                                                <p v-else-if="!form.issue_date" class="text-sm">Issue Date is required</p>
+                                                <p v-else-if="!form.due_date" class="text-sm">Due Date is required</p>
+                                            </div>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                                 <Link :href="index.url()" class="flex-1">
                                     <Button variant="outline" class="w-full">
                                         Cancel

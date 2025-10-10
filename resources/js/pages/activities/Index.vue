@@ -20,6 +20,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/vue3';
@@ -27,17 +33,17 @@ import {
     ChevronLeft,
     ChevronRight,
     Filter,
-    X,
-    Calendar,
+    Search,
     User,
+    X,
 } from 'lucide-vue-next';
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
 
 // Import Wayfinder-generated actions
 import {
+    destroy,
     index,
     show,
-    destroy,
 } from '@/actions/App/Http/Controllers/ActivityController';
 
 interface Causer {
@@ -50,7 +56,7 @@ interface Activity {
     id: number;
     description: string;
     causer: Causer | null;
-    model_type: string; // Changed from subject_type to match controller
+    model_type: string;
     action: string;
     created_at: string;
     updated_at: string;
@@ -94,19 +100,17 @@ const props = defineProps<{
     };
 }>();
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Activities', href: '#' },
-];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Activities', href: '#' }];
 
 const showFilters = ref(false);
 const showDeleteDialog = ref(false);
 const activityToDelete = ref<number | null>(null);
 
-// Initialize filters with prop values - Use null for select defaults
+// Initialize filters with prop values
 const filters = ref({
     user: props.filters?.user ?? '',
-    model: props.filters?.model ?? undefined, // Use undefined for shadcn Select
-    action: props.filters?.action ?? undefined, // Use undefined for shadcn Select
+    model: props.filters?.model ?? null,
+    action: props.filters?.action ?? null,
     date: props.filters?.date ?? '',
 });
 
@@ -154,11 +158,10 @@ const getRoleVariant = (role: string) => {
     }
 };
 
-// Filter functions - Fixed to handle undefined values properly
+// Filter functions
 function applyFilters() {
     const filterParams: Record<string, any> = {};
-    
-    // Only include filters that have values
+
     if (filters.value.user) filterParams.user = filters.value.user;
     if (filters.value.model) filterParams.model = filters.value.model;
     if (filters.value.action) filterParams.action = filters.value.action;
@@ -173,8 +176,8 @@ function applyFilters() {
 function resetFilters() {
     filters.value = {
         user: '',
-        model: undefined, // Reset to undefined
-        action: undefined, // Reset to undefined
+        model: null,
+        action: null,
         date: '',
     };
     router.get(index.url(), {}, { preserveState: true, replace: true });
@@ -209,25 +212,6 @@ function cancelDelete() {
     activityToDelete.value = null;
 }
 
-
-// Format date to "2025-9-20 5:00 AM" format
-const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1; // Months are 0-based
-    const day = date.getDate();
-    let hours = date.getHours();
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    
-    // Convert to 12-hour format
-    hours = hours % 12;
-    hours = hours ? hours : 12; // 0 should be 12
-    
-    return `${year}-${month}-${day} ${hours}:${minutes} ${ampm}`;
-};
-
 // Pagination logic
 function goToPage(url: string | null) {
     if (url) router.visit(url);
@@ -236,7 +220,8 @@ function goToPage(url: string | null) {
 const pageLinks = computed(() => {
     if (!props.activities.links) return [];
     return props.activities.links.filter(
-        (_, index) => index !== 0 && index !== props.activities.links.length - 1,
+        (_, index) =>
+            index !== 0 && index !== props.activities.links.length - 1,
     );
 });
 
@@ -258,39 +243,79 @@ const total = computed(() => props.activities.meta?.total || 0);
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6">
             <!-- Header -->
-            <div class="mb-6 flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold tracking-tight">Activity Log</h1>
-                    <p class="mt-1 text-muted-foreground">
-                        Track all system activities and user actions
-                    </p>
-                </div>
-                <div class="flex items-center gap-3">
-                    <Button
-                        variant="outline"
-                        @click="showFilters = !showFilters"
-                        class="flex items-center gap-2"
+            <div class="mb-6">
+                <div
+                    class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+                >
+                    <div class="space-y-1">
+                        <h1
+                            class="text-2xl font-bold tracking-tight sm:text-3xl"
+                        >
+                            Activity Log
+                        </h1>
+                        <p class="text-sm text-muted-foreground sm:text-base">
+                            Track all system activities and user actions
+                        </p>
+                    </div>
+
+                    <!-- All buttons container -->
+                    <div
+                        class="flex w-full items-center justify-end gap-2 lg:w-auto lg:justify-normal lg:gap-3"
                     >
-                        <Filter class="h-4 w-4" />
-                        {{ showFilters ? 'Hide' : 'Show' }} Filters
-                    </Button>
+                        <!-- Filter Button -->
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Button
+                                        variant="outline"
+                                        @click="showFilters = !showFilters"
+                                        class="h-9 w-9 p-0 md:px-4 md:py-2 lg:h-auto lg:w-auto"
+                                        size="sm"
+                                    >
+                                        <Filter class="h-4 w-4" />
+                                        <span class="hidden lg:inline">
+                                            {{
+                                                showFilters ? 'Hide' : 'Show'
+                                            }}
+                                            Filters
+                                        </span>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent class="lg:hidden">
+                                    <p>
+                                        {{
+                                            showFilters ? 'Hide' : 'Show'
+                                        }}
+                                        filters
+                                    </p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                 </div>
             </div>
 
             <!-- Filters -->
             <div v-if="showFilters" class="mb-6 rounded-lg border p-4">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div
+                    class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4"
+                >
                     <!-- User Filter -->
                     <div class="space-y-2">
                         <Label for="user">User</Label>
-                        <Input
-                            id="user"
-                            v-model="filters.user"
-                            type="text"
-                            placeholder="Filter by user name..."
-                            class="w-full"
-                            @keyup.enter="applyFilters"
-                        />
+                        <div class="relative">
+                            <Search
+                                class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-muted-foreground"
+                            />
+                            <Input
+                                id="user"
+                                v-model="filters.user"
+                                type="text"
+                                placeholder="Filter by user name..."
+                                class="w-full pl-10"
+                                @keyup.enter="applyFilters"
+                            />
+                        </div>
                     </div>
 
                     <!-- Model Filter -->
@@ -301,12 +326,24 @@ const total = computed(() => props.activities.meta?.total || 0);
                                 <SelectValue placeholder="All models" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem :value="null">All Models</SelectItem>
-                                <SelectItem value="App\Models\Lead">Lead</SelectItem>
-                                <SelectItem value="App\Models\Client">Client</SelectItem>
-                                <SelectItem value="App\Models\Task">Task</SelectItem>
-                                <SelectItem value="App\Models\Note">Note</SelectItem>
-                                <SelectItem value="App\Models\User">User</SelectItem>
+                                <SelectItem :value="null"
+                                    >All Models</SelectItem
+                                >
+                                <SelectItem value="App\Models\Lead"
+                                    >Lead</SelectItem
+                                >
+                                <SelectItem value="App\Models\Client"
+                                    >Client</SelectItem
+                                >
+                                <SelectItem value="App\Models\Task"
+                                    >Task</SelectItem
+                                >
+                                <SelectItem value="App\Models\Note"
+                                    >Note</SelectItem
+                                >
+                                <SelectItem value="App\Models\User"
+                                    >User</SelectItem
+                                >
                             </SelectContent>
                         </Select>
                     </div>
@@ -319,12 +356,18 @@ const total = computed(() => props.activities.meta?.total || 0);
                                 <SelectValue placeholder="All actions" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem :value="null">All Actions</SelectItem>
+                                <SelectItem :value="null"
+                                    >All Actions</SelectItem
+                                >
                                 <SelectItem value="created">Created</SelectItem>
                                 <SelectItem value="updated">Updated</SelectItem>
                                 <SelectItem value="deleted">Deleted</SelectItem>
-                                <SelectItem value="assigned">Assigned</SelectItem>
-                                <SelectItem value="commented">Commented</SelectItem>
+                                <SelectItem value="assigned"
+                                    >Assigned</SelectItem
+                                >
+                                <SelectItem value="commented"
+                                    >Commented</SelectItem
+                                >
                             </SelectContent>
                         </Select>
                     </div>
@@ -343,16 +386,27 @@ const total = computed(() => props.activities.meta?.total || 0);
 
                 <!-- Filter Actions -->
                 <div class="mt-4 flex justify-between">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        @click="resetFilters"
-                        :disabled="!hasActiveFilters"
-                        class="flex items-center gap-2"
-                    >
-                        <X class="h-4 w-4" />
-                        Clear Filters
-                    </Button>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <div class="inline-block">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        @click="resetFilters"
+                                        :disabled="!hasActiveFilters"
+                                        class="flex items-center gap-2"
+                                    >
+                                        <X class="h-4 w-4" />
+                                        Clear Filters
+                                    </Button>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent v-if="!hasActiveFilters">
+                                <p>No active filters to clear</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     <Button size="sm" @click="applyFilters">
                         Apply Filters
                     </Button>
@@ -369,51 +423,91 @@ const total = computed(() => props.activities.meta?.total || 0);
                                 <TableHead class="w-[100px]">Action</TableHead>
                                 <TableHead class="w-[180px]">User</TableHead>
                                 <TableHead class="w-[150px]">Date</TableHead>
-                                <TableHead class="w-[120px] text-right">Actions</TableHead>
+                                <TableHead class="w-[120px] text-right"
+                                    >Actions</TableHead
+                                >
                             </TableRow>
                         </TableHeader>
 
                         <TableBody>
-                            <TableRow v-for="activity in activities.data" :key="activity.id">
+                            <TableRow
+                                v-for="activity in activities.data"
+                                :key="activity.id"
+                            >
                                 <TableCell class="font-medium">
-                                    <!-- Removed icon, showing only model name -->
                                     {{ activity.model_type }}
                                 </TableCell>
                                 <TableCell>
                                     <Badge
-                                        :variant="getActionVariant(activity.action)"
+                                        :variant="
+                                            getActionVariant(activity.action)
+                                        "
                                         class="capitalize"
                                     >
                                         {{ activity.action }}
                                     </Badge>
                                 </TableCell>
                                 <TableCell>
-                                    <div v-if="activity.causer" class="flex flex-col gap-1">
+                                    <div
+                                        v-if="activity.causer"
+                                        class="flex flex-col gap-1"
+                                    >
                                         <div class="flex items-center gap-2">
-                                            <User class="h-3 w-3 text-muted-foreground" />
-                                            <span class="font-medium">{{ activity.causer.name }}</span>
+                                            <User
+                                                class="h-3 w-3 text-muted-foreground"
+                                            />
+                                            <span class="font-medium">{{
+                                                activity.causer.name
+                                            }}</span>
                                         </div>
                                         <Badge
-                                            :variant="getRoleVariant(activity.causer.role)"
+                                            :variant="
+                                                getRoleVariant(
+                                                    activity.causer.role,
+                                                )
+                                            "
                                             class="text-xs capitalize"
                                         >
                                             {{ activity.causer.role }}
                                         </Badge>
                                     </div>
-                                    <span v-else class="text-muted-foreground text-sm">System</span>
+                                    <span
+                                        v-else
+                                        class="text-sm text-muted-foreground"
+                                        >System</span
+                                    >
                                 </TableCell>
-                                <TableCell class="text-sm text-muted-foreground">
-                                    <div class="flex items-center gap-2">
-                                        <Calendar class="h-3 w-3" />
-                                        {{ formatDateTime(activity.created_at) }}
-                                    </div>
+                                <TableCell>
+                                    <p class="text-sm font-medium">
+                                        {{
+                                            new Date(
+                                                activity.created_at,
+                                            ).toLocaleDateString()
+                                        }}
+                                    </p>
+                                    <p class="text-xs text-muted-foreground">
+                                        {{
+                                            new Date(
+                                                activity.created_at,
+                                            ).toLocaleTimeString()
+                                        }}
+                                    </p>
                                 </TableCell>
                                 <TableCell class="text-right">
                                     <ActionButtons
                                         :show-view="canViewActivity(activity)"
                                         :show-delete="canDelete"
-                                        :on-view="() => router.get(show.url(activity.id))"
-                                        :on-delete="() => confirmDelete(activity.id)"
+                                        :on-view="
+                                            () =>
+                                                router.get(
+                                                    show.url(activity.id),
+                                                )
+                                        "
+                                        :on-delete="
+                                            () => confirmDelete(activity.id)
+                                        "
+                                        view-tooltip="View activity details"
+                                        delete-tooltip="Delete activity"
                                         view-icon="eye"
                                     />
                                 </TableCell>
@@ -448,42 +542,89 @@ const total = computed(() => props.activities.meta?.total || 0);
                         </div>
 
                         <!-- Pagination Controls -->
-                        <nav
-                            class="flex items-center overflow-hidden rounded-md border"
-                        >
-                            <!-- Prev -->
-                            <button
-                                class="px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-                                :disabled="!activities.links[0]?.url"
-                                @click="goToPage(activities.links[0]?.url)"
+                        <TooltipProvider>
+                            <nav
+                                class="flex items-center overflow-hidden rounded-md border"
                             >
-                                <ChevronLeft class="h-4 w-4" />
-                            </button>
+                                <!-- Prev Button -->
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <div class="inline-block">
+                                            <button
+                                                class="px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                                                :disabled="
+                                                    !activities.links[0]?.url
+                                                "
+                                                @click="
+                                                    goToPage(
+                                                        activities.links[0]
+                                                            ?.url,
+                                                    )
+                                                "
+                                            >
+                                                <ChevronLeft class="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                        v-if="!activities.links[0]?.url"
+                                    >
+                                        <p>You're on the first page</p>
+                                    </TooltipContent>
+                                </Tooltip>
 
-                            <!-- Page Numbers -->
-                            <button
-                                v-for="link in pageLinks"
-                                :key="link.label"
-                                class="border-l px-3 py-2 text-sm font-medium transition-colors"
-                                @click="goToPage(link.url)"
-                                :class="[
-                                    link.active
-                                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                        : 'text-muted-foreground hover:bg-muted',
-                                ]"
-                            >
-                                {{ link.label }}
-                            </button>
+                                <!-- Page Numbers -->
+                                <button
+                                    v-for="link in pageLinks"
+                                    :key="link.label"
+                                    class="border-l px-3 py-2 text-sm font-medium transition-colors"
+                                    @click="goToPage(link.url)"
+                                    :class="[
+                                        link.active
+                                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                            : 'text-muted-foreground hover:bg-muted',
+                                    ]"
+                                >
+                                    {{ link.label }}
+                                </button>
 
-                            <!-- Next -->
-                            <button
-                                class="border-l px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-                                :disabled="!activities.links[activities.links.length - 1]?.url"
-                                @click="goToPage(activities.links[activities.links.length - 1]?.url)"
-                            >
-                                <ChevronRight class="h-4 w-4" />
-                            </button>
-                        </nav>
+                                <!-- Next Button -->
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <div class="inline-block">
+                                            <button
+                                                class="border-l px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                                                :disabled="
+                                                    !activities.links[
+                                                        activities.links
+                                                            .length - 1
+                                                    ]?.url
+                                                "
+                                                @click="
+                                                    goToPage(
+                                                        activities.links[
+                                                            activities.links
+                                                                .length - 1
+                                                        ]?.url,
+                                                    )
+                                                "
+                                            >
+                                                <ChevronRight class="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                        v-if="
+                                            !activities.links[
+                                                activities.links.length - 1
+                                            ]?.url
+                                        "
+                                    >
+                                        <p>You're on the last page</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </nav>
+                        </TooltipProvider>
                     </div>
                     <div
                         v-else
