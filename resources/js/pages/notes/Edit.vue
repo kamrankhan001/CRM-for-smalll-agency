@@ -17,6 +17,12 @@ import {
     SelectTrigger, 
     SelectValue 
 } from '@/components/ui/select'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip'
 import AppLayout from '@/layouts/AppLayout.vue'
 import type { BreadcrumbItem } from '@/types'
 import { ArrowLeft, Save, MessageSquare } from 'lucide-vue-next'
@@ -47,6 +53,8 @@ interface Props {
   note: Note;
   leads: Array<{ id: number; name: string }>;
   clients: Array<{ id: number; name: string }>;
+  projects: Array<{ id: number; name: string }>;
+  errors: Record<string, string>;
 }
 
 const props = defineProps<Props>()
@@ -54,7 +62,7 @@ const props = defineProps<Props>()
 // Initialize form with current note data
 const form = reactive({
   content: props.note.content,
-  noteable_type: props.note.noteable?.type.toLowerCase() as 'lead' | 'client' || 'lead',
+  noteable_type: props.note.noteable?.type.toLowerCase() as 'lead' | 'client' | 'project' || 'lead',
   noteable_id: props.note.noteable?.id || null as number | null,
 })
 
@@ -66,6 +74,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 function submit() {
   router.put(update.url(props.note.id), form)
 }
+
+// Check if form is valid for submit button tooltip
+const isFormValid = () => {
+  return form.content && form.noteable_id;
+};
 </script>
 
 <template>
@@ -87,7 +100,7 @@ function submit() {
             </p>
           </div>
         </div>
-        <Link :href="index.url()">
+        <Link :href="index.url()" class="hidden md:block">
           <Button variant="outline" class="flex items-center gap-2">
             <ArrowLeft class="h-4 w-4" />
             Back to Notes
@@ -117,8 +130,12 @@ function submit() {
                   v-model="form.content"
                   placeholder="Write your note here..."
                   class="w-full min-h-[100px]"
+                  :class="props.errors.content ? 'border-destructive' : ''"
                   required
                 />
+                <p v-if="props.errors.content" class="text-sm text-destructive">
+                  {{ props.errors.content }}
+                </p>
               </div>
 
               <!-- Linked Entity Section -->
@@ -129,23 +146,32 @@ function submit() {
                   <div class="space-y-2">
                     <Label for="noteable_type">Entity Type</Label>
                     <Select v-model="form.noteable_type">
-                      <SelectTrigger class="w-full">
+                      <SelectTrigger class="w-full" :class="props.errors.noteable_type ? 'border-destructive' : ''">
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="lead">Lead</SelectItem>
                         <SelectItem value="client">Client</SelectItem>
+                        <SelectItem value="project">Project</SelectItem>
                       </SelectContent>
                     </Select>
+                    <p v-if="props.errors.noteable_type" class="text-sm text-destructive">
+                      {{ props.errors.noteable_type }}
+                    </p>
                   </div>
 
                   <!-- Entity Selection -->
                   <div class="space-y-2">
                     <Label v-if="form.noteable_type === 'lead'" for="noteable_id">Select Lead</Label>
-                    <Label v-else for="noteable_id">Select Client</Label>
+                    <Label v-else-if="form.noteable_type === 'client'" for="noteable_id">Select Client</Label>
+                    <Label v-else for="noteable_id">Select Project</Label>
                     <Select v-model="form.noteable_id">
-                      <SelectTrigger class="w-full">
-                        <SelectValue :placeholder="form.noteable_type === 'lead' ? 'Select a lead' : 'Select a client'" />
+                      <SelectTrigger class="w-full" :class="props.errors.noteable_id ? 'border-destructive' : ''">
+                        <SelectValue :placeholder="
+                          form.noteable_type === 'lead' ? 'Select a lead' : 
+                          form.noteable_type === 'client' ? 'Select a client' : 
+                          'Select a project'
+                        " />
                       </SelectTrigger>
                       <SelectContent>
                         <template v-if="form.noteable_type === 'lead'">
@@ -157,7 +183,7 @@ function submit() {
                             {{ lead.name }}
                           </SelectItem>
                         </template>
-                        <template v-else>
+                        <template v-else-if="form.noteable_type === 'client'">
                           <SelectItem 
                             v-for="client in clients" 
                             :key="client.id" 
@@ -166,22 +192,48 @@ function submit() {
                             {{ client.name }}
                           </SelectItem>
                         </template>
+                        <template v-else>
+                          <SelectItem 
+                            v-for="project in projects" 
+                            :key="project.id" 
+                            :value="project.id"
+                          >
+                            {{ project.name }}
+                          </SelectItem>
+                        </template>
                       </SelectContent>
                     </Select>
+                    <p v-if="props.errors.noteable_id" class="text-sm text-destructive">
+                      {{ props.errors.noteable_id }}
+                    </p>
                   </div>
                 </div>
               </div>
 
               <!-- Action Buttons -->
               <div class="flex gap-3 pt-4">
-                <Button 
-                  type="submit" 
-                  class="flex-1 gap-2"
-                  :disabled="!form.content || !form.noteable_id"
-                >
-                  <Save class="h-4 w-4" />
-                  Save Changes
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <div class="inline-block flex-1">
+                        <Button 
+                          type="submit" 
+                          class="w-full gap-2"
+                          :disabled="!isFormValid()"
+                        >
+                          <Save class="h-4 w-4" />
+                          Save Changes
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent v-if="!isFormValid()">
+                      <div class="space-y-1">
+                        <p v-if="!form.content" class="text-sm">Note content is required</p>
+                        <p v-else-if="!form.noteable_id" class="text-sm">Please select an entity to link to</p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Link :href="index.url()" class="flex-1">
                   <Button variant="outline" class="w-full">
                     Cancel

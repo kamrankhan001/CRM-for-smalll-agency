@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\Lead;
 use App\Models\Note;
+use App\Models\Project;
 use App\Models\User;
 use App\Notifications\NoteAddedNotification;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -24,10 +25,12 @@ class NoteController extends Controller
                 $query->where('content', 'like', "%{$search}%");
             })
             ->when($request->filled('noteable_type'), function ($query) use ($request) {
-                $query->where('noteable_type', $request->noteable_type === 'lead'
-                    ? 'App\\Models\\Lead'
-                    : 'App\\Models\\Client'
-                );
+                $query->where('noteable_type', match ($request->noteable_type) {
+                    'lead' => 'App\\Models\\Lead',
+                    'client' => 'App\\Models\\Client',
+                    'project' => 'App\\Models\\Project',
+                    default => 'App\\Models\\Lead'
+                });
             })
             ->when($request->filled('user_id'), function ($query) use ($request) {
                 $query->where('user_id', $request->user_id);
@@ -97,6 +100,7 @@ class NoteController extends Controller
         return Inertia::render('notes/Create', [
             'leads' => Lead::select('id', 'name')->get(),
             'clients' => Client::select('id', 'name')->get(),
+            'projects' => Project::select('id', 'name')->get(),
         ]);
     }
 
@@ -107,13 +111,17 @@ class NoteController extends Controller
         $validated = $request->validate([
             'content' => 'required|string|max:1000',
             'noteable_id' => 'required|integer',
-            'noteable_type' => 'required|string|in:lead,client',
+            'noteable_type' => 'required|string|in:lead,client,project',
         ]);
 
         // Convert to full model class names
-        $validated['noteable_type'] = $validated['noteable_type'] === 'lead'
-            ? 'App\\Models\\Lead'
-            : 'App\\Models\\Client';
+        $validated['noteable_type'] = match ($validated['noteable_type']) {
+            'lead' => 'App\\Models\\Lead',
+            'client' => 'App\\Models\\Client',
+            'project' => 'App\\Models\\Project',
+            default => 'App\\Models\\Lead'
+        };
+
         $validated['user_id'] = auth()->id();
 
         $note = Note::create($validated);
@@ -149,6 +157,7 @@ class NoteController extends Controller
                 'updated_at' => $note->updated_at->toISOString(),
             ],
             'leads' => Lead::select('id', 'name')->get(),
+            'projects' => Project::select('id', 'name')->get(),
             'clients' => Client::select('id', 'name')->get(),
         ]);
     }
@@ -160,13 +169,16 @@ class NoteController extends Controller
         $validated = $request->validate([
             'content' => 'required|string|max:1000',
             'noteable_id' => 'required|integer',
-            'noteable_type' => 'required|string|in:lead,client',
+            'noteable_type' => 'required|string|in:lead,client,project',
         ]);
 
         // Convert to full model class names
-        $validated['noteable_type'] = $validated['noteable_type'] === 'lead'
-            ? 'App\\Models\\Lead'
-            : 'App\\Models\\Client';
+        $validated['noteable_type'] = match ($validated['noteable_type']) {
+            'lead' => 'App\\Models\\Lead',
+            'client' => 'App\\Models\\Client',
+            'project' => 'App\\Models\\Project',
+            default => 'App\\Models\\Lead'
+        };
 
         $note->update($validated);
 
