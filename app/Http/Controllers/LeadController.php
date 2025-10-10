@@ -4,17 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Exports\LeadsExport;
 use App\Imports\LeadsImport;
+use App\Models\Client;
 use App\Models\Lead;
 use App\Models\User;
 use App\Notifications\LeadAssignedNotification;
 use App\Notifications\LeadConvertedNotification;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
-use Illuminate\Support\Facades\DB;
-use App\Models\Client;
 
 class LeadController extends Controller
 {
@@ -141,6 +141,31 @@ class LeadController extends Controller
 
         return redirect()->route('leads.index')
             ->with('success', 'Lead created successfully.');
+    }
+
+    /**
+     * Show the detail of specified lead.
+     */
+    public function show(Lead $lead)
+    {
+        // Eager load all necessary relationships to avoid N+1 queries
+        $lead->load([
+            'creator',
+            'assignee',
+            'notes.user',
+            'activities.causer',
+            'tasks',
+            'documents',
+            'client',
+        ]);
+
+        return Inertia::render('leads/Show', [
+            'lead' => $lead,
+            'notes' => $lead->notes,
+            'activities' => $lead->activities,
+            'tasks' => $lead->tasks,
+            'documents' => $lead->documents,
+        ]);
     }
 
     /**
@@ -361,5 +386,55 @@ class LeadController extends Controller
                 ];
             }
         }, 'leads-import-template.xlsx');
+    }
+
+    /**
+     * Convert lead to client
+     */
+    public function convert(Request $request, Lead $lead)
+    {
+        $this->authorize('update', $lead);
+
+        // Check if lead is already converted (has a client)
+        if ($lead->client) {
+            return redirect()->back()
+                ->with('error', 'This lead has already been converted to a client.');
+        }
+
+        try {
+            DB::transaction(function () use ($lead, $request) {
+                // Update lead status to qualified
+                $lead->update(['status' => 'qualified']);
+
+                // Create client from lead
+                $client = Client::create([
+                    'name' => $lead->name,
+                    'email' => $lead->email,
+                    'phone' => $lead->phone,
+                    'company' => $lead->company,
+                    'lead_id' => $lead->id,
+                    'assigned_to' => $lead->assigned_to,
+                    'created_by' => $request->user()->id,
+                ]);
+
+                // Send notification to admin users
+                $adminUsers = User::where('role', 'admin')->get();
+                foreach ($adminUsers as $admin) {
+                    $admin->notify(new LeadConvertedNotification($lead, $client));
+                }
+
+                // Also notify the assigned user if different from current user
+                if ($lead->assignee && $lead->assignee->id != $request->user()->id) {
+                    $lead->assignee->notify(new LeadConvertedNotification($lead, $client));
+                }
+            });
+
+            return redirect()->route('leads.show', $lead)
+                ->with('success', 'Lead successfully converted to client.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to convert lead to client: '.$e->getMessage());
+        }
     }
 }

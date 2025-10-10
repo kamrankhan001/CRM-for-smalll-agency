@@ -50,7 +50,7 @@ An open-source CRM solution tailored for small agencies, featuring lead/client m
 ## Tech Stack
 
 ### Backend
-- **Laravel 10** - PHP framework
+- **Laravel 12** - PHP framework
 - **MySQL** - Database
 - **Inertia.js** - Server-client communication
 

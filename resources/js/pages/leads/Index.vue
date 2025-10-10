@@ -131,6 +131,9 @@ const filters = ref({
 function goToEdit(leadId: number) {
     router.get(edit.url(leadId));
 }
+function goToShow(leadId: number) {
+    router.get(index.url() + `/${leadId}`);
+}
 
 function confirmDelete(leadId: number) {
     leadToDelete.value = leadId;
@@ -661,12 +664,15 @@ async function submitImport(file: File) {
                                 <TableCell>
                                     <ActionButtons
                                         :show-edit="canEditLead(lead)"
+                                        :show-view="true"
                                         :show-delete="canDelete"
                                         :on-edit="() => goToEdit(lead.id)"
+                                        :on-view="() => goToShow(lead.id)"
                                         :on-delete="
                                             () => confirmDelete(lead.id)
                                         "
                                         edit-tooltip="Edit lead"
+                                        view-tooltip="View lead"
                                         delete-tooltip="Delete lead"
                                     />
                                 </TableCell>

@@ -28,6 +28,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Keep the resource route but it should be after custom routes
     Route::resource('leads', LeadController::class);
+    Route::post('/leads/{lead}/convert', [LeadController::class, 'convert'])
+    ->name('leads.convert');
 
     Route::resource('clients', ClientController::class);
 
