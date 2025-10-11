@@ -45,6 +45,7 @@ import {
     destroy,
     edit,
     index,
+    show,
 } from '@/actions/App/Http/Controllers/UserController';
 
 interface User {
@@ -130,6 +131,10 @@ const getBadgeVariant = (role: string) => {
 
 function goToEdit(userId: number) {
     router.get(edit.url(userId));
+}
+
+function goToView(userId: number) {
+    router.get(show.url(userId));
 }
 
 function confirmDelete(userId: number) {
@@ -457,11 +462,14 @@ const total = computed(() => props.users.meta?.total || 0);
                                 <TableCell>
                                     <ActionButtons
                                         :show-edit="canEditUser(user)"
+                                        :show-view="true"
                                         :show-delete="canDelete"
                                         :on-edit="() => goToEdit(user.id)"
+                                        :on-view="() => goToView(user.id)"
                                         :on-delete="
                                             () => confirmDelete(user.id)
                                         "
+                                        view-tooltip="View user"
                                         edit-tooltip="Edit user"
                                         delete-tooltip="Delete user"
                                     />

@@ -85,6 +85,92 @@ class UserController extends Controller
             ->with('success', 'User created.');
     }
 
+    /**
+     * Display the specified user.
+     */
+    public function show(User $user)
+    {
+        $this->authorize('view', $user);
+
+        $user->load([
+            'assignedClients',
+            'assignedLeads',
+            'tasks' => function ($query) {
+                $query->latest()->limit(5);
+            },
+            'projects' => function ($query) {
+                $query->latest()->limit(5);
+            },
+            'ownedProjects' => function ($query) {
+                $query->latest()->limit(5);
+            },
+            'uploadedDocuments' => function ($query) {
+                $query->latest()->limit(5);
+            },
+        ]);
+
+        return Inertia::render('users/Show', [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'created_at' => $user->created_at->toISOString(),
+                'updated_at' => $user->updated_at->toISOString(),
+            ],
+            'stats' => [
+                'assigned_clients_count' => $user->assignedClients->count(),
+                'assigned_leads_count' => $user->assignedLeads->count(),
+                'tasks_count' => $user->tasks->count(),
+                'projects_count' => $user->projects->count(),
+                'owned_projects_count' => $user->ownedProjects->count(),
+                'uploaded_documents_count' => $user->uploadedDocuments->count(),
+            ],
+            'assigned_clients' => $user->assignedClients->map(fn ($client) => [
+                'id' => $client->id,
+                'name' => $client->name,
+                'company' => $client->company,
+                'status' => $client->status,
+                'created_at' => $client->created_at->toISOString(),
+            ]),
+            'assigned_leads' => $user->assignedLeads->map(fn ($lead) => [
+                'id' => $lead->id,
+                'name' => $lead->name,
+                'company' => $lead->company,
+                'status' => $lead->status,
+                'created_at' => $lead->created_at->toISOString(),
+            ]),
+            'recent_tasks' => $user->tasks->map(fn ($task) => [
+                'id' => $task->id,
+                'title' => $task->title,
+                'status' => $task->status,
+                'priority' => $task->priority,
+                'due_date' => $task->due_date?->toISOString(),
+                'created_at' => $task->created_at->toISOString(),
+            ]),
+            'recent_projects' => $user->projects->map(fn ($project) => [
+                'id' => $project->id,
+                'name' => $project->name,
+                'status' => $project->status,
+                'client_id' => $project->client_id,
+                'created_at' => $project->created_at->toISOString(),
+            ]),
+            'owned_projects' => $user->ownedProjects->map(fn ($project) => [
+                'id' => $project->id,
+                'name' => $project->name,
+                'status' => $project->status,
+                'client_id' => $project->client_id,
+                'created_at' => $project->created_at->toISOString(),
+            ]),
+            'recent_documents' => $user->uploadedDocuments->map(fn ($document) => [
+                'id' => $document->id,
+                'title' => $document->title,
+                'type' => $document->type,
+                'created_at' => $document->created_at->toISOString(),
+            ]),
+        ]);
+    }
+
     public function edit(User $user)
     {
         $this->authorize('update', $user);
