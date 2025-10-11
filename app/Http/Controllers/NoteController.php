@@ -135,6 +135,54 @@ class NoteController extends Controller
         return redirect()->route('notes.index')->with('success', 'Note created successfully.');
     }
 
+    /**
+     * Display the specified note.
+     */
+    public function show(Note $note)
+    {
+        $this->authorize('view', $note);
+
+        $note->load([
+            'user',
+            'noteable',
+            'activities' => function ($query) {
+                $query->with('causer')->latest()->limit(10);
+            },
+        ]);
+
+        return Inertia::render('notes/Show', [
+            'note' => [
+                'id' => $note->id,
+                'content' => $note->content,
+                'user_id' => $note->user_id,
+                'noteable_type' => $note->noteable_type,
+                'noteable_id' => $note->noteable_id,
+                'created_at' => $note->created_at->toISOString(),
+                'updated_at' => $note->updated_at->toISOString(),
+                'user' => [
+                    'id' => $note->user->id,
+                    'name' => $note->user->name,
+                    'email' => $note->user->email,
+                ],
+                'noteable' => $note->noteable ? [
+                    'id' => $note->noteable->id,
+                    'name' => $note->noteable->name ?? $note->noteable->title,
+                    'type' => class_basename($note->noteable_type),
+                ] : null,
+            ],
+            'activities' => $note->activities->map(fn ($activity) => [
+                'id' => $activity->id,
+                'description' => $activity->description,
+                'causer' => $activity->causer ? [
+                    'id' => $activity->causer->id,
+                    'name' => $activity->causer->name,
+                ] : null,
+                'created_at' => $activity->created_at->toISOString(),
+                'properties' => $activity->properties,
+            ]),
+        ]);
+    }
+
     public function edit(Note $note)
     {
         $this->authorize('update', $note);

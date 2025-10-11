@@ -41,6 +41,7 @@ import {
     destroy,
     edit,
     index,
+    show,
 } from '@/actions/App/Http/Controllers/NoteController';
 
 interface User {
@@ -132,6 +133,10 @@ const canDeleteNote = (note: Note) => {
 
 function goToEdit(noteId: number) {
     router.get(edit.url(noteId));
+}
+
+function goToView(noteId: number) {
+    router.get(show.url(noteId));
 }
 
 function confirmDelete(noteId: number) {
@@ -237,6 +242,16 @@ const getNoteableTypeVariant = (type: string | undefined) => {
     }
 };
 
+// Handle card click - prevent action when clicking buttons
+function handleCardClick(noteId: number, event: Event) {
+    // Check if the click came from an action button or its children
+    const target = event.target as HTMLElement;
+    if (target.closest('button') || target.closest('.action-buttons')) {
+        return; // Don't navigate if click came from action buttons
+    }
+    goToEdit(noteId);
+}
+
 // Pagination logic
 function goToPage(url: string | null) {
     if (url) router.visit(url);
@@ -308,18 +323,14 @@ const total = computed(() => props.notes.meta?.total || 0);
                                     >
                                         <Filter class="h-4 w-4" />
                                         <span class="hidden lg:inline">
-                                            {{
-                                                showFilters ? 'Hide' : 'Show'
-                                            }}
+                                            {{ showFilters ? 'Hide' : 'Show' }}
                                             Filters
                                         </span>
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent class="lg:hidden">
                                     <p>
-                                        {{
-                                            showFilters ? 'Hide' : 'Show'
-                                        }}
+                                        {{ showFilters ? 'Hide' : 'Show' }}
                                         filters
                                     </p>
                                 </TooltipContent>
@@ -505,7 +516,7 @@ const total = computed(() => props.notes.meta?.total || 0);
                         v-for="note in notes.data"
                         :key="note.id"
                         class="group cursor-pointer transition-all duration-200 hover:border-primary/50 hover:shadow-md"
-                        @click="goToEdit(note.id)"
+                        @click="handleCardClick(note.id, $event)"
                     >
                         <CardContent class="p-4">
                             <!-- Note Header -->
@@ -532,7 +543,7 @@ const total = computed(() => props.notes.meta?.total || 0);
                                         </div>
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-y-1 gap-x-3">
+                                <div class="flex items-center gap-x-3 gap-y-1">
                                     <Badge
                                         v-if="note.noteable"
                                         :variant="
@@ -544,16 +555,21 @@ const total = computed(() => props.notes.meta?.total || 0);
                                     >
                                         {{ note.noteable.type }}
                                     </Badge>
-                                    <ActionButtons
-                                        :show-edit="canEditNote(note)"
-                                        :show-delete="canDeleteNote(note)"
-                                        :on-edit="() => goToEdit(note.id)"
-                                        :on-delete="
-                                            () => confirmDelete(note.id)
-                                        "
-                                        edit-tooltip="Edit note"
-                                        delete-tooltip="Delete note"
-                                    />
+                                    <div class="action-buttons">
+                                        <ActionButtons
+                                            :show-edit="canEditNote(note)"
+                                            :show-view="true"
+                                            :show-delete="canDeleteNote(note)"
+                                            :on-edit="() => goToEdit(note.id)"
+                                            :on-view="() => goToView(note.id)"
+                                            :on-delete="
+                                                () => confirmDelete(note.id)
+                                            "
+                                            view-tooltip="View note"
+                                            edit-tooltip="Edit note"
+                                            delete-tooltip="Delete note"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
