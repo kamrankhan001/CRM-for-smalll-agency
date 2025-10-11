@@ -41,6 +41,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('projects', ProjectController::class);
 
     Route::resource('documents', DocumentController::class);
+    Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
 
     Route::resource('activities', ActivityController::class)->only(['index', 'show', 'destroy']);
     

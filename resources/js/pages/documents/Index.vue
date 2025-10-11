@@ -2,6 +2,7 @@
 import {
     create,
     destroy,
+    show,
     edit,
     index,
 } from '@/actions/App/Http/Controllers/DocumentController';
@@ -164,6 +165,10 @@ const hasActiveFilters = computed(() => {
 
 function goToEdit(id: number) {
     router.get(edit.url(id));
+}
+
+function goToView(id: number) {
+    router.get(show.url(id));
 }
 
 function confirmDelete(id: number) {
@@ -445,11 +450,14 @@ const total = computed(() => props.documents.meta.total || 0);
                             <TableCell>
                                 <ActionButtons
                                     :show-edit="canEditDocument(document)"
+                                    :show-view="true"
                                     :show-delete="canDelete"
                                     :on-edit="() => goToEdit(document.id)"
+                                    :on-view="() => goToView(document.id)"
                                     :on-delete="
                                         () => confirmDelete(document.id)
                                     "
+                                    view-tooltip="View document"
                                     edit-tooltip="Edit document"
                                     delete-tooltip="Delete document"
                                 />

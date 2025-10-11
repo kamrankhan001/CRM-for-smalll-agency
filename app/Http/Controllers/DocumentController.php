@@ -110,6 +110,57 @@ class DocumentController extends Controller
         return redirect()->route('documents.index')->with('success', 'Document uploaded successfully.');
     }
 
+    /**
+     * Display the specified document.
+     */
+    public function show(Document $document)
+    {
+        $this->authorize('view', $document);
+
+        $document->load([
+            'documentable',
+            'uploader',
+            'activities' => function ($query) {
+                $query->with('causer')->latest()->limit(10);
+            },
+        ]);
+
+        return Inertia::render('documents/Show', [
+            'document' => [
+                'id' => $document->id,
+                'title' => $document->title,
+                'type' => $document->type,
+                'file_path' => $document->file_path,
+                'file_url' => Storage::url($document->file_path),
+                'documentable_type' => $document->documentable_type,
+                'documentable_id' => $document->documentable_id,
+                'uploaded_by' => $document->uploaded_by,
+                'created_at' => $document->created_at->toISOString(),
+                'updated_at' => $document->updated_at->toISOString(),
+                'uploader' => $document->uploader ? [
+                    'id' => $document->uploader->id,
+                    'name' => $document->uploader->name,
+                    'email' => $document->uploader->email,
+                ] : null,
+                'documentable' => $document->documentable ? [
+                    'id' => $document->documentable->id,
+                    'name' => $document->documentable->name ?? $document->documentable->title,
+                    'type' => class_basename($document->documentable_type),
+                ] : null,
+            ],
+            'activities' => $document->activities->map(fn ($activity) => [
+                'id' => $activity->id,
+                'description' => $activity->description,
+                'causer' => $activity->causer ? [
+                    'id' => $activity->causer->id,
+                    'name' => $activity->causer->name,
+                ] : null,
+                'created_at' => $activity->created_at->toISOString(),
+                'properties' => $activity->properties,
+            ]),
+        ]);
+    }
+
     public function edit(Document $document)
     {
         $this->authorize('update', $document);
@@ -168,5 +219,24 @@ class DocumentController extends Controller
         $document->delete();
 
         return redirect()->route('documents.index')->with('success', 'Document deleted successfully.');
+    }
+
+     /**
+     * Download the document file.
+     */
+    public function download(Document $document)
+    {
+        $this->authorize('view', $document);
+
+        dd($document->file_path);
+
+        if (!Storage::disk('public')->exists($document->file_path)) {
+            abort(404, 'File not found');
+        }
+
+        return Storage::disk('public')->download(
+            $document->file_path,
+            $document->title . '.' . pathinfo($document->file_path, PATHINFO_EXTENSION)
+        );
     }
 }
