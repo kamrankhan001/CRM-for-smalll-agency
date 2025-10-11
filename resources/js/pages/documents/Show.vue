@@ -83,9 +83,12 @@ const showDeleteDialog = ref(false);
 
 function getTypeColor(type: string) {
     const colors = {
-        proposal: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-        contract: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-        invoice: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
+        proposal:
+            'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+        contract:
+            'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+        invoice:
+            'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
         report: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
         brief: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300',
         misc: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
@@ -153,36 +156,55 @@ function cancelDelete() {
         <div class="p-6">
             <!-- Header Section -->
             <div class="mb-6">
-                <div class="mb-4 flex items-center gap-4">
-                    <Link :href="index.url()">
-                        <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
-                            <ArrowLeft class="h-4 w-4" />
-                        </Button>
-                    </Link>
-                    <div class="min-w-0 flex-1">
-                        <h1
-                            class="truncate text-2xl font-bold tracking-tight sm:text-3xl"
-                        >
-                            {{ props.document.title }}
-                        </h1>
-                        <p class="text-sm text-muted-foreground sm:text-base">
-                            Document uploaded {{ formatDate(props.document.created_at) }}
-                            <span v-if="props.document.documentable" class="ml-2">
-                                • Related to
-                                <Link
-                                    :href="
-                                        getDocumentableRoute(props.document.documentable)
-                                    "
-                                    class="text-primary hover:underline"
+                <div
+                    class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+                >
+                    <!-- Back button and document info -->
+                    <div class="flex items-center gap-4">
+                        <Link :href="index.url()">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                class="h-8 w-8 p-0"
+                            >
+                                <ArrowLeft class="h-4 w-4" />
+                            </Button>
+                        </Link>
+                        <div class="min-w-0 flex-1">
+                            <h1
+                                class="truncate text-2xl font-bold tracking-tight sm:text-3xl"
+                            >
+                                {{ props.document.title }}
+                            </h1>
+                            <p
+                                class="text-sm text-muted-foreground sm:text-base"
+                            >
+                                Document uploaded
+                                {{ formatDate(props.document.created_at) }}
+                                <span
+                                    v-if="props.document.documentable"
+                                    class="ml-2"
                                 >
-                                    {{ props.document.documentable.name }}
-                                </Link>
-                            </span>
-                        </p>
+                                    • Related to
+                                    <Link
+                                        :href="
+                                            getDocumentableRoute(
+                                                props.document.documentable,
+                                            )
+                                        "
+                                        class="text-primary hover:underline"
+                                    >
+                                        {{ props.document.documentable.name }}
+                                    </Link>
+                                </span>
+                            </p>
+                        </div>
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="flex items-center gap-2">
+                    <div
+                        class="flex w-full items-center justify-end gap-2 lg:w-auto lg:justify-normal lg:gap-3"
+                    >
                         <!-- Download Button -->
                         <TooltipProvider>
                             <Tooltip>
@@ -273,7 +295,9 @@ function cancelDelete() {
                                         >Document Type</Label
                                     >
                                     <Badge
-                                        :class="getTypeColor(props.document.type)"
+                                        :class="
+                                            getTypeColor(props.document.type)
+                                        "
                                         class="capitalize"
                                     >
                                         {{ props.document.type }}
@@ -295,7 +319,8 @@ function cancelDelete() {
                                                 {{
                                                     getFileIcon(
                                                         getFileExtension(
-                                                            props.document.file_path,
+                                                            props.document
+                                                                .file_path,
                                                         ),
                                                     )
                                                 }}
@@ -326,7 +351,9 @@ function cancelDelete() {
                                         <div
                                             class="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10"
                                         >
-                                            <File class="h-6 w-6 text-primary" />
+                                            <File
+                                                class="h-6 w-6 text-primary"
+                                            />
                                         </div>
                                         <div>
                                             <p class="text-sm font-medium">
@@ -337,13 +364,15 @@ function cancelDelete() {
                                             >
                                                 {{
                                                     getFileExtension(
-                                                        props.document.file_path,
+                                                        props.document
+                                                            .file_path,
                                                     )
                                                 }}
                                                 •
                                                 {{
                                                     formatDate(
-                                                        props.document.created_at,
+                                                        props.document
+                                                            .created_at,
                                                     )
                                                 }}
                                             </p>
@@ -400,7 +429,10 @@ function cancelDelete() {
                             </div>
 
                             <!-- Related Entity -->
-                            <div v-if="props.document.documentable" class="space-y-1">
+                            <div
+                                v-if="props.document.documentable"
+                                class="space-y-1"
+                            >
                                 <Label
                                     class="text-sm font-medium text-muted-foreground"
                                     >Related To</Label
@@ -417,9 +449,10 @@ function cancelDelete() {
                                         "
                                         class="text-sm text-primary hover:underline"
                                     >
-                                        {{ props.document.documentable.name }} ({{
-                                            props.document.documentable.type
-                                        }})
+                                        {{
+                                            props.document.documentable.name
+                                        }}
+                                        ({{ props.document.documentable.type }})
                                     </Link>
                                 </div>
                             </div>
@@ -435,7 +468,11 @@ function cancelDelete() {
                                     >
                                     <p class="flex items-center gap-2 text-sm">
                                         <Calendar class="h-4 w-4" />
-                                        {{ formatDate(props.document.created_at) }}
+                                        {{
+                                            formatDate(
+                                                props.document.created_at,
+                                            )
+                                        }}
                                     </p>
                                 </div>
 
@@ -445,7 +482,11 @@ function cancelDelete() {
                                         >Last Updated</Label
                                     >
                                     <p class="text-sm">
-                                        {{ formatDate(props.document.updated_at) }}
+                                        {{
+                                            formatDate(
+                                                props.document.updated_at,
+                                            )
+                                        }}
                                     </p>
                                 </div>
                             </div>
@@ -540,7 +581,9 @@ function cancelDelete() {
                                                 <div
                                                     class="text-2xl font-bold text-primary"
                                                 >
-                                                    {{ props.activities.length }}
+                                                    {{
+                                                        props.activities.length
+                                                    }}
                                                 </div>
                                                 <div
                                                     class="mt-1 text-sm text-muted-foreground"
@@ -550,7 +593,10 @@ function cancelDelete() {
                                             </div>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            <p>Total activities for this document</p>
+                                            <p>
+                                                Total activities for this
+                                                document
+                                            </p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -566,7 +612,8 @@ function cancelDelete() {
                                                 >
                                                     {{
                                                         getFileExtension(
-                                                            props.document.file_path,
+                                                            props.document
+                                                                .file_path,
                                                         )
                                                     }}
                                                 </div>
@@ -597,7 +644,9 @@ function cancelDelete() {
                                             class="text-sm text-muted-foreground"
                                             >Type</span
                                         >
-                                        <span class="text-sm font-medium capitalize">
+                                        <span
+                                            class="text-sm font-medium capitalize"
+                                        >
                                             {{ props.document.type }}
                                         </span>
                                     </div>
@@ -609,7 +658,11 @@ function cancelDelete() {
                                             >Uploaded</span
                                         >
                                         <span class="text-sm font-medium">
-                                            {{ formatDate(props.document.created_at) }}
+                                            {{
+                                                formatDate(
+                                                    props.document.created_at,
+                                                )
+                                            }}
                                         </span>
                                     </div>
                                     <div
@@ -620,7 +673,11 @@ function cancelDelete() {
                                             >Last Updated</span
                                         >
                                         <span class="text-sm font-medium">
-                                            {{ formatDate(props.document.updated_at) }}
+                                            {{
+                                                formatDate(
+                                                    props.document.updated_at,
+                                                )
+                                            }}
                                         </span>
                                     </div>
                                 </div>

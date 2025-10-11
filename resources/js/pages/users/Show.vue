@@ -113,7 +113,8 @@ const showDeleteDialog = ref(false);
 function getRoleColor(role: string) {
     const colors = {
         admin: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-        manager: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+        manager:
+            'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
         member: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
     };
     return (
@@ -125,14 +126,20 @@ function getRoleColor(role: string) {
 function getStatusColor(status: string) {
     const colors = {
         active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-        inactive: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+        inactive:
+            'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
         lead: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
         vip: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
-        pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-        completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-        in_progress: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-        planning: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-        on_hold: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
+        pending:
+            'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+        completed:
+            'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+        in_progress:
+            'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+        planning:
+            'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+        on_hold:
+            'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
     };
     return (
         colors[status as keyof typeof colors] ||
@@ -142,9 +149,12 @@ function getStatusColor(status: string) {
 
 function getTaskStatusColor(status: string) {
     const colors = {
-        pending: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-        in_progress: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-        completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+        pending:
+            'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+        in_progress:
+            'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+        completed:
+            'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
     };
     return (
         colors[status as keyof typeof colors] ||
@@ -194,25 +204,39 @@ function cancelDelete() {
         <div class="p-6">
             <!-- Header Section -->
             <div class="mb-6">
-                <div class="mb-4 flex items-center gap-4">
-                    <Link :href="index.url()">
-                        <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
-                            <ArrowLeft class="h-4 w-4" />
-                        </Button>
-                    </Link>
-                    <div class="min-w-0 flex-1">
-                        <h1
-                            class="truncate text-2xl font-bold tracking-tight sm:text-3xl"
-                        >
-                            {{ props.user.name }}
-                        </h1>
-                        <p class="text-sm text-muted-foreground sm:text-base">
-                            User since {{ formatDate(props.user.created_at) }}
-                        </p>
+                <div
+                    class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+                >
+                    <!-- Back button and user info -->
+                    <div class="flex items-center gap-4">
+                        <Link :href="index.url()">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                class="h-8 w-8 p-0"
+                            >
+                                <ArrowLeft class="h-4 w-4" />
+                            </Button>
+                        </Link>
+                        <div class="min-w-0 flex-1">
+                            <h1
+                                class="truncate text-2xl font-bold tracking-tight sm:text-3xl"
+                            >
+                                {{ props.user.name }}
+                            </h1>
+                            <p
+                                class="text-sm text-muted-foreground sm:text-base"
+                            >
+                                User since
+                                {{ formatDate(props.user.created_at) }}
+                            </p>
+                        </div>
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="flex items-center gap-2">
+                    <div
+                        class="flex w-full items-center justify-end gap-2 lg:w-auto lg:justify-normal lg:gap-3"
+                    >
                         <!-- Edit Button -->
                         <TooltipProvider>
                             <Tooltip>
@@ -349,7 +373,9 @@ function cancelDelete() {
                                     :key="client.id"
                                     class="rounded-lg border p-3 transition-colors hover:bg-muted/5"
                                 >
-                                    <div class="flex justify-between items-start">
+                                    <div
+                                        class="flex items-start justify-between"
+                                    >
                                         <div>
                                             <Link
                                                 :href="`/clients/${client.id}`"
@@ -358,14 +384,16 @@ function cancelDelete() {
                                                 {{ client.name }}
                                             </Link>
                                             <p
-                                                class="text-xs text-muted-foreground mt-1"
+                                                class="mt-1 text-xs text-muted-foreground"
                                             >
                                                 {{ client.company }}
                                             </p>
                                         </div>
                                         <Badge
-                                            :class="getStatusColor(client.status)"
-                                            class="capitalize text-xs"
+                                            :class="
+                                                getStatusColor(client.status)
+                                            "
+                                            class="text-xs capitalize"
                                         >
                                             {{ client.status }}
                                         </Badge>
@@ -404,7 +432,9 @@ function cancelDelete() {
                                     :key="task.id"
                                     class="rounded-lg border p-3 transition-colors hover:bg-muted/5"
                                 >
-                                    <div class="flex justify-between items-start">
+                                    <div
+                                        class="flex items-start justify-between"
+                                    >
                                         <div>
                                             <Link
                                                 :href="`/tasks/${task.id}`"
@@ -412,16 +442,31 @@ function cancelDelete() {
                                             >
                                                 {{ task.title }}
                                             </Link>
-                                            <div class="flex items-center gap-2 mt-1">
+                                            <div
+                                                class="mt-1 flex items-center gap-2"
+                                            >
                                                 <Badge
-                                                    :class="getTaskStatusColor(task.status)"
-                                                    class="capitalize text-xs"
+                                                    :class="
+                                                        getTaskStatusColor(
+                                                            task.status,
+                                                        )
+                                                    "
+                                                    class="text-xs capitalize"
                                                 >
-                                                    {{ task.status.replace('_', ' ') }}
+                                                    {{
+                                                        task.status.replace(
+                                                            '_',
+                                                            ' ',
+                                                        )
+                                                    }}
                                                 </Badge>
                                                 <Badge
-                                                    :class="getPriorityColor(task.priority)"
-                                                    class="capitalize text-xs"
+                                                    :class="
+                                                        getPriorityColor(
+                                                            task.priority,
+                                                        )
+                                                    "
+                                                    class="text-xs capitalize"
                                                 >
                                                     {{ task.priority }}
                                                 </Badge>
@@ -460,7 +505,10 @@ function cancelDelete() {
                                                 <div
                                                     class="text-2xl font-bold text-primary"
                                                 >
-                                                    {{ props.stats.assigned_clients_count }}
+                                                    {{
+                                                        props.stats
+                                                            .assigned_clients_count
+                                                    }}
                                                 </div>
                                                 <div
                                                     class="mt-1 text-sm text-muted-foreground"
@@ -484,7 +532,9 @@ function cancelDelete() {
                                                 <div
                                                     class="text-2xl font-bold text-primary"
                                                 >
-                                                    {{ props.stats.tasks_count }}
+                                                    {{
+                                                        props.stats.tasks_count
+                                                    }}
                                                 </div>
                                                 <div
                                                     class="mt-1 text-sm text-muted-foreground"
@@ -508,7 +558,10 @@ function cancelDelete() {
                                                 <div
                                                     class="text-2xl font-bold text-primary"
                                                 >
-                                                    {{ props.stats.projects_count }}
+                                                    {{
+                                                        props.stats
+                                                            .projects_count
+                                                    }}
                                                 </div>
                                                 <div
                                                     class="mt-1 text-sm text-muted-foreground"
@@ -532,7 +585,10 @@ function cancelDelete() {
                                                 <div
                                                     class="text-2xl font-bold text-primary"
                                                 >
-                                                    {{ props.stats.uploaded_documents_count }}
+                                                    {{
+                                                        props.stats
+                                                            .uploaded_documents_count
+                                                    }}
                                                 </div>
                                                 <div
                                                     class="mt-1 text-sm text-muted-foreground"
@@ -571,7 +627,9 @@ function cancelDelete() {
                                     :key="project.id"
                                     class="rounded-lg border p-3 transition-colors hover:bg-muted/5"
                                 >
-                                    <div class="flex justify-between items-start">
+                                    <div
+                                        class="flex items-start justify-between"
+                                    >
                                         <div>
                                             <Link
                                                 :href="`/projects/${project.id}`"
@@ -580,10 +638,19 @@ function cancelDelete() {
                                                 {{ project.name }}
                                             </Link>
                                             <Badge
-                                                :class="getStatusColor(project.status)"
-                                                class="mt-1 capitalize text-xs"
+                                                :class="
+                                                    getStatusColor(
+                                                        project.status,
+                                                    )
+                                                "
+                                                class="mt-1 text-xs capitalize"
                                             >
-                                                {{ project.status.replace('_', ' ') }}
+                                                {{
+                                                    project.status.replace(
+                                                        '_',
+                                                        ' ',
+                                                    )
+                                                }}
                                             </Badge>
                                         </div>
                                     </div>
@@ -621,7 +688,9 @@ function cancelDelete() {
                                     :key="document.id"
                                     class="rounded-lg border p-3 transition-colors hover:bg-muted/5"
                                 >
-                                    <div class="flex justify-between items-start">
+                                    <div
+                                        class="flex items-start justify-between"
+                                    >
                                         <div>
                                             <Link
                                                 :href="`/documents/${document.id}`"
@@ -630,7 +699,7 @@ function cancelDelete() {
                                                 {{ document.title }}
                                             </Link>
                                             <p
-                                                class="text-xs text-muted-foreground mt-1 capitalize"
+                                                class="mt-1 text-xs text-muted-foreground capitalize"
                                             >
                                                 {{ document.type }}
                                             </p>

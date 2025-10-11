@@ -23,14 +23,14 @@ import {
     ArrowLeft,
     Building,
     Calendar,
+    CheckCircle,
+    DollarSign,
     Download,
     Edit,
     Mail,
     Receipt,
     Trash2,
     User,
-    DollarSign,
-    CheckCircle,
 } from 'lucide-vue-next';
 import { ref } from 'vue';
 
@@ -96,10 +96,12 @@ function getStatusColor(status: string) {
     const colors = {
         draft: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
         sent: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-        partially_paid: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+        partially_paid:
+            'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
         paid: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
         cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-        overdue: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
+        overdue:
+            'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
     };
     return (
         colors[status as keyof typeof colors] ||
@@ -163,25 +165,39 @@ function cancelDelete() {
         <div class="p-6">
             <!-- Header Section -->
             <div class="mb-6">
-                <div class="flex items-center gap-4 mb-4">
-                    <Link :href="index.url()">
-                        <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
-                            <ArrowLeft class="h-4 w-4" />
-                        </Button>
-                    </Link>
-                    <div class="min-w-0 flex-1">
-                        <h1
-                            class="truncate text-2xl font-bold tracking-tight sm:text-3xl"
-                        >
-                            {{ props.invoice.invoice_number }}
-                        </h1>
-                        <p class="text-sm text-muted-foreground sm:text-base">
-                            {{ props.invoice.title }} • Created {{ formatDate(props.invoice.created_at) }}
-                        </p>
+                <div
+                    class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+                >
+                    <!-- Back button and invoice info -->
+                    <div class="flex items-center gap-4">
+                        <Link :href="index.url()">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                class="h-8 w-8 p-0"
+                            >
+                                <ArrowLeft class="h-4 w-4" />
+                            </Button>
+                        </Link>
+                        <div class="min-w-0 flex-1">
+                            <h1
+                                class="truncate text-2xl font-bold tracking-tight sm:text-3xl"
+                            >
+                                {{ props.invoice.invoice_number }}
+                            </h1>
+                            <p
+                                class="text-sm text-muted-foreground sm:text-base"
+                            >
+                                {{ props.invoice.title }} • Created
+                                {{ formatDate(props.invoice.created_at) }}
+                            </p>
+                        </div>
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="flex items-center gap-2">
+                    <div
+                        class="flex w-full items-center justify-end gap-2 lg:w-auto lg:justify-normal lg:gap-3"
+                    >
                         <!-- Download Button -->
                         <TooltipProvider>
                             <Tooltip>
@@ -205,7 +221,12 @@ function cancelDelete() {
                         </TooltipProvider>
 
                         <!-- Send Button -->
-                        <TooltipProvider v-if="props.invoice.client?.email && props.invoice.status !== 'paid'">
+                        <TooltipProvider
+                            v-if="
+                                props.invoice.client?.email &&
+                                props.invoice.status !== 'paid'
+                            "
+                        >
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Button
@@ -227,7 +248,12 @@ function cancelDelete() {
                         </TooltipProvider>
 
                         <!-- Mark as Paid Button -->
-                        <TooltipProvider v-if="props.invoice.status !== 'paid' && props.invoice.status !== 'cancelled'">
+                        <TooltipProvider
+                            v-if="
+                                props.invoice.status !== 'paid' &&
+                                props.invoice.status !== 'cancelled'
+                            "
+                        >
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Button
@@ -309,17 +335,24 @@ function cancelDelete() {
                         </CardHeader>
                         <CardContent class="space-y-6">
                             <!-- Status & Amounts -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 <div class="space-y-1">
                                     <Label
                                         class="text-sm font-medium text-muted-foreground"
                                         >Status</Label
                                     >
                                     <Badge
-                                        :class="getStatusColor(props.invoice.status)"
+                                        :class="
+                                            getStatusColor(props.invoice.status)
+                                        "
                                         class="capitalize"
                                     >
-                                        {{ props.invoice.status.replace('_', ' ') }}
+                                        {{
+                                            props.invoice.status.replace(
+                                                '_',
+                                                ' ',
+                                            )
+                                        }}
                                     </Badge>
                                 </div>
 
@@ -328,22 +361,32 @@ function cancelDelete() {
                                         class="text-sm font-medium text-muted-foreground"
                                         >Total Amount</Label
                                     >
-                                    <p class="text-lg font-semibold flex items-center gap-2">
+                                    <p
+                                        class="flex items-center gap-2 text-lg font-semibold"
+                                    >
                                         <DollarSign class="h-5 w-5" />
-                                        {{ formatCurrency(props.invoice.amount) }}
+                                        {{
+                                            formatCurrency(props.invoice.amount)
+                                        }}
                                     </p>
                                 </div>
                             </div>
 
                             <!-- Payment Details -->
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
                                 <div class="space-y-1">
                                     <Label
                                         class="text-sm font-medium text-muted-foreground"
                                         >Amount Paid</Label
                                     >
-                                    <p class="text-lg font-semibold text-green-600">
-                                        {{ formatCurrency(props.invoice.amount_paid) }}
+                                    <p
+                                        class="text-lg font-semibold text-green-600"
+                                    >
+                                        {{
+                                            formatCurrency(
+                                                props.invoice.amount_paid,
+                                            )
+                                        }}
                                     </p>
                                 </div>
 
@@ -352,8 +395,14 @@ function cancelDelete() {
                                         class="text-sm font-medium text-muted-foreground"
                                         >Balance Due</Label
                                     >
-                                    <p class="text-lg font-semibold text-orange-600">
-                                        {{ formatCurrency(props.invoice.balance) }}
+                                    <p
+                                        class="text-lg font-semibold text-orange-600"
+                                    >
+                                        {{
+                                            formatCurrency(
+                                                props.invoice.balance,
+                                            )
+                                        }}
                                     </p>
                                 </div>
 
@@ -362,28 +411,40 @@ function cancelDelete() {
                                         class="text-sm font-medium text-muted-foreground"
                                         >Payment Progress</Label
                                     >
-                                    <div class="w-full bg-gray-200 rounded-full h-2">
-                                        <div 
-                                            class="bg-green-600 h-2 rounded-full" 
-                                            :style="{ width: `${(props.invoice.amount_paid / props.invoice.amount) * 100}%` }"
+                                    <div
+                                        class="h-2 w-full rounded-full bg-gray-200"
+                                    >
+                                        <div
+                                            class="h-2 rounded-full bg-green-600"
+                                            :style="{
+                                                width: `${(props.invoice.amount_paid / props.invoice.amount) * 100}%`,
+                                            }"
                                         ></div>
                                     </div>
                                     <p class="text-xs text-muted-foreground">
-                                        {{ Math.round((props.invoice.amount_paid / props.invoice.amount) * 100) }}% paid
+                                        {{
+                                            Math.round(
+                                                (props.invoice.amount_paid /
+                                                    props.invoice.amount) *
+                                                    100,
+                                            )
+                                        }}% paid
                                     </p>
                                 </div>
                             </div>
 
                             <!-- Dates -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 <div class="space-y-1">
                                     <Label
                                         class="text-sm font-medium text-muted-foreground"
                                         >Issue Date</Label
                                     >
-                                    <p class="text-sm flex items-center gap-2">
+                                    <p class="flex items-center gap-2 text-sm">
                                         <Calendar class="h-4 w-4" />
-                                        {{ formatDate(props.invoice.issue_date) }}
+                                        {{
+                                            formatDate(props.invoice.issue_date)
+                                        }}
                                     </p>
                                 </div>
 
@@ -392,38 +453,50 @@ function cancelDelete() {
                                         class="text-sm font-medium text-muted-foreground"
                                         >Due Date</Label
                                     >
-                                    <p class="text-sm flex items-center gap-2">
+                                    <p class="flex items-center gap-2 text-sm">
                                         <Calendar class="h-4 w-4" />
                                         {{ formatDate(props.invoice.due_date) }}
-                                        <span 
-                                            v-if="getDaysRemaining(props.invoice.due_date) < 0 && props.invoice.status !== 'paid'" 
-                                            class="text-xs text-red-600 font-medium"
+                                        <span
+                                            v-if="
+                                                getDaysRemaining(
+                                                    props.invoice.due_date,
+                                                ) < 0 &&
+                                                props.invoice.status !== 'paid'
+                                            "
+                                            class="text-xs font-medium text-red-600"
                                         >
                                             (Overdue)
                                         </span>
-                                        <span 
-                                            v-else-if="getDaysRemaining(props.invoice.due_date) >= 0 && props.invoice.status !== 'paid'" 
+                                        <span
+                                            v-else-if="
+                                                getDaysRemaining(
+                                                    props.invoice.due_date,
+                                                ) >= 0 &&
+                                                props.invoice.status !== 'paid'
+                                            "
                                             class="text-xs text-muted-foreground"
                                         >
-                                            ({{ getDaysRemaining(props.invoice.due_date) }} days left)
+                                            ({{
+                                                getDaysRemaining(
+                                                    props.invoice.due_date,
+                                                )
+                                            }}
+                                            days left)
                                         </span>
                                     </p>
                                 </div>
                             </div>
 
                             <!-- Paid Date -->
-                                <div 
-                                    v-if="props.invoice.paid_at" 
-                                    class="space-y-1"
+                            <div v-if="props.invoice.paid_at" class="space-y-1">
+                                <Label
+                                    class="text-sm font-medium text-muted-foreground"
+                                    >Paid Date</Label
                                 >
-                                    <Label
-                                        class="text-sm font-medium text-muted-foreground"
-                                        >Paid Date</Label
-                                    >
-                                    <p class="text-sm">
-                                        {{ formatDate(props.invoice.paid_at) }}
-                                    </p>
-                                </div>
+                                <p class="text-sm">
+                                    {{ formatDate(props.invoice.paid_at) }}
+                                </p>
+                            </div>
 
                             <!-- Client Information -->
                             <div v-if="props.invoice.client" class="space-y-1">
@@ -432,16 +505,28 @@ function cancelDelete() {
                                     >Client</Label
                                 >
                                 <div class="flex items-center gap-2">
-                                    <Building class="h-4 w-4 text-muted-foreground" />
+                                    <Building
+                                        class="h-4 w-4 text-muted-foreground"
+                                    />
                                     <Link
                                         :href="`/clients/${props.invoice.client.id}`"
                                         class="text-sm text-primary hover:underline"
                                     >
                                         {{ props.invoice.client.name }}
-                                        <span v-if="props.invoice.client.company"> - {{ props.invoice.client.company }}</span>
+                                        <span
+                                            v-if="props.invoice.client.company"
+                                        >
+                                            -
+                                            {{
+                                                props.invoice.client.company
+                                            }}</span
+                                        >
                                     </Link>
                                 </div>
-                                <p v-if="props.invoice.client.email" class="text-xs text-muted-foreground ml-6">
+                                <p
+                                    v-if="props.invoice.client.email"
+                                    class="ml-6 text-xs text-muted-foreground"
+                                >
                                     {{ props.invoice.client.email }}
                                 </p>
                             </div>
@@ -453,7 +538,9 @@ function cancelDelete() {
                                     >Project</Label
                                 >
                                 <div class="flex items-center gap-2">
-                                    <Building class="h-4 w-4 text-muted-foreground" />
+                                    <Building
+                                        class="h-4 w-4 text-muted-foreground"
+                                    />
                                     <Link
                                         :href="`/projects/${props.invoice.project.id}`"
                                         class="text-sm text-primary hover:underline"
@@ -469,7 +556,9 @@ function cancelDelete() {
                                     class="text-sm font-medium text-muted-foreground"
                                     >Notes</Label
                                 >
-                                <p class="text-sm whitespace-pre-wrap bg-muted/5 p-3 rounded-lg">
+                                <p
+                                    class="rounded-lg bg-muted/5 p-3 text-sm whitespace-pre-wrap"
+                                >
                                     {{ props.invoice.notes }}
                                 </p>
                             </div>
@@ -483,7 +572,11 @@ function cancelDelete() {
                                         class="text-sm font-medium text-muted-foreground"
                                         >Created By</Label
                                     >
-                                    <p class="text-sm">{{ props.invoice.creator?.name || 'N/A' }}</p>
+                                    <p class="text-sm">
+                                        {{
+                                            props.invoice.creator?.name || 'N/A'
+                                        }}
+                                    </p>
                                 </div>
 
                                 <div class="space-y-1">
@@ -491,7 +584,11 @@ function cancelDelete() {
                                         class="text-sm font-medium text-muted-foreground"
                                         >Last Updated</Label
                                     >
-                                    <p class="text-sm">{{ formatDate(props.invoice.updated_at) }}</p>
+                                    <p class="text-sm">
+                                        {{
+                                            formatDate(props.invoice.updated_at)
+                                        }}
+                                    </p>
                                 </div>
                             </div>
                         </CardContent>
@@ -585,7 +682,9 @@ function cancelDelete() {
                                                 <div
                                                     class="text-2xl font-bold text-primary"
                                                 >
-                                                    {{ props.activities.length }}
+                                                    {{
+                                                        props.activities.length
+                                                    }}
                                                 </div>
                                                 <div
                                                     class="mt-1 text-sm text-muted-foreground"
@@ -595,7 +694,10 @@ function cancelDelete() {
                                             </div>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            <p>Total activities for this invoice</p>
+                                            <p>
+                                                Total activities for this
+                                                invoice
+                                            </p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -609,7 +711,15 @@ function cancelDelete() {
                                                 <div
                                                     class="text-2xl font-bold text-primary"
                                                 >
-                                                    {{ Math.round((props.invoice.amount_paid / props.invoice.amount) * 100) }}%
+                                                    {{
+                                                        Math.round(
+                                                            (props.invoice
+                                                                .amount_paid /
+                                                                props.invoice
+                                                                    .amount) *
+                                                                100,
+                                                        )
+                                                    }}%
                                                 </div>
                                                 <div
                                                     class="mt-1 text-sm text-muted-foreground"
@@ -638,7 +748,9 @@ function cancelDelete() {
                                             class="text-sm text-muted-foreground"
                                             >Total Amount</span
                                         >
-                                        <span class="text-sm font-medium">{{ formatCurrency(props.invoice.amount) }}</span>
+                                        <span class="text-sm font-medium">{{
+                                            formatCurrency(props.invoice.amount)
+                                        }}</span>
                                     </div>
                                     <div
                                         class="flex items-center justify-between"
@@ -647,7 +759,14 @@ function cancelDelete() {
                                             class="text-sm text-muted-foreground"
                                             >Amount Paid</span
                                         >
-                                        <span class="text-sm font-medium text-green-600">{{ formatCurrency(props.invoice.amount_paid) }}</span>
+                                        <span
+                                            class="text-sm font-medium text-green-600"
+                                            >{{
+                                                formatCurrency(
+                                                    props.invoice.amount_paid,
+                                                )
+                                            }}</span
+                                        >
                                     </div>
                                     <div
                                         class="flex items-center justify-between"
@@ -656,7 +775,14 @@ function cancelDelete() {
                                             class="text-sm text-muted-foreground"
                                             >Balance Due</span
                                         >
-                                        <span class="text-sm font-medium text-orange-600">{{ formatCurrency(props.invoice.balance) }}</span>
+                                        <span
+                                            class="text-sm font-medium text-orange-600"
+                                            >{{
+                                                formatCurrency(
+                                                    props.invoice.balance,
+                                                )
+                                            }}</span
+                                        >
                                     </div>
                                 </div>
                             </div>

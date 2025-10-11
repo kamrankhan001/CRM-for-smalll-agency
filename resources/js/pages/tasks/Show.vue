@@ -190,36 +190,52 @@ function cancelDelete() {
         <div class="p-6">
             <!-- Header Section -->
             <div class="mb-6">
-                <div class="mb-4 flex items-center gap-4">
-                    <Link :href="index.url()">
-                        <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
-                            <ArrowLeft class="h-4 w-4" />
-                        </Button>
-                    </Link>
-                    <div class="min-w-0 flex-1">
-                        <h1
-                            class="truncate text-2xl font-bold tracking-tight sm:text-3xl"
-                        >
-                            {{ props.task.title }}
-                        </h1>
-                        <p class="text-sm text-muted-foreground sm:text-base">
-                            Task created {{ formatDate(props.task.created_at) }}
-                            <span v-if="props.task.taskable" class="ml-2">
-                                • Related to
-                                <Link
-                                    :href="
-                                        getTaskableRoute(props.task.taskable)
-                                    "
-                                    class="text-primary hover:underline"
-                                >
-                                    {{ props.task.taskable.name }}
-                                </Link>
-                            </span>
-                        </p>
+                <div
+                    class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+                >
+                    <!-- Back button and task info -->
+                    <div class="flex items-center gap-4">
+                        <Link :href="index.url()">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                class="h-8 w-8 p-0"
+                            >
+                                <ArrowLeft class="h-4 w-4" />
+                            </Button>
+                        </Link>
+                        <div class="min-w-0 flex-1">
+                            <h1
+                                class="truncate text-2xl font-bold tracking-tight sm:text-3xl"
+                            >
+                                {{ props.task.title }}
+                            </h1>
+                            <p
+                                class="text-sm text-muted-foreground sm:text-base"
+                            >
+                                Task created
+                                {{ formatDate(props.task.created_at) }}
+                                <span v-if="props.task.taskable" class="ml-2">
+                                    • Related to
+                                    <Link
+                                        :href="
+                                            getTaskableRoute(
+                                                props.task.taskable,
+                                            )
+                                        "
+                                        class="text-primary hover:underline"
+                                    >
+                                        {{ props.task.taskable.name }}
+                                    </Link>
+                                </span>
+                            </p>
+                        </div>
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="flex items-center gap-2">
+                    <div
+                        class="flex w-full items-center justify-end gap-2 lg:w-auto lg:justify-normal lg:gap-3"
+                    >
                         <!-- Mark as Complete Button -->
                         <TooltipProvider
                             v-if="props.task.status !== 'completed'"

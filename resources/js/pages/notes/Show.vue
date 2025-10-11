@@ -92,7 +92,8 @@ function getNoteableTypeColor(type: string) {
     const colors = {
         lead: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
         client: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-        project: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
+        project:
+            'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
     };
     return (
         colors[type as keyof typeof colors] ||
@@ -126,36 +127,51 @@ function cancelDelete() {
         <div class="p-6">
             <!-- Header Section -->
             <div class="mb-6">
-                <div class="mb-4 flex items-center gap-4">
-                    <Link :href="index.url()">
-                        <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
-                            <ArrowLeft class="h-4 w-4" />
-                        </Button>
-                    </Link>
-                    <div class="min-w-0 flex-1">
-                        <h1
-                            class="text-2xl font-bold tracking-tight sm:text-3xl"
-                        >
-                            Note Details
-                        </h1>
-                        <p class="text-sm text-muted-foreground sm:text-base">
-                            Created {{ formatDate(props.note.created_at) }}
-                            <span v-if="props.note.noteable" class="ml-2">
-                                • Related to
-                                <Link
-                                    :href="
-                                        getNoteableRoute(props.note.noteable)
-                                    "
-                                    class="text-primary hover:underline"
-                                >
-                                    {{ props.note.noteable.name }}
-                                </Link>
-                            </span>
-                        </p>
+                <div
+                    class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+                >
+                    <!-- Back button and note info -->
+                    <div class="flex items-center gap-4">
+                        <Link :href="index.url()">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                class="h-8 w-8 p-0"
+                            >
+                                <ArrowLeft class="h-4 w-4" />
+                            </Button>
+                        </Link>
+                        <div class="min-w-0 flex-1">
+                            <h1
+                                class="text-2xl font-bold tracking-tight sm:text-3xl"
+                            >
+                                Note Details
+                            </h1>
+                            <p
+                                class="text-sm text-muted-foreground sm:text-base"
+                            >
+                                Created {{ formatDate(props.note.created_at) }}
+                                <span v-if="props.note.noteable" class="ml-2">
+                                    • Related to
+                                    <Link
+                                        :href="
+                                            getNoteableRoute(
+                                                props.note.noteable,
+                                            )
+                                        "
+                                        class="text-primary hover:underline"
+                                    >
+                                        {{ props.note.noteable.name }}
+                                    </Link>
+                                </span>
+                            </p>
+                        </div>
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="flex items-center gap-2">
+                    <div
+                        class="flex w-full items-center justify-end gap-2 lg:w-auto lg:justify-normal lg:gap-3"
+                    >
                         <!-- Edit Button -->
                         <TooltipProvider>
                             <Tooltip>
@@ -218,15 +234,30 @@ function cancelDelete() {
                         <CardContent>
                             <div class="space-y-4">
                                 <div class="rounded-lg bg-muted/5 p-4">
-                                    <p class="whitespace-pre-wrap text-sm leading-relaxed">
+                                    <p
+                                        class="text-sm leading-relaxed whitespace-pre-wrap"
+                                    >
                                         {{ props.note.content }}
                                     </p>
                                 </div>
-                                
+
                                 <!-- Content Statistics -->
-                                <div class="flex items-center gap-4 text-xs text-muted-foreground">
-                                    <span>{{ props.note.content.length }} characters</span>
-                                    <span>{{ props.note.content.split(/\s+/).length }} words</span>
+                                <div
+                                    class="flex items-center gap-4 text-xs text-muted-foreground"
+                                >
+                                    <span
+                                        >{{
+                                            props.note.content.length
+                                        }}
+                                        characters</span
+                                    >
+                                    <span
+                                        >{{
+                                            props.note.content.split(/\s+/)
+                                                .length
+                                        }}
+                                        words</span
+                                    >
                                 </div>
                             </div>
                         </CardContent>
@@ -292,7 +323,9 @@ function cancelDelete() {
                                     />
                                     <Link
                                         :href="
-                                            getNoteableRoute(props.note.noteable)
+                                            getNoteableRoute(
+                                                props.note.noteable,
+                                            )
                                         "
                                         class="text-sm text-primary hover:underline"
                                     >
@@ -427,7 +460,9 @@ function cancelDelete() {
                                                 <div
                                                     class="text-2xl font-bold text-primary"
                                                 >
-                                                    {{ props.activities.length }}
+                                                    {{
+                                                        props.activities.length
+                                                    }}
                                                 </div>
                                                 <div
                                                     class="mt-1 text-sm text-muted-foreground"
@@ -437,7 +472,9 @@ function cancelDelete() {
                                             </div>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            <p>Total activities for this note</p>
+                                            <p>
+                                                Total activities for this note
+                                            </p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -452,7 +489,8 @@ function cancelDelete() {
                                                     class="text-2xl font-bold text-primary"
                                                 >
                                                     {{
-                                                        props.note.content.length
+                                                        props.note.content
+                                                            .length
                                                     }}
                                                 </div>
                                                 <div
@@ -463,7 +501,9 @@ function cancelDelete() {
                                             </div>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            <p>Total characters in note content</p>
+                                            <p>
+                                                Total characters in note content
+                                            </p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -484,9 +524,8 @@ function cancelDelete() {
                                         >
                                         <span class="text-sm font-medium">
                                             {{
-                                                props.note.content.split(
-                                                    /\s+/,
-                                                ).length
+                                                props.note.content.split(/\s+/)
+                                                    .length
                                             }}
                                         </span>
                                     </div>
@@ -509,7 +548,11 @@ function cancelDelete() {
                                             >Last Updated</span
                                         >
                                         <span class="text-sm font-medium">
-                                            {{ formatDate(props.note.updated_at) }}
+                                            {{
+                                                formatDate(
+                                                    props.note.updated_at,
+                                                )
+                                            }}
                                         </span>
                                     </div>
                                 </div>
