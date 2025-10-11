@@ -156,6 +156,107 @@ class ProjectController extends Controller
         return redirect()->route('projects.index')->with('success', 'Project created successfully.');
     }
 
+    /**
+     * Display the specified project.
+     */
+    public function show(Project $project)
+    {
+        $this->authorize('view', $project);
+
+        $project->load([
+            'client',
+            'lead',
+            'creator',
+            'members',
+            'tasks' => function ($query) {
+                $query->latest()->limit(10);
+            },
+            'invoices' => function ($query) {
+                $query->latest()->limit(10);
+            },
+            'notes' => function ($query) {
+                $query->with('user')->latest()->limit(10);
+            },
+            'activities' => function ($query) {
+                $query->with('causer')->latest()->limit(10);
+            },
+            'documents',
+        ]);
+
+        return Inertia::render('projects/Show', [
+            'project' => [
+                'id' => $project->id,
+                'name' => $project->name,
+                'description' => $project->description,
+                'status' => $project->status,
+                'start_date' => $project->start_date?->toISOString(),
+                'end_date' => $project->end_date?->toISOString(),
+                'budget' => $project->budget,
+                'client_id' => $project->client_id,
+                'lead_id' => $project->lead_id,
+                'created_by' => $project->created_by,
+                'created_at' => $project->created_at->toISOString(),
+                'updated_at' => $project->updated_at->toISOString(),
+                'client' => $project->client ? [
+                    'id' => $project->client->id,
+                    'name' => $project->client->name,
+                    'company' => $project->client->company,
+                ] : null,
+                'lead' => $project->lead ? [
+                    'id' => $project->lead->id,
+                    'name' => $project->lead->name,
+                ] : null,
+                'creator' => $project->creator ? [
+                    'id' => $project->creator->id,
+                    'name' => $project->creator->name,
+                ] : null,
+                'members' => $project->members->map(fn ($member) => [
+                    'id' => $member->id,
+                    'name' => $member->name,
+                    'email' => $member->email,
+                ]),
+            ],
+            'tasks' => $project->tasks->map(fn ($task) => [
+                'id' => $task->id,
+                'title' => $task->title,
+                'description' => $task->description,
+                'status' => $task->status,
+                'priority' => $task->priority,
+                'due_date' => $task->due_date?->toISOString(),
+                'assigned_to' => $task->assigned_to,
+                'created_at' => $task->created_at->toISOString(),
+            ]),
+            'invoices' => $project->invoices->map(fn ($invoice) => [
+                'id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'amount' => $invoice->amount,
+                'status' => $invoice->status,
+                'due_date' => $invoice->due_date?->toISOString(),
+                'created_at' => $invoice->created_at->toISOString(),
+            ]),
+            'notes' => $project->notes->map(fn ($note) => [
+                'id' => $note->id,
+                'content' => $note->content,
+                'user' => [
+                    'id' => $note->user->id,
+                    'name' => $note->user->name,
+                ],
+                'created_at' => $note->created_at->toISOString(),
+            ]),
+            'activities' => $project->activities->map(fn ($activity) => [
+                'id' => $activity->id,
+                'description' => $activity->description,
+                'causer' => $activity->causer ? [
+                    'id' => $activity->causer->id,
+                    'name' => $activity->causer->name,
+                ] : null,
+                'created_at' => $activity->created_at->toISOString(),
+                'properties' => $activity->properties,
+            ]),
+            'documents_count' => $project->documents->count(),
+        ]);
+    }
+
     public function edit(Project $project)
     {
         $this->authorize('update', $project);

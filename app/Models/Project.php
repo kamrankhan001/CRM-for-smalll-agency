@@ -50,12 +50,12 @@ class Project extends Model
 
     public function tasks()
     {
-        return $this->hasMany(Task::class);
+        return $this->morphMany(Task::class, 'taskable');
     }
 
     public function notes()
     {
-        return $this->morphMany(Note::class, 'notable');
+        return $this->morphMany(Note::class, 'noteable');
     }
 
     public function documents()

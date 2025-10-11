@@ -45,6 +45,7 @@ import { computed, ref } from 'vue';
 import {
     create,
     destroy,
+    show,
     edit,
     index,
 } from '@/actions/App/Http/Controllers/ProjectController';
@@ -156,6 +157,10 @@ const filters = ref({
 
 function goToEdit(projectId: number) {
     router.get(edit.url(projectId));
+}
+
+function goToView(projectId: number) {
+    router.get(show.url(projectId));
 }
 
 function confirmDelete(projectId: number) {
@@ -559,9 +564,12 @@ const total = computed(() => props.projects.meta?.total || 0);
                             <TableCell>
                                 <ActionButtons
                                     :show-edit="canEditProject(project)"
+                                    :show-view="true"
                                     :show-delete="canDelete"
                                     :on-edit="() => goToEdit(project.id)"
+                                    :on-view="() => goToView(project.id)"
                                     :on-delete="() => confirmDelete(project.id)"
+                                    view-tooltip="View project"
                                     edit-tooltip="Edit project"
                                     delete-tooltip="Delete project"
                                 />

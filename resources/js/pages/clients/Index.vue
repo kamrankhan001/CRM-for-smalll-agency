@@ -42,6 +42,7 @@ import { computed, ref } from 'vue';
 import {
     create,
     destroy,
+    show,
     edit,
     index,
 } from '@/actions/App/Http/Controllers/ClientController';
@@ -136,6 +137,10 @@ const filters = ref({
 
 function goToEdit(clientId: number) {
     router.get(edit.url(clientId));
+}
+
+function goToView(clientId: number) {
+    router.get(show.url(clientId));
 }
 
 function confirmDelete(clientId: number) {
@@ -488,11 +493,14 @@ const total = computed(() => props.clients.meta?.total || 0);
                                 <TableCell>
                                     <ActionButtons
                                         :show-edit="canEditClient(client)"
+                                        :show-view="true"
                                         :show-delete="canDelete"
                                         :on-edit="() => goToEdit(client.id)"
+                                        :on-view="() => goToView(client.id)"
                                         :on-delete="
                                             () => confirmDelete(client.id)
                                         "
+                                        view-tooltip="View client"
                                         edit-tooltip="Edit client"
                                         delete-tooltip="Delete client"
                                     />
