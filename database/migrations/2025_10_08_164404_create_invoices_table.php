@@ -19,6 +19,7 @@ return new class extends Migration
 
             // Basic Info
             $table->string('title');
+            $table->string('invoice_number')->unique();
             $table->decimal('amount', 12, 2); // total invoice amount
             $table->decimal('amount_paid', 12, 2)->default(0); // partial or full paid amount
 
@@ -44,7 +45,7 @@ return new class extends Migration
             $table->timestamps();
 
             // Optimization indexes
-            $table->index(['status', 'due_date']);
+            $table->index(['status', 'due_date', 'invoice_number']);
         });
     }
 

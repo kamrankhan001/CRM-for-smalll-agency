@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Client;
+use App\Models\Invoice;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -34,7 +35,11 @@ class InvoiceFactory extends Factory
             ? $this->faker->randomFloat(2, 100, $amount - 100)
             : ($status === 'paid' ? $amount : 0);
 
+        // Generate unique invoice number
+        $invoiceNumber = 'INV-' . date('Y') . '-' . str_pad($this->faker->unique()->numberBetween(1, 9999), 4, '0', STR_PAD_LEFT);
+
         return [
+            'invoice_number' => $invoiceNumber,
             'title' => 'Invoice '.strtoupper($this->faker->bothify('INV-####')),
             'amount' => $amount,
             'amount_paid' => $amountPaid,

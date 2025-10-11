@@ -13,6 +13,7 @@ class invoice extends Model
         'project_id',
         'client_id',
         'title',
+        'invoice_number',
         'amount',
         'amount_paid',
         'status',
@@ -29,6 +30,8 @@ class invoice extends Model
             'issue_date' => 'datetime',
             'due_date' => 'datetime',
             'paid_at' => 'datetime',
+            'amount' => 'decimal:2',
+            'amount_paid' => 'decimal:2',
         ];
     }
 
@@ -45,6 +48,16 @@ class invoice extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function activities()
+    {
+        return $this->morphMany(Activity::class, 'subject')->latest();
+    }
+
+    public function documents()
+    {
+        return $this->morphMany(Document::class, 'documentable');
     }
 
 }

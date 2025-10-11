@@ -1,16 +1,16 @@
 <?php
 
+use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\NoteController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\ActivityController;
-use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\DocumentController;
-use App\Http\Controllers\ProjectController;
-use App\Http\Controllers\InvoiceController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -29,7 +29,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Keep the resource route but it should be after custom routes
     Route::resource('leads', LeadController::class);
     Route::post('/leads/{lead}/convert', [LeadController::class, 'convert'])
-    ->name('leads.convert');
+        ->name('leads.convert');
 
     Route::resource('clients', ClientController::class);
 
@@ -44,17 +44,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
 
     Route::resource('activities', ActivityController::class)->only(['index', 'show', 'destroy']);
-    
+
     Route::resource('invoices', InvoiceController::class);
+    Route::get('/invoices/{invoice}/download', [InvoiceController::class, 'download'])->name('invoices.download');
+    Route::post('/invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
+    Route::put('/invoices/{invoice}/mark-as-paid', [InvoiceController::class, 'markAsPaid'])->name('invoices.mark-as-paid');
 
     Route::resource('users', UserController::class);
 
-
     Route::get('/notifications', [NotificationController::class, 'index'])
-    ->name('notifications.index');
+        ->name('notifications.index');
     Route::post('/notifications/{id}/mark-read', [NotificationController::class, 'markAsRead'])->name('notifications.markRead');
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAll');
-
 
 });
 

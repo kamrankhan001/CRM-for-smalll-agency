@@ -49,6 +49,7 @@ import {
     destroy,
     edit,
     index,
+    show,
 } from '@/actions/App/Http/Controllers/InvoiceController';
 
 interface User {
@@ -142,6 +143,10 @@ const filters = ref({
 
 function goToEdit(invoiceId: number) {
     router.get(edit.url(invoiceId));
+}
+
+function goToView(invoiceId: number) {
+    router.get(show.url(invoiceId));
 }
 
 function confirmDelete(invoiceId: number) {
@@ -567,9 +572,12 @@ const total = computed(() => props.invoices.meta?.total || 0);
                             <TableCell>
                                 <ActionButtons
                                     :show-edit="canEditInvoice(invoice)"
+                                    :show-view="true"
                                     :show-delete="canDelete"
                                     :on-edit="() => goToEdit(invoice.id)"
+                                    :on-view="() => goToView(invoice.id)"
                                     :on-delete="() => confirmDelete(invoice.id)"
+                                    view-tooltip="View invoice"
                                     edit-tooltip="Edit invoice"
                                     delete-tooltip="Delete invoice"
                                 />
