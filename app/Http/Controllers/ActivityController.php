@@ -80,12 +80,37 @@ class ActivityController extends Controller
         ]);
     }
 
+    /**
+     * Display the specified activity.
+     */
     public function show(Activity $activity)
     {
         $this->authorize('view', $activity);
 
+        $activity->load(['causer', 'subject']);
+
         return Inertia::render('activities/Show', [
-            'activity' => $activity->load(['causer', 'subject']),
+            'activity' => [
+                'id' => $activity->id,
+                'description' => $activity->description,
+                'action' => $activity->action,
+                'changes' => $activity->changes,
+                'created_at' => $activity->created_at->toISOString(),
+                'updated_at' => $activity->updated_at->toISOString(),
+                'subject_type' => $activity->subject_type,
+                'subject_id' => $activity->subject_id,
+                'causer' => $activity->causer ? [
+                    'id' => $activity->causer->id,
+                    'name' => $activity->causer->name,
+                    'role' => $activity->causer->role,
+                    'email' => $activity->causer->email,
+                ] : null,
+                'subject' => $activity->subject ? [
+                    'id' => $activity->subject->id,
+                    'name' => $activity->subject->name ?? $activity->subject->title ?? null,
+                    'type' => class_basename($activity->subject_type),
+                ] : null,
+            ],
         ]);
     }
 
