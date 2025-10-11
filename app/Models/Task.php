@@ -10,7 +10,7 @@ class Task extends Model
     use HasFactory;
 
     protected $fillable = [
-        'title', 'description', 'status', 'due_date',
+        'title', 'description', 'status', 'priority', 'due_date',
         'taskable_id', 'taskable_type',
         'assigned_to', 'created_by',
     ];
@@ -35,6 +35,11 @@ class Task extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+     public function notes()
+    {
+        return $this->morphMany(Note::class, 'noteable');
     }
 
     public function activities()

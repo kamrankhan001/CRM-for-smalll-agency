@@ -25,6 +25,7 @@ class TaskFactory extends Factory
             'title' => $this->faker->sentence(3),
             'description' => $this->faker->paragraph(),
             'status' => $this->faker->randomElement(['pending', 'in_progress', 'completed']),
+            'priority' => $this->faker->randomElement(['low', 'medium', 'high', 'urgent']),
             'due_date' => $this->faker->dateTimeBetween('now', '+10 days'),
             'taskable_id' => $taskableId,
             'taskable_type' => $taskableType,

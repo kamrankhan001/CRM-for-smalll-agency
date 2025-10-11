@@ -45,6 +45,7 @@ interface Task {
     title: string;
     description?: string;
     status: string;
+    priority: string;
     due_date?: string;
     taskable_type: string;
     taskable_id: number;
@@ -69,6 +70,7 @@ const form = reactive({
     title: props.task.title,
     description: props.task.description || '',
     status: props.task.status as 'pending' | 'in_progress' | 'completed',
+    priority: props.task.priority as 'low' | 'medium' | 'high' | 'urgent',
     due_date: props.task.due_date || '',
     taskable_type: props.task.taskable_type.includes('Lead')
         ? 'lead'
@@ -142,10 +144,15 @@ function submit() {
                                     type="text"
                                     placeholder="Enter task title"
                                     class="w-full"
-                                    :class="errors.title ? 'border-destructive' : ''"
+                                    :class="
+                                        errors.title ? 'border-destructive' : ''
+                                    "
                                     required
                                 />
-                                <p v-if="errors.title" class="text-sm text-destructive">
+                                <p
+                                    v-if="errors.title"
+                                    class="text-sm text-destructive"
+                                >
                                     {{ errors.title }}
                                 </p>
                             </div>
@@ -158,19 +165,33 @@ function submit() {
                                     v-model="form.description"
                                     placeholder="Enter task description and details..."
                                     class="min-h-[100px] w-full"
-                                    :class="errors.description ? 'border-destructive' : ''"
+                                    :class="
+                                        errors.description
+                                            ? 'border-destructive'
+                                            : ''
+                                    "
                                 />
-                                <p v-if="errors.description" class="text-sm text-destructive">
+                                <p
+                                    v-if="errors.description"
+                                    class="text-sm text-destructive"
+                                >
                                     {{ errors.description }}
                                 </p>
                             </div>
 
-                            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                            <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
                                 <!-- Status Field -->
                                 <div class="space-y-2">
                                     <Label for="status">Status</Label>
                                     <Select v-model="form.status">
-                                        <SelectTrigger class="w-full" :class="errors.status ? 'border-destructive' : ''">
+                                        <SelectTrigger
+                                            class="w-full"
+                                            :class="
+                                                errors.status
+                                                    ? 'border-destructive'
+                                                    : ''
+                                            "
+                                        >
                                             <SelectValue
                                                 placeholder="Select status"
                                             />
@@ -187,8 +208,50 @@ function submit() {
                                             >
                                         </SelectContent>
                                     </Select>
-                                    <p v-if="errors.status" class="text-sm text-destructive">
+                                    <p
+                                        v-if="errors.status"
+                                        class="text-sm text-destructive"
+                                    >
                                         {{ errors.status }}
+                                    </p>
+                                </div>
+
+                                <!-- Priority Field -->
+                                <div class="space-y-2">
+                                    <Label for="priority">Priority</Label>
+                                    <Select v-model="form.priority">
+                                        <SelectTrigger
+                                            class="w-full"
+                                            :class="
+                                                errors.priority
+                                                    ? 'border-destructive'
+                                                    : ''
+                                            "
+                                        >
+                                            <SelectValue
+                                                placeholder="Select priority"
+                                            />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="low"
+                                                >Low</SelectItem
+                                            >
+                                            <SelectItem value="medium"
+                                                >Medium</SelectItem
+                                            >
+                                            <SelectItem value="high"
+                                                >High</SelectItem
+                                            >
+                                            <SelectItem value="urgent"
+                                                >Urgent</SelectItem
+                                            >
+                                        </SelectContent>
+                                    </Select>
+                                    <p
+                                        v-if="errors.priority"
+                                        class="text-sm text-destructive"
+                                    >
+                                        {{ errors.priority }}
                                     </p>
                                 </div>
 
@@ -200,9 +263,16 @@ function submit() {
                                         v-model="form.due_date"
                                         type="date"
                                         class="w-full"
-                                        :class="errors.due_date ? 'border-destructive' : ''"
+                                        :class="
+                                            errors.due_date
+                                                ? 'border-destructive'
+                                                : ''
+                                        "
                                     />
-                                    <p v-if="errors.due_date" class="text-sm text-destructive">
+                                    <p
+                                        v-if="errors.due_date"
+                                        class="text-sm text-destructive"
+                                    >
                                         {{ errors.due_date }}
                                     </p>
                                 </div>
@@ -220,7 +290,14 @@ function submit() {
                                             >Entity Type</Label
                                         >
                                         <Select v-model="form.taskable_type">
-                                            <SelectTrigger class="w-full" :class="errors.taskable_type ? 'border-destructive' : ''">
+                                            <SelectTrigger
+                                                class="w-full"
+                                                :class="
+                                                    errors.taskable_type
+                                                        ? 'border-destructive'
+                                                        : ''
+                                                "
+                                            >
                                                 <SelectValue
                                                     placeholder="Select type"
                                                 />
@@ -237,7 +314,10 @@ function submit() {
                                                 >
                                             </SelectContent>
                                         </Select>
-                                        <p v-if="errors.taskable_type" class="text-sm text-destructive">
+                                        <p
+                                            v-if="errors.taskable_type"
+                                            class="text-sm text-destructive"
+                                        >
                                             {{ errors.taskable_type }}
                                         </p>
                                     </div>
@@ -260,7 +340,14 @@ function submit() {
                                             >Select Project</Label
                                         >
                                         <Select v-model="form.taskable_id">
-                                            <SelectTrigger class="w-full" :class="errors.taskable_id ? 'border-destructive' : ''">
+                                            <SelectTrigger
+                                                class="w-full"
+                                                :class="
+                                                    errors.taskable_id
+                                                        ? 'border-destructive'
+                                                        : ''
+                                                "
+                                            >
                                                 <SelectValue
                                                     :placeholder="
                                                         form.taskable_type ===
@@ -313,7 +400,10 @@ function submit() {
                                                 </template>
                                             </SelectContent>
                                         </Select>
-                                        <p v-if="errors.taskable_id" class="text-sm text-destructive">
+                                        <p
+                                            v-if="errors.taskable_id"
+                                            class="text-sm text-destructive"
+                                        >
                                             {{ errors.taskable_id }}
                                         </p>
                                     </div>
@@ -324,7 +414,14 @@ function submit() {
                             <div class="space-y-2">
                                 <Label for="assigned_to">Assigned To</Label>
                                 <Select v-model="form.assigned_to">
-                                    <SelectTrigger class="w-full" :class="errors.assigned_to ? 'border-destructive' : ''">
+                                    <SelectTrigger
+                                        class="w-full"
+                                        :class="
+                                            errors.assigned_to
+                                                ? 'border-destructive'
+                                                : ''
+                                        "
+                                    >
                                         <SelectValue
                                             placeholder="Select user"
                                         />
@@ -342,7 +439,10 @@ function submit() {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <p v-if="errors.assigned_to" class="text-sm text-destructive">
+                                <p
+                                    v-if="errors.assigned_to"
+                                    class="text-sm text-destructive"
+                                >
                                     {{ errors.assigned_to }}
                                 </p>
                             </div>

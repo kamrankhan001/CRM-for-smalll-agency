@@ -17,13 +17,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import {
     Tooltip,
     TooltipContent,
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -61,6 +61,7 @@ const form = reactive({
     title: '',
     description: '',
     status: 'pending' as 'pending' | 'in_progress' | 'completed',
+    priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
     due_date: '',
     taskable_type: 'lead' as 'lead' | 'client' | 'project',
     taskable_id: null as number | null,
@@ -130,10 +131,15 @@ function submit() {
                                     type="text"
                                     placeholder="Enter task title"
                                     class="w-full"
-                                    :class="errors.title ? 'border-destructive' : ''"
+                                    :class="
+                                        errors.title ? 'border-destructive' : ''
+                                    "
                                     required
                                 />
-                                <p v-if="errors.title" class="text-sm text-destructive">
+                                <p
+                                    v-if="errors.title"
+                                    class="text-sm text-destructive"
+                                >
                                     {{ errors.title }}
                                 </p>
                             </div>
@@ -146,19 +152,33 @@ function submit() {
                                     v-model="form.description"
                                     placeholder="Enter task description and details..."
                                     class="min-h-[100px] w-full"
-                                    :class="errors.description ? 'border-destructive' : ''"
+                                    :class="
+                                        errors.description
+                                            ? 'border-destructive'
+                                            : ''
+                                    "
                                 />
-                                <p v-if="errors.description" class="text-sm text-destructive">
+                                <p
+                                    v-if="errors.description"
+                                    class="text-sm text-destructive"
+                                >
                                     {{ errors.description }}
                                 </p>
                             </div>
 
-                            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                            <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
                                 <!-- Status Field -->
                                 <div class="space-y-2">
                                     <Label for="status">Status</Label>
                                     <Select v-model="form.status">
-                                        <SelectTrigger class="w-full" :class="errors.status ? 'border-destructive' : ''">
+                                        <SelectTrigger
+                                            class="w-full"
+                                            :class="
+                                                errors.status
+                                                    ? 'border-destructive'
+                                                    : ''
+                                            "
+                                        >
                                             <SelectValue
                                                 placeholder="Select status"
                                             />
@@ -175,8 +195,50 @@ function submit() {
                                             >
                                         </SelectContent>
                                     </Select>
-                                    <p v-if="errors.status" class="text-sm text-destructive">
+                                    <p
+                                        v-if="errors.status"
+                                        class="text-sm text-destructive"
+                                    >
                                         {{ errors.status }}
+                                    </p>
+                                </div>
+
+                                <!-- Priority Field -->
+                                <div class="space-y-2">
+                                    <Label for="priority">Priority</Label>
+                                    <Select v-model="form.priority">
+                                        <SelectTrigger
+                                            class="w-full"
+                                            :class="
+                                                errors.priority
+                                                    ? 'border-destructive'
+                                                    : ''
+                                            "
+                                        >
+                                            <SelectValue
+                                                placeholder="Select priority"
+                                            />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="low"
+                                                >Low</SelectItem
+                                            >
+                                            <SelectItem value="medium"
+                                                >Medium</SelectItem
+                                            >
+                                            <SelectItem value="high"
+                                                >High</SelectItem
+                                            >
+                                            <SelectItem value="urgent"
+                                                >Urgent</SelectItem
+                                            >
+                                        </SelectContent>
+                                    </Select>
+                                    <p
+                                        v-if="errors.priority"
+                                        class="text-sm text-destructive"
+                                    >
+                                        {{ errors.priority }}
                                     </p>
                                 </div>
 
@@ -188,9 +250,16 @@ function submit() {
                                         v-model="form.due_date"
                                         type="date"
                                         class="w-full"
-                                        :class="errors.due_date ? 'border-destructive' : ''"
+                                        :class="
+                                            errors.due_date
+                                                ? 'border-destructive'
+                                                : ''
+                                        "
                                     />
-                                    <p v-if="errors.due_date" class="text-sm text-destructive">
+                                    <p
+                                        v-if="errors.due_date"
+                                        class="text-sm text-destructive"
+                                    >
                                         {{ errors.due_date }}
                                     </p>
                                 </div>
@@ -208,7 +277,14 @@ function submit() {
                                             >Entity Type</Label
                                         >
                                         <Select v-model="form.taskable_type">
-                                            <SelectTrigger class="w-full" :class="errors.taskable_type ? 'border-destructive' : ''">
+                                            <SelectTrigger
+                                                class="w-full"
+                                                :class="
+                                                    errors.taskable_type
+                                                        ? 'border-destructive'
+                                                        : ''
+                                                "
+                                            >
                                                 <SelectValue
                                                     placeholder="Select type"
                                                 />
@@ -225,7 +301,10 @@ function submit() {
                                                 >
                                             </SelectContent>
                                         </Select>
-                                        <p v-if="errors.taskable_type" class="text-sm text-destructive">
+                                        <p
+                                            v-if="errors.taskable_type"
+                                            class="text-sm text-destructive"
+                                        >
                                             {{ errors.taskable_type }}
                                         </p>
                                     </div>
@@ -248,7 +327,14 @@ function submit() {
                                             >Select Project</Label
                                         >
                                         <Select v-model="form.taskable_id">
-                                            <SelectTrigger class="w-full" :class="errors.taskable_id ? 'border-destructive' : ''">
+                                            <SelectTrigger
+                                                class="w-full"
+                                                :class="
+                                                    errors.taskable_id
+                                                        ? 'border-destructive'
+                                                        : ''
+                                                "
+                                            >
                                                 <SelectValue
                                                     :placeholder="
                                                         form.taskable_type ===
@@ -301,7 +387,10 @@ function submit() {
                                                 </template>
                                             </SelectContent>
                                         </Select>
-                                        <p v-if="errors.taskable_id" class="text-sm text-destructive">
+                                        <p
+                                            v-if="errors.taskable_id"
+                                            class="text-sm text-destructive"
+                                        >
                                             {{ errors.taskable_id }}
                                         </p>
                                     </div>
@@ -312,7 +401,14 @@ function submit() {
                             <div class="space-y-2">
                                 <Label for="assigned_to">Assigned To</Label>
                                 <Select v-model="form.assigned_to">
-                                    <SelectTrigger class="w-full" :class="errors.assigned_to ? 'border-destructive' : ''">
+                                    <SelectTrigger
+                                        class="w-full"
+                                        :class="
+                                            errors.assigned_to
+                                                ? 'border-destructive'
+                                                : ''
+                                        "
+                                    >
                                         <SelectValue
                                             placeholder="Select user"
                                         />
@@ -330,7 +426,10 @@ function submit() {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <p v-if="errors.assigned_to" class="text-sm text-destructive">
+                                <p
+                                    v-if="errors.assigned_to"
+                                    class="text-sm text-destructive"
+                                >
                                     {{ errors.assigned_to }}
                                 </p>
                             </div>
@@ -411,13 +510,20 @@ function submit() {
                             </div>
 
                             <!-- Project Tasks -->
-                            <div class="space-y-2 rounded-lg border border-green-200 bg-green-50 p-4">
+                            <div
+                                class="space-y-2 rounded-lg border border-green-200 bg-green-50 p-4"
+                            >
                                 <div class="flex items-center gap-2">
-                                    <div class="h-2.5 w-2.5 rounded-sm bg-green-600"></div>
-                                    <span class="font-medium text-green-700">Project Tasks</span>
+                                    <div
+                                        class="h-2.5 w-2.5 rounded-sm bg-green-600"
+                                    ></div>
+                                    <span class="font-medium text-green-700"
+                                        >Project Tasks</span
+                                    >
                                 </div>
                                 <p class="text-green-600">
-                                    Tasks associated with specific projects for better organization and tracking.
+                                    Tasks associated with specific projects for
+                                    better organization and tracking.
                                 </p>
                             </div>
                         </CardContent>

@@ -43,6 +43,7 @@ import { computed, ref } from 'vue';
 import {
     create,
     destroy,
+    show,
     edit,
     index,
 } from '@/actions/App/Http/Controllers/TaskController';
@@ -144,6 +145,10 @@ const filters = ref({
 
 function goToEdit(taskId: number) {
     router.get(edit.url(taskId));
+}
+
+function goToView(taskId: number) {
+    router.get(show.url(taskId));
 }
 
 function confirmDelete(taskId: number) {
@@ -550,12 +555,15 @@ const total = computed(() => props.tasks.meta?.total || 0);
                                 <TableCell>
                                     <ActionButtons
                                         :show-edit="canEditTask(task)"
+                                        :show-view="true"
                                         :show-delete="canDelete"
                                         :on-edit="() => goToEdit(task.id)"
+                                        :on-view="() => goToView(task.id)"
                                         :on-delete="
                                             () => confirmDelete(task.id)
                                         "
                                         edit-tooltip="Edit task"
+                                        view-tooltip="View task"
                                         delete-tooltip="Delete task"
                                     />
                                 </TableCell>

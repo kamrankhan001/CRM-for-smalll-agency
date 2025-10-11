@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use App\Models\Lead;
+use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
-use App\Models\Project;
 use App\Notifications\TaskAssignedNotification;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
@@ -115,13 +115,14 @@ class TaskController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'status' => 'required|in:pending,in_progress,completed',
+            'priority' => 'required|in:low,medium,high,urgent',
             'due_date' => 'nullable|date',
             'taskable_type' => 'required|string|in:lead,client,project',
             'taskable_id' => 'required|integer',
             'assigned_to' => 'nullable|exists:users,id',
         ]);
 
-        $validated['taskable_type'] = match($validated['taskable_type']) {
+        $validated['taskable_type'] = match ($validated['taskable_type']) {
             'lead' => Lead::class,
             'client' => Client::class,
             'project' => Project::class,
@@ -140,6 +141,76 @@ class TaskController extends Controller
         return redirect()->route('tasks.index')->with('success', 'Task created successfully.');
     }
 
+    /**
+     * Display the specified task.
+     */
+    public function show(Task $task)
+    {
+        $this->authorize('view', $task);
+
+        $task->load([
+            'assignee',
+            'creator',
+            'taskable',
+            'notes' => function ($query) {
+                $query->with('user')->latest()->limit(10);
+            },
+            'activities' => function ($query) {
+                $query->with('causer')->latest()->limit(10);
+            },
+        ]);
+
+        return Inertia::render('tasks/Show', [
+            'task' => [
+                'id' => $task->id,
+                'title' => $task->title,
+                'description' => $task->description,
+                'status' => $task->status,
+                'priority' => $task->priority,
+                'due_date' => $task->due_date?->toISOString(),
+                'taskable_type' => $task->taskable_type,
+                'taskable_id' => $task->taskable_id,
+                'assigned_to' => $task->assigned_to,
+                'created_by' => $task->created_by,
+                'created_at' => $task->created_at->toISOString(),
+                'updated_at' => $task->updated_at->toISOString(),
+                'assignee' => $task->assignee ? [
+                    'id' => $task->assignee->id,
+                    'name' => $task->assignee->name,
+                    'email' => $task->assignee->email,
+                ] : null,
+                'creator' => $task->creator ? [
+                    'id' => $task->creator->id,
+                    'name' => $task->creator->name,
+                ] : null,
+                'taskable' => $task->taskable ? [
+                    'id' => $task->taskable->id,
+                    'name' => $task->taskable->name ?? $task->taskable->title,
+                    'type' => class_basename($task->taskable_type),
+                ] : null,
+            ],
+            'notes' => $task->notes->map(fn ($note) => [
+                'id' => $note->id,
+                'content' => $note->content,
+                'user' => [
+                    'id' => $note->user->id,
+                    'name' => $note->user->name,
+                ],
+                'created_at' => $note->created_at->toISOString(),
+            ]),
+            'activities' => $task->activities->map(fn ($activity) => [
+                'id' => $activity->id,
+                'description' => $activity->description,
+                'causer' => $activity->causer ? [
+                    'id' => $activity->causer->id,
+                    'name' => $activity->causer->name,
+                ] : null,
+                'created_at' => $activity->created_at->toISOString(),
+                'properties' => $activity->properties,
+            ]),
+        ]);
+    }
+
     public function edit(Task $task)
     {
         $this->authorize('update', $task);
@@ -150,6 +221,7 @@ class TaskController extends Controller
                 'title' => $task->title,
                 'description' => $task->description,
                 'status' => $task->status,
+                'priority' => $task->priority,
                 'due_date' => $task->due_date?->toDateString(),
                 'taskable_type' => $task->taskable_type === 'App\\Models\\Lead' ? 'lead' : 'client',
                 'taskable_id' => $task->taskable_id,
@@ -186,6 +258,7 @@ class TaskController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'status' => 'required|in:pending,in_progress,completed',
+            'priority' => 'required|in:low,medium,high,urgent',
             'due_date' => 'nullable|date',
             'taskable_type' => 'required|string|in:lead,client,project',
             'taskable_id' => 'required|integer',
@@ -196,12 +269,11 @@ class TaskController extends Controller
         $oldAssignedTo = $task->assigned_to;
         $newAssignedTo = $validated['assigned_to'] ?? null;
 
-        $validated['taskable_type'] = match($validated['taskable_type']) {
+        $validated['taskable_type'] = match ($validated['taskable_type']) {
             'lead' => Lead::class,
             'client' => Client::class,
             'project' => Project::class,
         };
-
 
         $task->update($validated);
 
@@ -221,5 +293,18 @@ class TaskController extends Controller
         $task->delete();
 
         return redirect()->route('tasks.index')->with('success', 'Task deleted successfully.');
+    }
+
+    /**
+     * Mark task as completed.
+     */
+    public function complete(Task $task)
+    {
+        $this->authorize('update', $task);
+
+        $task->update(['status' => 'completed']);
+
+        return redirect()->route('tasks.show', $task->id)
+            ->with('success', 'Task marked as completed.');
     }
 }

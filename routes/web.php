@@ -34,6 +34,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('clients', ClientController::class);
 
     Route::resource('tasks', TaskController::class);
+    Route::put('/tasks/{task}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
 
     Route::resource('notes', NoteController::class);
 
