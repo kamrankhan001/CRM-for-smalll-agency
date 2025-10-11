@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Mail\InvoiceMail;
 use App\Models\Client;
+use App\Models\Document;
 use App\Models\Invoice;
 use App\Models\Project;
-use App\Models\Document;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
@@ -231,23 +231,57 @@ class InvoiceController extends Controller
     {
         $this->authorize('view', $invoice);
 
-        $pdf = PDF::loadView('pdf.invoice', compact('invoice'));
+        try {
+            // Check if a PDF already exists for this invoice
+            $existingDocument = Document::where('documentable_type', Invoice::class)
+                ->where('documentable_id', $invoice->id)
+                ->where('type', 'invoice')
+                ->first();
 
-        // Store the PDF as a document
-        $pdfPath = 'invoices/' . $invoice->invoice_number . '.pdf';
-        Storage::disk('public')->put($pdfPath, $pdf->output());
+            if ($existingDocument && Storage::disk('public')->exists($existingDocument->file_path)) {
+                return Storage::disk('public')->download($existingDocument->file_path);
+            }
 
-        // Create document record
-        Document::create([
-            'title' => 'Invoice ' . $invoice->invoice_number,
-            'type' => 'invoice',
-            'file_path' => $pdfPath,
-            'documentable_type' => Invoice::class,
-            'documentable_id' => $invoice->id,
-            'uploaded_by' => Auth::id(),
-        ]);
+            // Generate a fresh PDF if not found or missing
+            $pdf = Pdf::loadView('pdf.invoice', compact('invoice'))
+                ->setPaper('A4', 'portrait')
+                ->setOptions([
+                    'isHtml5ParserEnabled' => true,
+                    'isRemoteEnabled' => false,
+                    'defaultFont' => 'DejaVu Sans',
+                    'dpi' => 96,
+                ]);
 
-        return $pdf->download('invoice-'.$invoice->invoice_number.'.pdf');
+            $pdfPath = 'invoices/'.$invoice->invoice_number.'.pdf';
+
+            // Save the PDF to public storage
+            Storage::disk('public')->put($pdfPath, $pdf->output());
+
+            // Record it in the documents table
+            Document::updateOrCreate(
+                [
+                    'documentable_type' => Invoice::class,
+                    'documentable_id' => $invoice->id,
+                    'type' => 'invoice',
+                ],
+                [
+                    'title' => 'Invoice '.$invoice->invoice_number,
+                    'file_path' => $pdfPath,
+                    'uploaded_by' => Auth::id(),
+                ]
+            );
+
+            // Return the file download response
+            return $pdf->download('invoice-'.$invoice->invoice_number.'.pdf');
+
+        } catch (\Throwable $e) {
+            \Log::error('Invoice PDF generation failed', [
+                'invoice_id' => $invoice->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Failed to generate or download PDF.');
+        }
     }
 
     public function send(Invoice $invoice)
@@ -263,12 +297,12 @@ class InvoiceController extends Controller
             $pdf = PDF::loadView('pdf.invoice', compact('invoice'))->setPaper('a4', 'portrait');
 
             // Store the PDF as a document
-            $pdfPath = 'invoices/' . $invoice->invoice_number . '.pdf';
+            $pdfPath = 'invoices/'.$invoice->invoice_number.'.pdf';
             Storage::disk('public')->put($pdfPath, $pdf->output());
 
             // Create document record
             Document::create([
-                'title' => 'Invoice ' . $invoice->invoice_number,
+                'title' => 'Invoice '.$invoice->invoice_number,
                 'type' => 'invoice',
                 'file_path' => $pdfPath,
                 'documentable_type' => Invoice::class,
