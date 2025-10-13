@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
@@ -16,7 +16,9 @@ import {
     DollarSign,
     Calendar,
     Activity,
-    ArrowRight
+    ArrowRight,
+    TrendingUp,
+    Target
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -80,7 +82,7 @@ interface Props {
     leadByStatus: Record<string, number>;
     taskByStatus: TaskStatusItem[];
     monthlyStats: Record<string, number>;
-    topPerformers: TopPerformer[];
+    topPerformers?: TopPerformer[];
     recentActivities: RecentActivity[];
     recentData: RecentData;
     userTaskStats: {
@@ -106,11 +108,15 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard().url },
 ];
 
-function getStatusVariant(status: string) {
+// Fix TypeScript type for badge variant
+type BadgeVariant = 'default' | 'secondary' | 'outline' | 'destructive' | null | undefined;
+
+function getStatusVariant(status: string): BadgeVariant {
     switch (status.toLowerCase()) {
         case 'completed':
         case 'qualified':
         case 'paid':
+        case 'converted':
             return 'default';
         case 'in_progress':
         case 'contacted':
@@ -120,9 +126,11 @@ function getStatusVariant(status: string) {
         case 'pending':
         case 'new':
         case 'draft':
+        case 'open':
             return 'outline';
         case 'lost':
         case 'cancelled':
+        case 'rejected':
             return 'destructive';
         default:
             return 'outline';
@@ -133,7 +141,7 @@ function formatCurrency(amount: number) {
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
-    }).format(amount);
+    }).format(amount || 0);
 }
 
 // Quick stats for the main cards
@@ -226,14 +234,35 @@ const additionalStats = computed(() => {
 
     return stats;
 });
+
+// Lead status distribution for chart
+const leadStatusData = computed(() => {
+    return Object.entries(props.leadByStatus).map(([status, count]) => ({
+        status,
+        count,
+        label: status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' '),
+        variant: getStatusVariant(status)
+    }));
+});
+
+// Check if user can see team performance data
+const canViewTeamPerformance = computed(() => {
+    return props.userRole === 'admin' || props.userRole === 'manager';
+});
+
+// Check if user can see invoice stats
+const canViewInvoiceStats = computed(() => {
+    return props.userRole === 'admin' || props.userRole === 'manager';
+});
+
 </script>
 
 <template>
     <Head title="Dashboard" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-col gap-6 p-6">
+        <div class="space-6 p-6">
             <!-- Welcome Section -->
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
                     <h1 class="text-3xl font-bold tracking-tight">Dashboard</h1>
                     <p class="mt-1 text-muted-foreground">
@@ -248,177 +277,237 @@ const additionalStats = computed(() => {
                 </div>
             </div>
 
-            <!-- === Main Stats Cards === -->
-            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                <Card 
-                    v-for="stat in quickStats" 
-                    :key="stat.title"
-                    class="relative overflow-hidden transition-all hover:shadow-md"
-                >
-                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle class="text-sm font-medium">
-                            {{ stat.title }}
-                        </CardTitle>
-                        <component 
-                            :is="stat.icon" 
-                            class="h-4 w-4" 
-                            :class="stat.color"
-                        />
-                    </CardHeader>
-                    <CardContent>
-                        <div class="text-2xl font-bold">{{ stat.value }}</div>
-                        <p class="text-xs text-muted-foreground">
-                            {{ stat.description }}
-                        </p>
-                        <Link :href="stat.href" class="absolute inset-0"></Link>
-                    </CardContent>
-                </Card>
+            <!-- Role Badge -->
+            <div class="flex items-center gap-2 mb-6">
+                <Badge variant="secondary" class="capitalize">
+                    {{ userRole }} Role
+                </Badge>
+                <span class="text-sm text-muted-foreground">
+                    {{ userRole === 'admin' ? 'Full system access' : userRole === 'manager' ? 'Team management access' : 'Personal workspace access' }}
+                </span>
             </div>
 
-            <!-- === Additional Stats === -->
-            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                <Card 
-                    v-for="stat in additionalStats" 
-                    :key="stat.title"
-                    class="relative overflow-hidden transition-all hover:shadow-md"
-                >
-                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle class="text-sm font-medium">
-                            {{ stat.title }}
-                        </CardTitle>
-                        <component 
-                            :is="stat.icon" 
-                            class="h-4 w-4" 
-                            :class="stat.color"
-                        />
-                    </CardHeader>
-                    <CardContent>
-                        <div class="text-2xl font-bold">{{ stat.value }}</div>
-                        <p class="text-xs text-muted-foreground">
-                            {{ stat.description }}
-                        </p>
-                        <Link :href="stat.href" class="absolute inset-0"></Link>
-                    </CardContent>
-                </Card>
-            </div>
+            <!-- Pinterest-style Masonry Layout -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-min">
+                
+                <!-- Main Stats Cards - Full Width -->
+                <div class="lg:col-span-3 xl:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <Card 
+                        v-for="stat in quickStats" 
+                        :key="stat.title"
+                        class="relative overflow-hidden transition-all hover:shadow-md"
+                    >
+                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle class="text-sm font-medium">
+                                {{ stat.title }}
+                            </CardTitle>
+                            <component 
+                                :is="stat.icon" 
+                                class="h-4 w-4" 
+                                :class="stat.color"
+                            />
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-2xl font-bold">{{ stat.value }}</div>
+                            <p class="text-xs text-muted-foreground">
+                                {{ stat.description }}
+                            </p>
+                            <Link :href="stat.href" class="absolute inset-0"></Link>
+                        </CardContent>
+                    </Card>
+                </div>
 
-            <div class="grid gap-6 lg:grid-cols-2">
+                <!-- Additional Stats -->
+                <div class="lg:col-span-3 xl:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <Card 
+                        v-for="stat in additionalStats" 
+                        :key="stat.title"
+                        class="relative overflow-hidden transition-all hover:shadow-md"
+                    >
+                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle class="text-sm font-medium">
+                                {{ stat.title }}
+                            </CardTitle>
+                            <component 
+                                :is="stat.icon" 
+                                class="h-4 w-4" 
+                                :class="stat.color"
+                            />
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-2xl font-bold">{{ stat.value }}</div>
+                            <p class="text-xs text-muted-foreground">
+                                {{ stat.description }}
+                            </p>
+                            <Link :href="stat.href" class="absolute inset-0"></Link>
+                        </CardContent>
+                    </Card>
+                </div>
+
                 <!-- My Tasks Summary -->
-                <Card>
+                <Card class="lg:col-span-1">
                     <CardHeader>
-                        <CardTitle class="flex items-center gap-2">
-                            <ClipboardList class="h-5 w-5" />
+                        <CardTitle class="flex items-center gap-2 text-sm">
+                            <ClipboardList class="h-4 w-4" />
                             My Tasks
                         </CardTitle>
-                        <CardDescription>
-                            Your task overview
-                        </CardDescription>
                     </CardHeader>
                     <CardContent class="space-y-4">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="space-y-1">
-                                <div class="text-2xl font-bold text-blue-600">
-                                    {{ userTaskStats.total_tasks }}
-                                </div>
-                                <p class="text-sm text-muted-foreground">Total Tasks</p>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center p-2">
+                                <span class="text-sm">Total Tasks</span>
+                                <Badge variant="default">{{ userTaskStats.total_tasks }}</Badge>
                             </div>
-                            <div class="space-y-1">
-                                <div class="text-2xl font-bold text-orange-600">
-                                    {{ userTaskStats.pending_tasks }}
-                                </div>
-                                <p class="text-sm text-muted-foreground">Pending</p>
+                            <div class="flex justify-between items-center p-2">
+                                <span class="text-sm">Pending</span>
+                                <Badge variant="outline">{{ userTaskStats.pending_tasks }}</Badge>
                             </div>
-                            <div class="space-y-1">
-                                <div class="text-2xl font-bold text-yellow-600">
-                                    {{ userTaskStats.in_progress_tasks }}
-                                </div>
-                                <p class="text-sm text-muted-foreground">In Progress</p>
+                            <div class="flex justify-between items-center p-2">
+                                <span class="text-sm">In Progress</span>
+                                <Badge variant="secondary">{{ userTaskStats.in_progress_tasks }}</Badge>
                             </div>
-                            <div class="space-y-1">
-                                <div class="text-2xl font-bold text-green-600">
-                                    {{ userTaskStats.completed_tasks }}
-                                </div>
-                                <p class="text-sm text-muted-foreground">Completed</p>
+                            <div class="flex justify-between items-center p-2">
+                                <span class="text-sm">Completed</span>
+                                <Badge variant="default">{{ userTaskStats.completed_tasks }}</Badge>
                             </div>
                         </div>
                         <Link href="/tasks">
-                            <Button variant="outline" class="w-full">
+                            <Button variant="outline" class="w-full text-xs">
                                 View All Tasks
-                                <ArrowRight class="ml-2 h-4 w-4" />
+                                <ArrowRight class="ml-2 h-3 w-3" />
                             </Button>
                         </Link>
                     </CardContent>
                 </Card>
 
-                <!-- Invoice Stats (Admin/Manager only) -->
-                <Card v-if="userRole === 'admin' || userRole === 'manager'">
+                <!-- Leads by Status -->
+                <Card class="lg:col-span-1">
                     <CardHeader>
-                        <CardTitle class="flex items-center gap-2">
-                            <DollarSign class="h-5 w-5" />
-                            Invoice Overview
+                        <CardTitle class="flex items-center gap-2 text-sm">
+                            <Target class="h-4 w-4" />
+                            Lead Status
                         </CardTitle>
-                        <CardDescription>
-                            Financial summary
-                        </CardDescription>
                     </CardHeader>
-                    <CardContent class="space-y-4">
+                    <CardContent>
                         <div class="space-y-3">
+                            <div 
+                                v-for="item in leadStatusData" 
+                                :key="item.status"
+                                class="flex items-center justify-between p-2"
+                            >
+                                <Badge :variant="item.variant" class="capitalize text-xs">
+                                    {{ item.label }}
+                                </Badge>
+                                <span class="text-sm font-medium">{{ item.count }}</span>
+                            </div>
+                            <div 
+                                v-if="leadStatusData.length === 0"
+                                class="text-center py-4 text-muted-foreground text-sm"
+                            >
+                                No leads data
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <!-- Task Status Overview -->
+                <Card class="lg:col-span-1">
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2 text-sm">
+                            <ClipboardList class="h-4 w-4" />
+                            Task Status
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="space-y-3">
+                            <div 
+                                v-for="task in taskByStatus" 
+                                :key="task.status"
+                                class="flex items-center justify-between p-2"
+                            >
+                                <Badge :variant="getStatusVariant(task.status)" class="capitalize text-xs">
+                                    {{ task.label }}
+                                </Badge>
+                                <div class="text-right">
+                                    <div class="text-sm font-medium">{{ task.count }}</div>
+                                    <div class="text-xs text-muted-foreground">{{ task.percentage }}%</div>
+                                </div>
+                            </div>
+                            <div 
+                                v-if="taskByStatus.length === 0"
+                                class="text-center py-4 text-muted-foreground text-sm"
+                            >
+                                No tasks data
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <!-- Invoice Overview (Admin/Manager) -->
+                <Card v-if="canViewInvoiceStats" class="lg:col-span-1">
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2 text-sm">
+                            <DollarSign class="h-4 w-4" />
+                            Revenue
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent class="space-y-3">
+                        <div class="space-y-2">
                             <div class="flex justify-between items-center">
-                                <span class="text-sm">Total Revenue:</span>
-                                <span class="font-semibold">{{ formatCurrency(stats.total_invoice_amount || 0) }}</span>
+                                <span class="text-xs">Total:</span>
+                                <span class="text-sm font-semibold">{{ formatCurrency(stats.total_invoice_amount || 0) }}</span>
                             </div>
                             <div class="flex justify-between items-center">
-                                <span class="text-sm">Paid Amount:</span>
-                                <span class="font-semibold text-green-600">{{ formatCurrency(stats.paid_invoice_amount || 0) }}</span>
+                                <span class="text-xs">Paid:</span>
+                                <span class="text-sm font-semibold text-green-600">{{ formatCurrency(stats.paid_invoice_amount || 0) }}</span>
                             </div>
                             <div class="flex justify-between items-center">
-                                <span class="text-sm">Outstanding:</span>
-                                <span class="font-semibold text-orange-600">
+                                <span class="text-xs">Due:</span>
+                                <span class="text-sm font-semibold text-orange-600">
                                     {{ formatCurrency((stats.total_invoice_amount || 0) - (stats.paid_invoice_amount || 0)) }}
                                 </span>
                             </div>
                         </div>
-                        <Link href="/invoices">
-                            <Button variant="outline" class="w-full">
-                                Manage Invoices
-                                <ArrowRight class="ml-2 h-4 w-4" />
-                            </Button>
-                        </Link>
                     </CardContent>
                 </Card>
-            </div>
 
-            <!-- === Recent Items & Activities === -->
-            <div class="grid gap-6 lg:grid-cols-2">
                 <!-- Recent Leads -->
-                <Card>
+                <Card class="lg:col-span-2">
                     <CardHeader>
                         <CardTitle class="flex items-center gap-2">
-                            <Users class="h-5 w-5" />
+                            <Users class="h-4 w-4" />
                             Recent Leads
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div class="space-y-4">
+                        <div class="space-y-3">
                             <div 
                                 v-for="lead in recentData.recent_leads" 
                                 :key="lead.id"
                                 class="flex items-center justify-between p-3 rounded-lg border"
                             >
-                                <div>
-                                    <p class="font-medium">{{ lead.name }}</p>
-                                    <p class="text-sm text-muted-foreground">
-                                        Created by {{ lead.creator?.name }}
-                                    </p>
+                                <div class="flex items-center gap-3 min-w-0 flex-1">
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-medium text-sm truncate">{{ lead.name }}</p>
+                                        <p class="text-xs text-muted-foreground truncate">
+                                            {{ lead.creator?.name ? `By ${lead.creator.name}` : 'No creator' }}
+                                        </p>
+                                    </div>
+                                    <Badge :variant="getStatusVariant(lead.status)" class="capitalize text-xs shrink-0">
+                                        {{ lead.status?.replace('_', ' ') }}
+                                    </Badge>
                                 </div>
-                                <Badge :variant="getStatusVariant(lead.status)" class="capitalize">
-                                    {{ lead.status }}
-                                </Badge>
+                            </div>
+                            <div 
+                                v-if="recentData.recent_leads.length === 0"
+                                class="text-center py-6 text-muted-foreground text-sm"
+                            >
+                                No recent leads
                             </div>
                             <Link href="/leads" class="block">
-                                <Button variant="outline" class="w-full">
+                                <Button variant="outline" class="w-full text-xs">
                                     View All Leads
-                                    <ArrowRight class="ml-2 h-4 w-4" />
+                                    <ArrowRight class="ml-2 h-3 w-3" />
                                 </Button>
                             </Link>
                         </div>
@@ -426,49 +515,54 @@ const additionalStats = computed(() => {
                 </Card>
 
                 <!-- Recent Tasks -->
-                <Card>
+                <Card class="lg:col-span-2">
                     <CardHeader>
                         <CardTitle class="flex items-center gap-2">
-                            <ClipboardList class="h-5 w-5" />
+                            <ClipboardList class="h-4 w-4" />
                             Recent Tasks
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div class="space-y-4">
+                        <div class="space-y-3">
                             <div 
                                 v-for="task in recentData.recent_tasks" 
                                 :key="task.id"
                                 class="flex items-center justify-between p-3 rounded-lg border"
                             >
-                                <div>
-                                    <p class="font-medium">{{ task.title }}</p>
-                                    <p class="text-sm text-muted-foreground">
-                                        Assigned to {{ task.assignee?.name || 'Unassigned' }}
-                                    </p>
+                                <div class="flex items-center gap-3 min-w-0 flex-1">
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-medium text-sm truncate">{{ task.title }}</p>
+                                        <p class="text-xs text-muted-foreground truncate">
+                                            {{ task.assignee?.name ? `Assigned to ${task.assignee.name}` : 'Unassigned' }}
+                                        </p>
+                                    </div>
+                                    <Badge :variant="getStatusVariant(task.status)" class="capitalize text-xs shrink-0">
+                                        {{ task.status?.replace('_', ' ') }}
+                                    </Badge>
                                 </div>
-                                <Badge :variant="getStatusVariant(task.status)" class="capitalize">
-                                    {{ task.status.replace('_', ' ') }}
-                                </Badge>
+                            </div>
+                            <div 
+                                v-if="recentData.recent_tasks.length === 0"
+                                class="text-center py-6 text-muted-foreground text-sm"
+                            >
+                                No recent tasks
                             </div>
                             <Link href="/tasks" class="block">
-                                <Button variant="outline" class="w-full">
+                                <Button variant="outline" class="w-full text-xs">
                                     View All Tasks
-                                    <ArrowRight class="ml-2 h-4 w-4" />
+                                    <ArrowRight class="ml-2 h-3 w-3" />
                                 </Button>
                             </Link>
                         </div>
                     </CardContent>
                 </Card>
-            </div>
 
-            <!-- === Additional Recent Items === -->
-            <div class="grid gap-6 lg:grid-cols-3">
                 <!-- Recent Projects -->
-                <Card>
+                <Card class="lg:col-span-1">
                     <CardHeader>
                         <CardTitle class="flex items-center gap-2 text-sm">
                             <FolderOpen class="h-4 w-4" />
-                            Recent Projects
+                            Projects
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -476,57 +570,143 @@ const additionalStats = computed(() => {
                             <div 
                                 v-for="project in recentData.recent_projects" 
                                 :key="project.id"
-                                class="flex items-center justify-between p-2 rounded-lg border"
+                                class="flex items-center justify-between p-2"
                             >
-                                <div>
-                                    <p class="font-medium text-sm">{{ project.name }}</p>
-                                    <p class="text-xs text-muted-foreground">
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium text-sm truncate">{{ project.name }}</p>
+                                    <p class="text-xs text-muted-foreground truncate">
                                         {{ project.client?.name || 'No client' }}
                                     </p>
                                 </div>
-                                <Badge :variant="getStatusVariant(project.status)" class="capitalize text-xs">
+                                <Badge :variant="getStatusVariant(project.status)" class="text-xs shrink-0">
                                     {{ project.status }}
                                 </Badge>
+                            </div>
+                            <div 
+                                v-if="recentData.recent_projects.length === 0"
+                                class="text-center py-4 text-muted-foreground text-sm"
+                            >
+                                No projects
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <!-- Recent Documents -->
-                <Card>
+                <!-- Recent Clients -->
+                <Card class="lg:col-span-1">
                     <CardHeader>
                         <CardTitle class="flex items-center gap-2 text-sm">
-                            <FileText class="h-4 w-4" />
-                            Recent Documents
+                            <UserCheck class="h-4 w-4" />
+                            Clients
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div class="space-y-3">
                             <div 
-                                v-for="doc in recentData.recent_documents" 
-                                :key="doc.id"
-                                class="flex items-center justify-between p-2 rounded-lg border"
+                                v-for="client in recentData.recent_clients" 
+                                :key="client.id"
+                                class="flex items-center gap-2 p-2"
                             >
-                                <div>
-                                    <p class="font-medium text-sm">{{ doc.title }}</p>
-                                    <p class="text-xs text-muted-foreground capitalize">
-                                        {{ doc.type }}
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium text-sm truncate">{{ client.name }}</p>
+                                    <p class="text-xs text-muted-foreground truncate">
+                                        {{ client.email || 'No email' }}
                                     </p>
                                 </div>
-                                <Badge variant="outline" class="text-xs capitalize">
-                                    {{ doc.documentable?.type || 'General' }}
+                            </div>
+                            <div 
+                                v-if="recentData.recent_clients.length === 0"
+                                class="text-center py-4 text-muted-foreground text-sm"
+                            >
+                                No clients
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <!-- Top Performers (Admin/Manager) -->
+                <Card v-if="canViewTeamPerformance && topPerformers" class="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2">
+                            <TrendingUp class="h-4 w-4" />
+                            Top Performers
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="space-y-3">
+                            <div 
+                                v-for="performer in topPerformers" 
+                                :key="performer.name"
+                                class="flex items-center justify-between p-3 rounded-lg border"
+                            >
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium text-sm">{{ performer.name }}</p>
+                                    <p class="text-xs text-muted-foreground">
+                                        {{ performer.total_leads }} leads • {{ performer.converted_clients }} clients
+                                    </p>
+                                </div>
+                                <Badge variant="default" class="text-xs">
+                                    {{ performer.conversion_rate }}%
                                 </Badge>
+                            </div>
+                            <div 
+                                v-if="topPerformers.length === 0"
+                                class="text-center py-6 text-muted-foreground text-sm"
+                            >
+                                No performance data
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <!-- Recent Activities -->
+                <Card class="lg:col-span-2 xl:col-span-3">
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2">
+                            <Activity class="h-4 w-4" />
+                            Recent Activities
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="space-y-3">
+                            <div 
+                                v-for="activity in recentActivities" 
+                                :key="activity.id"
+                                class="flex items-center gap-3 p-3 rounded-lg border"
+                            >
+                                <div class="flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                                    <Users class="h-3 w-3" />
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium text-sm">
+                                        {{ activity.causer?.name ?? 'System' }}
+                                    </p>
+                                    <p class="text-xs text-muted-foreground capitalize">
+                                        {{ activity.action }} 
+                                        {{ activity.subject_type?.split('\\').pop()?.toLowerCase() }}
+                                    </p>
+                                </div>
+                                <div class="text-right text-xs text-muted-foreground shrink-0">
+                                    <div>{{ new Date(activity.created_at).toLocaleDateString() }}</div>
+                                    <div>{{ new Date(activity.created_at).toLocaleTimeString() }}</div>
+                                </div>
+                            </div>
+                            <div 
+                                v-if="recentActivities.length === 0"
+                                class="text-center py-8 text-muted-foreground text-sm"
+                            >
+                                No recent activities
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
                 <!-- Recent Invoices (Admin/Manager) -->
-                <Card v-if="(userRole === 'admin' || userRole === 'manager') && recentData.recent_invoices">
+                <Card v-if="canViewInvoiceStats && recentData.recent_invoices" class="lg:col-span-1">
                     <CardHeader>
                         <CardTitle class="flex items-center gap-2 text-sm">
                             <DollarSign class="h-4 w-4" />
-                            Recent Invoices
+                            Invoices
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -534,70 +714,29 @@ const additionalStats = computed(() => {
                             <div 
                                 v-for="invoice in recentData.recent_invoices" 
                                 :key="invoice.id"
-                                class="flex items-center justify-between p-2 rounded-lg border"
+                                class="flex items-center justify-between p-2"
                             >
-                                <div>
-                                    <p class="font-medium text-sm">{{ invoice.title }}</p>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium text-sm truncate">{{ invoice.invoice_number || invoice.title }}</p>
                                     <p class="text-xs text-muted-foreground">
                                         {{ formatCurrency(invoice.amount) }}
                                     </p>
                                 </div>
-                                <Badge :variant="getStatusVariant(invoice.status)" class="text-xs capitalize">
-                                    {{ invoice.status.replace('_', ' ') }}
+                                <Badge :variant="getStatusVariant(invoice.status)" class="text-xs shrink-0">
+                                    {{ invoice.status?.charAt(0) }}
                                 </Badge>
+                            </div>
+                            <div 
+                                v-if="recentData.recent_invoices.length === 0"
+                                class="text-center py-4 text-muted-foreground text-sm"
+                            >
+                                No invoices
                             </div>
                         </div>
                     </CardContent>
                 </Card>
-            </div>
 
-            <!-- === Recent Activities === -->
-            <Card>
-                <CardHeader>
-                    <CardTitle class="flex items-center gap-2">
-                        <Activity class="h-5 w-5" />
-                        Recent Activities
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div class="space-y-3">
-                        <div 
-                            v-for="activity in recentActivities" 
-                            :key="activity.id"
-                            class="flex items-center justify-between p-3 rounded-lg border"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                                    <Users class="h-4 w-4" />
-                                </div>
-                                <div>
-                                    <p class="font-medium">
-                                        {{ activity.causer?.name ?? 'System' }}
-                                    </p>
-                                    <p class="text-sm text-muted-foreground capitalize">
-                                        {{ activity.action }} 
-                                        {{ activity.subject_type?.split('\\').pop()?.toLowerCase() }}
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-sm font-medium">
-                                    {{ new Date(activity.created_at).toLocaleDateString() }}
-                                </p>
-                                <p class="text-xs text-muted-foreground">
-                                    {{ new Date(activity.created_at).toLocaleTimeString() }}
-                                </p>
-                            </div>
-                        </div>
-                        <div 
-                            v-if="recentActivities.length === 0"
-                            class="text-center py-8 text-muted-foreground"
-                        >
-                            No recent activities found.
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+            </div>
         </div>
     </AppLayout>
 </template>
