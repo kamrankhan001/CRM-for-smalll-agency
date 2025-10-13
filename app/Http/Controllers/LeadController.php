@@ -2,108 +2,59 @@
 
 namespace App\Http\Controllers;
 
-use App\Exports\LeadsExport;
-use App\Jobs\ExportLeadsJob;
+use App\Actions\Lead\ConvertLeadToClientAction;
+use App\Actions\Lead\CreateLeadAction;
+use App\Actions\Lead\UpdateLeadAction;
+use App\Http\Requests\Lead\ImportLeadsRequest;
+use App\Http\Requests\Lead\StoreLeadRequest;
+use App\Http\Requests\Lead\UpdateLeadRequest;
 use App\Jobs\ImportLeadsJob;
-use App\Models\Client;
 use App\Models\Lead;
 use App\Models\User;
-use App\Notifications\LeadAssignedNotification;
-use App\Notifications\LeadConvertedNotification;
+use App\Services\Lead\LeadExportService;
+use App\Services\Lead\LeadQueryService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class LeadController extends Controller
 {
     use AuthorizesRequests;
 
+    public function __construct(
+        private LeadQueryService $leadQueryService,
+        private LeadExportService $leadExportService,
+        private CreateLeadAction $createLeadAction,
+        private UpdateLeadAction $updateLeadAction,
+        private ConvertLeadToClientAction $convertLeadToClientAction
+    ) {}
+
     /**
-     * Display a listing of the leads.
+     * Display a listing of the leads with filters and pagination
      */
-    public function index(Request $request): Response
+    public function index(): Response
     {
         $this->authorize('viewAny', Lead::class);
 
-        $leads = Lead::with(['creator', 'assignee'])
-            ->when($request->search, function ($query, $search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('company', 'like', "%{$search}%");
-                });
-            })
-            ->when($request->filled('status'), function ($query) use ($request) {
-                $query->where('status', $request->status);
-            })
-            ->when($request->filled('assigned_to'), function ($query) use ($request) {
-                $query->where('assigned_to', $request->assigned_to);
-            })
-            ->when($request->date_from, function ($query, $dateFrom) {
-                $query->whereDate('created_at', '>=', $dateFrom);
-            })
-            ->when($request->date_to, function ($query, $dateTo) {
-                $query->whereDate('created_at', '<=', $dateTo);
-            })
-            ->when($request->user()->role === 'member', function ($query) use ($request) {
-                // Members only see their own or assigned leads
-                $query->where('created_by', $request->user()->id)
-                    ->orWhere('assigned_to', $request->user()->id);
-            })
-            ->latest()
-            ->paginate(10)
-            ->through(fn ($lead) => [
-                'id' => $lead->id,
-                'name' => $lead->name,
-                'email' => $lead->email,
-                'phone' => $lead->phone,
-                'company' => $lead->company,
-                'source' => $lead->source,
-                'status' => $lead->status,
-                'assignee' => $lead->assignee ? [
-                    'id' => $lead->assignee->id,
-                    'name' => $lead->assignee->name,
-                ] : null,
-                'creator' => $lead->creator ? [
-                    'id' => $lead->creator->id,
-                    'name' => $lead->creator->name,
-                ] : null,
-                'created_by' => $lead->created_by,
-                'assigned_to' => $lead->assigned_to,
-                'created_at' => $lead->created_at->toDateString(),
-                'updated_at' => $lead->updated_at->toDateString(),
-            ]);
+        $filters = request()->only(['search', 'status', 'assigned_to', 'date_from', 'date_to']);
+        $leads = $this->leadQueryService->getFilteredLeads($filters, auth()->user());
+        $transformedLeads = $this->leadQueryService->transformLeadsForResponse($leads);
 
         $users = User::select('id', 'name')->get();
 
         return Inertia::render('leads/Index', [
-            'leads' => [
-                'data' => $leads->items(),
-                'meta' => [
-                    'current_page' => $leads->currentPage(),
-                    'last_page' => $leads->lastPage(),
-                    'per_page' => $leads->perPage(),
-                    'total' => $leads->total(),
-                    'from' => $leads->firstItem(),
-                    'to' => $leads->lastItem(),
-                    'prev_page_url' => $leads->previousPageUrl(),
-                    'next_page_url' => $leads->nextPageUrl(),
-                ],
-                'links' => $leads->linkCollection()->toArray(),
-            ],
-            'filters' => $request->only(['search', 'status', 'assigned_to', 'date_from', 'date_to']),
+            'leads' => $transformedLeads,
+            'filters' => $filters,
             'users' => $users,
         ]);
     }
 
     /**
-     * Show the form for creating a new lead.
+     * Show the form for creating a new lead
      */
     public function create(): Response
     {
@@ -117,41 +68,23 @@ class LeadController extends Controller
     }
 
     /**
-     * Store a newly created lead in storage.
+     * Store a newly created lead in storage
      */
-    public function store(Request $request)
+    public function store(StoreLeadRequest $request): RedirectResponse
     {
-        $this->authorize('create', Lead::class);
-
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'nullable|email',
-            'phone' => 'nullable|string|max:20',
-            'company' => 'nullable|string|max:255',
-            'source' => 'nullable|string|max:255',
-            'status' => 'required|in:new,contacted,qualified,lost',
-            'assigned_to' => 'nullable|exists:users,id',
-        ]);
-
-        $validated['created_by'] = $request->user()->id;
-
-        $lead = Lead::create($validated);
-
-        // Send notification if assigned to someone else
-        if ($lead->assigned_to && $lead->assigned_to != $request->user()->id) {
-            $assignedUser = User::find($lead->assigned_to);
-            $assignedUser->notify(new LeadAssignedNotification($lead));
-        }
+        $this->createLeadAction->execute($request->validated(), $request->user());
 
         return redirect()->route('leads.index')
             ->with('success', 'Lead created successfully.');
     }
 
     /**
-     * Show the detail of specified lead.
+     * Display the specified lead with all related data
      */
-    public function show(Lead $lead)
+    public function show(Lead $lead): Response
     {
+        $this->authorize('view', $lead);
+
         // Eager load all necessary relationships to avoid N+1 queries
         $lead->load([
             'creator',
@@ -173,7 +106,7 @@ class LeadController extends Controller
     }
 
     /**
-     * Show the form for editing the specified lead.
+     * Show the form for editing the specified lead
      */
     public function edit(Lead $lead): Response
     {
@@ -208,58 +141,12 @@ class LeadController extends Controller
     }
 
     /**
-     * Update the specified lead in storage.
+     * Update the specified lead in storage
      */
-    public function update(Request $request, Lead $lead)
+    public function update(UpdateLeadRequest $request, Lead $lead): RedirectResponse
     {
-        $this->authorize('update', $lead);
-
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'nullable|email',
-            'phone' => 'nullable|string|max:20',
-            'company' => 'nullable|string|max:255',
-            'source' => 'nullable|string|max:255',
-            'status' => 'required|in:new,contacted,qualified,lost',
-            'assigned_to' => 'nullable|exists:users,id',
-        ]);
-
-        // Check if status is changing to qualified
-        $isConvertingToClient = $validated['status'] === 'qualified' && $lead->status !== 'qualified';
-
-        // Check if assignment is changing to a different user
-        $oldAssignedTo = $lead->assigned_to;
-        $newAssignedTo = $validated['assigned_to'] ?? null;
-
         try {
-            DB::transaction(function () use ($lead, $validated, $isConvertingToClient, $request, $newAssignedTo, $oldAssignedTo) {
-                $lead->update($validated);
-
-                // Convert lead to client if status changed to qualified
-                if ($isConvertingToClient) {
-                    $client = Client::create([
-                        'name' => $lead->name,
-                        'email' => $lead->email,
-                        'phone' => $lead->phone,
-                        'company' => $lead->company,
-                        'lead_id' => $lead->id,
-                        'assigned_to' => null, // Default unassigned
-                        'created_by' => $request->user()->id,
-                    ]);
-
-                    // Send notification to admin users
-                    $adminUsers = User::where('role', 'admin')->get();
-                    foreach ($adminUsers as $admin) {
-                        $admin->notify(new LeadConvertedNotification($lead, $client));
-                    }
-                }
-
-                // Send assignment notification
-                if ($newAssignedTo && $newAssignedTo != $oldAssignedTo && $newAssignedTo != $request->user()->id) {
-                    $assignedUser = User::find($newAssignedTo);
-                    $assignedUser->notify(new LeadAssignedNotification($lead));
-                }
-            });
+            $this->updateLeadAction->execute($lead, $request->validated(), $request->user());
 
             return redirect()->route('leads.index')
                 ->with('success', 'Lead updated successfully.');
@@ -271,9 +158,9 @@ class LeadController extends Controller
     }
 
     /**
-     * Remove the specified lead from storage.
+     * Remove the specified lead from storage
      */
-    public function destroy(Lead $lead)
+    public function destroy(Lead $lead): RedirectResponse
     {
         $this->authorize('delete', $lead);
 
@@ -284,50 +171,25 @@ class LeadController extends Controller
     }
 
     /**
-     * Export leads to Excel
+     * Export leads to Excel with filters
      */
-    public function export(Request $request)
+    public function export(): RedirectResponse
     {
         $this->authorize('viewAny', Lead::class);
 
-        $filters = $request->only(['search', 'status', 'assigned_to', 'date_from', 'date_to']);
-
-        // Clean up empty filters
-        $filters = array_filter($filters, function ($value) {
-            return $value !== null && $value !== '';
-        });
-
-        // Create unique filename
-        $filename = 'leads-'.now()->format('Y-m-d-His').'-'.Str::random(6).'.xlsx';
-        $path = "temp_exports/{$filename}";
-        $userId = auth()->user()->id;
-
-        // Queue the export (no custom job class needed)
-        (new LeadsExport($filters, $userId))
-            ->queue($path)
-            ->chain(
-                [
-                    new ExportLeadsJob($path, $userId),
-                ]
-            );
-
-        //  (new LeadsExport($filters, $userId))->store($path, 'local');
-
-        // Excel::store(new LeadsExport($filters, $userId), 'invoices.xlsx');
-
-        // Optionally store temp info in cache
-        Cache::put("lead_export_{$userId}", $path, now()->addMinutes(10));
+        $filters = request()->only(['search', 'status', 'assigned_to', 'date_from', 'date_to']);
+        $this->leadExportService->startExport($filters, auth()->id());
 
         return back()->with('success', 'Your export has started and will be ready for download in a few seconds.');
     }
 
     /**
-     * Download the generated export
+     * Download the generated export file
      */
-    public function downloadExport()
+    public function downloadExport(): BinaryFileResponse
     {
         $userId = auth()->id();
-        $path = Cache::get("lead_export_{$userId}");
+        $path = $this->leadExportService->getExportFilePath($userId);
 
         if (! $path) {
             abort(404, 'Export file link has expired or not found.');
@@ -337,45 +199,37 @@ class LeadController extends Controller
             abort(404, 'Export file not found on server. Please try again.');
         }
 
-        // Get file details
         $fullPath = Storage::disk('local')->path($path);
         $filename = 'leads-export-'.now()->format('Y-m-d').'.xlsx';
 
         // Clear cache
-        Cache::forget("lead_export_{$userId}");
+        $this->leadExportService->clearExportCache($userId);
 
-        // Use Laravel's download helper with deleteAfterSend
         return response()->download($fullPath, $filename)->deleteFileAfterSend(true);
     }
 
     /**
-     * Import leads from Excel
+     * Import leads from Excel file
      */
-    public function import(Request $request)
+    public function import(ImportLeadsRequest $request): RedirectResponse
     {
-        $this->authorize('create', Lead::class);
-
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
-        ]);
-
         try {
             $path = $request->file('file')->store('temp_imports', 'local');
 
             // Dispatch background import job
             ImportLeadsJob::dispatch($path, auth()->id());
 
-            return redirect()->route('leads.index')->with('success', 'Leads import is being processed in the background.');
+            return back()->with('success', 'Leads import is being processed in the background.');
 
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error uploading file: '.$e->getMessage());
+            return back()->with('error', 'Error uploading file: '.$e->getMessage());
         }
     }
 
     /**
      * Download sample import template
      */
-    public function downloadSample()
+    public function downloadSample(): BinaryFileResponse
     {
         $this->authorize('create', Lead::class);
 
@@ -387,7 +241,7 @@ class LeadController extends Controller
                 'company' => 'ABC Company',
                 'source' => 'website',
                 'status' => 'new',
-                'assigned_to' => 'User Name', // Optional: assignee's name
+                'assigned_to' => 'User Name',
             ],
             [
                 'name' => 'Jane Smith',
@@ -396,7 +250,7 @@ class LeadController extends Controller
                 'company' => 'XYZ Corp',
                 'source' => 'referral',
                 'status' => 'contacted',
-                'assigned_to' => '', // Leave empty for no assignment
+                'assigned_to' => '',
             ],
         ];
 
@@ -432,43 +286,12 @@ class LeadController extends Controller
     /**
      * Convert lead to client
      */
-    public function convert(Request $request, Lead $lead)
+    public function convert(Lead $lead): RedirectResponse
     {
         $this->authorize('update', $lead);
 
-        // Check if lead is already converted (has a client)
-        if ($lead->client) {
-            return redirect()->back()
-                ->with('error', 'This lead has already been converted to a client.');
-        }
-
         try {
-            DB::transaction(function () use ($lead, $request) {
-                // Update lead status to qualified
-                $lead->update(['status' => 'qualified']);
-
-                // Create client from lead
-                $client = Client::create([
-                    'name' => $lead->name,
-                    'email' => $lead->email,
-                    'phone' => $lead->phone,
-                    'company' => $lead->company,
-                    'lead_id' => $lead->id,
-                    'assigned_to' => $lead->assigned_to,
-                    'created_by' => $request->user()->id,
-                ]);
-
-                // Send notification to admin users
-                $adminUsers = User::where('role', 'admin')->get();
-                foreach ($adminUsers as $admin) {
-                    $admin->notify(new LeadConvertedNotification($lead, $client));
-                }
-
-                // Also notify the assigned user if different from current user
-                if ($lead->assignee && $lead->assignee->id != $request->user()->id) {
-                    $lead->assignee->notify(new LeadConvertedNotification($lead, $client));
-                }
-            });
+            $this->convertLeadToClientAction->execute($lead, auth()->user());
 
             return redirect()->route('leads.show', $lead)
                 ->with('success', 'Lead successfully converted to client.');
