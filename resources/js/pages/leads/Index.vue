@@ -42,6 +42,8 @@ import {
     X,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import { useEcho } from '@laravel/echo-vue';
+import { toast } from 'vue-sonner';
 
 // Import Wayfinder-generated actions
 import {
@@ -131,6 +133,7 @@ const filters = ref({
 function goToEdit(leadId: number) {
     router.get(edit.url(leadId));
 }
+
 function goToShow(leadId: number) {
     router.get(index.url() + `/${leadId}`);
 }
@@ -168,7 +171,6 @@ const canEditLead = (lead: Lead) => {
     const user = props.auth.user;
     if (user.role === 'admin') return true;
     if (user.role === 'manager') return true;
-    // Members can only edit their own or assigned leads
     return lead.created_by === user.id || lead.assigned_to === user.id;
 };
 
@@ -231,14 +233,14 @@ function goToPage(url: string | null) {
 }
 
 const pageLinks = computed(() => {
-    if (!props.leads.links) return [];
+    if (!props.leads?.links) return [];
     return props.leads.links.filter(
         (_, index) => index !== 0 && index !== props.leads.links.length - 1,
     );
 });
 
 const showingFrom = computed(() => {
-    if (!props.leads.meta || props.leads.data.length === 0) return 0;
+    if (!props.leads?.meta || props.leads.data.length === 0) return 0;
     return (
         props.leads.meta.from ||
         (props.leads.meta.current_page - 1) * props.leads.meta.per_page + 1
@@ -246,7 +248,7 @@ const showingFrom = computed(() => {
 });
 
 const showingTo = computed(() => {
-    if (!props.leads.meta || props.leads.data.length === 0) return 0;
+    if (!props.leads?.meta || props.leads.data.length === 0) return 0;
     return (
         props.leads.meta.to ||
         Math.min(
@@ -256,7 +258,7 @@ const showingTo = computed(() => {
     );
 });
 
-const total = computed(() => props.leads.meta?.total || 0);
+const total = computed(() => props.leads?.meta?.total || 0);
 
 // Import/Export functions
 function exportLeads() {
@@ -297,20 +299,33 @@ async function submitImport(file: File) {
         await router.post('/leads/import', formData, {
             onSuccess: () => {
                 closeImportDialog();
-                // The success message will be shown via Inertia flash messages
             },
-            onError: (errors) => {
-                console.error('Import failed:', errors);
+            onError: () => {
+                // Error handling will be shown via Inertia flash messages
             },
             onFinish: () => {
                 isImporting.value = false;
             },
         });
-    } catch (error) {
-        console.error('Import error:', error);
+    } catch {
         isImporting.value = false;
     }
 }
+
+// Real-time event listeners
+useEcho(`lead-import.${props.auth.user.id}`, 'LeadImportCompleted', () => {
+    isImporting.value = false;
+    toast.success("Lead import completed successfully.");
+    router.reload({ only: ['leads'] });
+});
+
+useEcho(`lead-export.${props.auth.user.id}`, 'ExportCompleted', () => {
+    toast.success("Export completed! Downloading your file...");
+    
+    setTimeout(() => {
+        window.location.href = `/leads/export/download`;
+    }, 1000);
+});
 </script>
 
 <template>
@@ -366,7 +381,7 @@ async function submitImport(file: File) {
                                         <Button
                                             variant="outline"
                                             @click="openImportDialog"
-                                            cclass="h-9 w-9 p-0 lg:h-auto lg:w-auto md:px-4 md:py-2"
+                                            class="h-9 w-9 p-0 lg:h-auto lg:w-auto md:px-4 md:py-2"
                                             size="sm"
                                         >
                                             <Upload class="h-4 w-4" />

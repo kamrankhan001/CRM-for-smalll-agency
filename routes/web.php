@@ -30,6 +30,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('leads', LeadController::class);
     Route::post('/leads/{lead}/convert', [LeadController::class, 'convert'])
         ->name('leads.convert');
+    Route::get('/leads/export/download', [LeadController::class, 'downloadExport'])->name('leads.downloadExport');
 
     Route::resource('clients', ClientController::class);
 

@@ -3,7 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Exports\LeadsExport;
-use App\Imports\LeadsImport;
+use App\Jobs\ExportLeadsJob;
+use App\Jobs\ImportLeadsJob;
 use App\Models\Client;
 use App\Models\Lead;
 use App\Models\User;
@@ -11,7 +12,10 @@ use App\Notifications\LeadAssignedNotification;
 use App\Notifications\LeadConvertedNotification;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
@@ -293,7 +297,55 @@ class LeadController extends Controller
             return $value !== null && $value !== '';
         });
 
-        return Excel::download(new LeadsExport($filters), 'leads-'.date('Y-m-d').'.xlsx');
+        // Create unique filename
+        $filename = 'leads-'.now()->format('Y-m-d-His').'-'.Str::random(6).'.xlsx';
+        $path = "temp_exports/{$filename}";
+        $userId = auth()->user()->id;
+
+        // Queue the export (no custom job class needed)
+        (new LeadsExport($filters, $userId))
+            ->queue($path)
+            ->chain(
+                [
+                    new ExportLeadsJob($path, $userId),
+                ]
+            );
+
+        //  (new LeadsExport($filters, $userId))->store($path, 'local');
+
+        // Excel::store(new LeadsExport($filters, $userId), 'invoices.xlsx');
+
+        // Optionally store temp info in cache
+        Cache::put("lead_export_{$userId}", $path, now()->addMinutes(10));
+
+        return back()->with('success', 'Your export has started and will be ready for download in a few seconds.');
+    }
+
+    /**
+     * Download the generated export
+     */
+    public function downloadExport()
+    {
+        $userId = auth()->id();
+        $path = Cache::get("lead_export_{$userId}");
+
+        if (! $path) {
+            abort(404, 'Export file link has expired or not found.');
+        }
+
+        if (! Storage::disk('local')->exists($path)) {
+            abort(404, 'Export file not found on server. Please try again.');
+        }
+
+        // Get file details
+        $fullPath = Storage::disk('local')->path($path);
+        $filename = 'leads-export-'.now()->format('Y-m-d').'.xlsx';
+
+        // Clear cache
+        Cache::forget("lead_export_{$userId}");
+
+        // Use Laravel's download helper with deleteAfterSend
+        return response()->download($fullPath, $filename)->deleteFileAfterSend(true);
     }
 
     /**
@@ -304,33 +356,22 @@ class LeadController extends Controller
         $this->authorize('create', Lead::class);
 
         $request->validate([
-            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240', // 10MB max
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
         ]);
 
         try {
-            $import = new LeadsImport;
-            Excel::import($import, $request->file('file'));
+            $path = $request->file('file')->store('temp_imports', 'local');
 
-            $importedCount = $import->getImportedCount();
-            $errors = $import->getErrors();
+            // Dispatch background import job
+            ImportLeadsJob::dispatch($path, auth()->id());
 
-            if (! empty($errors)) {
-                return redirect()->back()->with([
-                    'warning' => "Imported {$importedCount} leads, but encountered ".count($errors).' errors.',
-                    'import_errors' => $errors,
-                ]);
-            }
-
-            return redirect()->back()->with('success', "Successfully imported {$importedCount} leads.");
+            return redirect()->route('leads.index')->with('success', 'Leads import is being processed in the background.');
 
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error importing file: '.$e->getMessage());
+            return redirect()->back()->with('error', 'Error uploading file: '.$e->getMessage());
         }
     }
 
-    /**
-     * Download sample import template
-     */
     /**
      * Download sample import template
      */

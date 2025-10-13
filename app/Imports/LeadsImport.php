@@ -7,12 +7,17 @@ use App\Models\User;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Illuminate\Support\Facades\Auth;
 
 class LeadsImport implements ToCollection, WithHeadingRow
 {
     private array $errors = [];
     private int $importedCount = 0;
+    private int $userId;
+
+    public function __construct(int $userId)
+    {
+        $this->userId = $userId;
+    }
 
     public function collection(Collection $rows)
     {
@@ -34,7 +39,7 @@ class LeadsImport implements ToCollection, WithHeadingRow
                     'company' => $row['company'] ?? null,
                     'source' => $row['source'] ?? null,
                     'status' => $this->getValidStatus($row['status'] ?? 'new'),
-                    'created_by' => Auth::id(),
+                    'created_by' => $this->userId, // Use the passed user ID
                 ];
 
                 // Handle assigned_to if provided
