@@ -9,6 +9,7 @@ use App\Concerns\HasMorphTypes;
 use App\Http\Requests\Document\CreateDocumentRequest;
 use App\Http\Requests\Document\UpdateDocumentRequest;
 use App\Models\Document;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Services\Document\DocumentQueryService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
@@ -153,7 +154,7 @@ class DocumentController extends Controller
     /**
      * Download the document file.
      */
-    public function download(Document $document): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function download(Document $document): StreamedResponse
     {
         $this->authorize('view', $document);
 
