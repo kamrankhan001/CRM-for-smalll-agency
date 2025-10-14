@@ -55,6 +55,8 @@ class ActivityController extends Controller
      */
     public function destroy(Request $request, Activity $activity): RedirectResponse
     {
+        $this->authorize('delete', $activity);
+
         try {
             $this->deleteActivityAction->execute($activity);
 
