@@ -2,100 +2,58 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Task\CreateTaskAction;
+use App\Actions\Task\DeleteTaskAction;
+use App\Actions\Task\UpdateTaskAction;
+use App\Http\Requests\Task\CreateTaskRequest;
+use App\Http\Requests\Task\UpdateTaskRequest;
 use App\Models\Client;
 use App\Models\Lead;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
-use App\Notifications\TaskAssignedNotification;
+use App\Services\Task\TaskQueryService;
+use App\Concerns\HasTaskableType;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class TaskController extends Controller
 {
-    use AuthorizesRequests;
+    use AuthorizesRequests, HasTaskableType;
 
-    public function index(Request $request)
+    public function __construct(
+        private TaskQueryService $taskQueryService,
+        private CreateTaskAction $createTaskAction,
+        private UpdateTaskAction $updateTaskAction,
+        private DeleteTaskAction $deleteTaskAction,
+    ) {}
+
+    /**
+     * Display a listing of the tasks with filters and pagination
+     */
+    public function index(): Response
     {
         $this->authorize('viewAny', Task::class);
 
-        $user = Auth::user();
-
-        $tasks = Task::query()
-            ->with(['assignee', 'creator', 'taskable'])
-            ->when($request->search, function ($query, $search) {
-                $query->where('title', 'like', "%{$search}%");
-            })
-            ->when($request->filled('status'), function ($query) use ($request) {
-                $query->where('status', $request->status);
-            })
-            ->when($request->filled('assigned_to'), function ($query) use ($request) {
-                $query->where('assigned_to', $request->assigned_to);
-            })
-            ->when($request->date_from, function ($query, $dateFrom) {
-                $query->whereDate('due_date', '>=', $dateFrom);
-            })
-            ->when($request->date_to, function ($query, $dateTo) {
-                $query->whereDate('due_date', '<=', $dateTo);
-            })
-            ->when($user->role === 'member', function ($query) use ($user) {
-                $query->where(function ($q) use ($user) {
-                    $q->where('assigned_to', $user->id)
-                        ->orWhere('created_by', $user->id);
-                });
-            })
-            ->latest()
-            ->paginate(10)
-            ->through(fn ($task) => [
-                'id' => $task->id,
-                'title' => $task->title,
-                'description' => $task->description,
-                'status' => $task->status,
-                'due_date' => $task->due_date?->toDateString(),
-                'assignee' => $task->assignee ? [
-                    'id' => $task->assignee->id,
-                    'name' => $task->assignee->name,
-                ] : null,
-                'creator' => $task->creator ? [
-                    'id' => $task->creator->id,
-                    'name' => $task->creator->name,
-                ] : null,
-                'taskable' => $task->taskable ? [
-                    'id' => $task->taskable->id,
-                    'name' => $task->taskable->name,
-                    'type' => class_basename($task->taskable_type),
-                ] : null,
-                'created_by' => $task->created_by,
-                'assigned_to' => $task->assigned_to,
-                'created_at' => $task->created_at->toDateString(),
-                'updated_at' => $task->updated_at->toDateString(),
-            ]);
+        $filters = request()->only(['search', 'status', 'assigned_to', 'date_from', 'date_to']);
+        $tasks = $this->taskQueryService->getFilteredTasks($filters, auth()->user());
+        $transformedTasks = $this->taskQueryService->transformTasksForResponse($tasks);
 
         $users = User::select('id', 'name')->get();
 
         return Inertia::render('tasks/Index', [
-            'tasks' => [
-                'data' => $tasks->items(),
-                'meta' => [
-                    'current_page' => $tasks->currentPage(),
-                    'last_page' => $tasks->lastPage(),
-                    'per_page' => $tasks->perPage(),
-                    'total' => $tasks->total(),
-                    'from' => $tasks->firstItem(),
-                    'to' => $tasks->lastItem(),
-                    'prev_page_url' => $tasks->previousPageUrl(),
-                    'next_page_url' => $tasks->nextPageUrl(),
-                ],
-                'links' => $tasks->linkCollection()->toArray(),
-            ],
-            'filters' => $request->only(['search', 'status', 'assigned_to', 'date_from', 'date_to']),
+            'tasks' => $transformedTasks,
+            'filters' => $filters,
             'users' => $users,
         ]);
     }
 
-    public function create()
+    /**
+     * Show the form for creating a new task
+     */
+    public function create(): Response
     {
         $this->authorize('create', Task::class);
 
@@ -103,115 +61,44 @@ class TaskController extends Controller
             'users' => User::select('id', 'name')->get(),
             'leads' => Lead::select('id', 'name')->get(),
             'clients' => Client::select('id', 'name')->get(),
-            'projects' => Project::select('id', 'name')->get(), // Add this line
+            'projects' => Project::select('id', 'name')->get(),
         ]);
-    }
-
-    public function store(Request $request)
-    {
-        $this->authorize('create', Task::class);
-
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'status' => 'required|in:pending,in_progress,completed',
-            'priority' => 'required|in:low,medium,high,urgent',
-            'due_date' => 'nullable|date',
-            'taskable_type' => 'required|string|in:lead,client,project',
-            'taskable_id' => 'required|integer',
-            'assigned_to' => 'nullable|exists:users,id',
-        ]);
-
-        $validated['taskable_type'] = match ($validated['taskable_type']) {
-            'lead' => Lead::class,
-            'client' => Client::class,
-            'project' => Project::class,
-        };
-
-        $validated['created_by'] = Auth::id();
-
-        $task = Task::create($validated);
-
-        // Send notification to assigned user
-        if ($task->assigned_to && $task->assigned_to != Auth::id()) {
-            $assignedUser = User::find($task->assigned_to);
-            $assignedUser->notify(new TaskAssignedNotification($task));
-        }
-
-        return redirect()->route('tasks.index')->with('success', 'Task created successfully.');
     }
 
     /**
-     * Display the specified task.
+     * Store a newly created task in storage
      */
-    public function show(Task $task)
+    public function store(CreateTaskRequest $request): RedirectResponse
+    {
+        try {
+            $this->createTaskAction->execute($request->validated(), $request->user());
+
+            return redirect()->route('tasks.index')
+                ->with('success', 'Task created successfully.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to create task: '.$e->getMessage())
+                ->withInput();
+        }
+    }
+
+    /**
+     * Display the specified task with all related data
+     */
+    public function show(Task $task): Response
     {
         $this->authorize('view', $task);
 
-        $task->load([
-            'assignee',
-            'creator',
-            'taskable',
-            'notes' => function ($query) {
-                $query->with('user')->latest()->limit(10);
-            },
-            'activities' => function ($query) {
-                $query->with('causer')->latest()->limit(10);
-            },
-        ]);
+        $taskData = $this->taskQueryService->getTaskWithRelations($task);
 
-        return Inertia::render('tasks/Show', [
-            'task' => [
-                'id' => $task->id,
-                'title' => $task->title,
-                'description' => $task->description,
-                'status' => $task->status,
-                'priority' => $task->priority,
-                'due_date' => $task->due_date?->toISOString(),
-                'taskable_type' => $task->taskable_type,
-                'taskable_id' => $task->taskable_id,
-                'assigned_to' => $task->assigned_to,
-                'created_by' => $task->created_by,
-                'created_at' => $task->created_at->toISOString(),
-                'updated_at' => $task->updated_at->toISOString(),
-                'assignee' => $task->assignee ? [
-                    'id' => $task->assignee->id,
-                    'name' => $task->assignee->name,
-                    'email' => $task->assignee->email,
-                ] : null,
-                'creator' => $task->creator ? [
-                    'id' => $task->creator->id,
-                    'name' => $task->creator->name,
-                ] : null,
-                'taskable' => $task->taskable ? [
-                    'id' => $task->taskable->id,
-                    'name' => $task->taskable->name ?? $task->taskable->title,
-                    'type' => class_basename($task->taskable_type),
-                ] : null,
-            ],
-            'notes' => $task->notes->map(fn ($note) => [
-                'id' => $note->id,
-                'content' => $note->content,
-                'user' => [
-                    'id' => $note->user->id,
-                    'name' => $note->user->name,
-                ],
-                'created_at' => $note->created_at->toISOString(),
-            ]),
-            'activities' => $task->activities->map(fn ($activity) => [
-                'id' => $activity->id,
-                'description' => $activity->description,
-                'causer' => $activity->causer ? [
-                    'id' => $activity->causer->id,
-                    'name' => $activity->causer->name,
-                ] : null,
-                'created_at' => $activity->created_at->toISOString(),
-                'properties' => $activity->properties,
-            ]),
-        ]);
+        return Inertia::render('tasks/Show', $taskData);
     }
 
-    public function edit(Task $task)
+    /**
+     * Show the form for editing the specified task
+     */
+    public function edit(Task $task): Response
     {
         $this->authorize('update', $task);
 
@@ -223,7 +110,7 @@ class TaskController extends Controller
                 'status' => $task->status,
                 'priority' => $task->priority,
                 'due_date' => $task->due_date?->toDateString(),
-                'taskable_type' => $task->taskable_type === 'App\\Models\\Lead' ? 'lead' : 'client',
+                'taskable_type' => $this->getShortTaskableType($task->taskable_type),
                 'taskable_id' => $task->taskable_id,
                 'assignee' => $task->assignee ? [
                     'id' => $task->assignee->id,
@@ -246,65 +133,62 @@ class TaskController extends Controller
             'users' => User::select('id', 'name')->get(),
             'leads' => Lead::select('id', 'name')->get(),
             'clients' => Client::select('id', 'name')->get(),
-            'projects' => Project::select('id', 'name')->get(), // Add this line
+            'projects' => Project::select('id', 'name')->get(),
         ]);
-    }
-
-    public function update(Request $request, Task $task)
-    {
-        $this->authorize('update', $task);
-
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'status' => 'required|in:pending,in_progress,completed',
-            'priority' => 'required|in:low,medium,high,urgent',
-            'due_date' => 'nullable|date',
-            'taskable_type' => 'required|string|in:lead,client,project',
-            'taskable_id' => 'required|integer',
-            'assigned_to' => 'nullable|exists:users,id',
-        ]);
-
-        // Check if assignment is changing
-        $oldAssignedTo = $task->assigned_to;
-        $newAssignedTo = $validated['assigned_to'] ?? null;
-
-        $validated['taskable_type'] = match ($validated['taskable_type']) {
-            'lead' => Lead::class,
-            'client' => Client::class,
-            'project' => Project::class,
-        };
-
-        $task->update($validated);
-
-        // Send notification if assigned to a different user (and not the current user)
-        if ($newAssignedTo && $newAssignedTo != $oldAssignedTo && $newAssignedTo != Auth::id()) {
-            $assignedUser = User::find($newAssignedTo);
-            $assignedUser->notify(new TaskAssignedNotification($task));
-        }
-
-        return redirect()->route('tasks.index')->with('success', 'Task updated successfully.');
-    }
-
-    public function destroy(Task $task)
-    {
-        $this->authorize('delete', $task);
-
-        $task->delete();
-
-        return redirect()->route('tasks.index')->with('success', 'Task deleted successfully.');
     }
 
     /**
-     * Mark task as completed.
+     * Update the specified task in storage
      */
-    public function complete(Task $task)
+    public function update(UpdateTaskRequest $request, Task $task): RedirectResponse
+    {
+        try {
+            $this->updateTaskAction->execute($task, $request->validated(), $request->user());
+
+            return redirect()->route('tasks.index')
+                ->with('success', 'Task updated successfully.');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to update task: '.$e->getMessage())
+                ->withInput();
+        }
+    }
+
+    /**
+     * Remove the specified task from storage
+     */
+    public function destroy(Task $task): RedirectResponse
+    {
+        $this->authorize('delete', $task);
+
+        try {
+            $this->deleteTaskAction->execute($task);
+
+            return redirect()->route('tasks.index')
+                ->with('success', 'Task deleted successfully.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to delete task: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Mark task as completed
+     */
+    public function complete(Task $task): RedirectResponse
     {
         $this->authorize('update', $task);
 
-        $task->update(['status' => 'completed']);
+        try {
+            $task->update(['status' => 'completed']);
 
-        return redirect()->route('tasks.show', $task->id)
-            ->with('success', 'Task marked as completed.');
+            return redirect()->route('tasks.show', $task->id)
+                ->with('success', 'Task marked as completed.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to complete task: '.$e->getMessage());
+        }
     }
 }
