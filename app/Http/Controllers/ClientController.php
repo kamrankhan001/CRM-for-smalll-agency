@@ -2,99 +2,53 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Client;
-use App\Models\Lead;
-use App\Models\User;
+use App\Actions\Client\CreateClientAction;
+use App\Actions\Client\UpdateClientAction;
+use App\Actions\Client\DeleteClientAction;
+use App\Http\Requests\Client\CreateClientRequest;
+use App\Http\Requests\Client\UpdateClientRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Http\Request;
+use App\Services\Client\ClientQueryService;
+use App\Models\Client;
+use App\Models\User;
+use App\Models\Lead;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ClientController extends Controller
 {
     use AuthorizesRequests;
+    
+    public function __construct(
+        private ClientQueryService $clientQueryService,
+        private CreateClientAction $createClientAction,
+        private UpdateClientAction $updateClientAction,
+        private DeleteClientAction $deleteClientAction
+    ) {}
 
     /**
-     * Display a listing of the clients.
+     * Display a listing of the clients with filters and pagination
      */
-    public function index(Request $request): Response
+    public function index(): Response
     {
         $this->authorize('viewAny', Client::class);
 
-        $clients = Client::with(['lead', 'creator', 'assignee'])
-            ->when($request->search, function ($query, $search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('company', 'like', "%{$search}%");
-                });
-            })
-            ->when($request->filled('assigned_to'), function ($query) use ($request) {
-                $query->where('assigned_to', $request->assigned_to);
-            })
-            ->when($request->date_from, function ($query, $dateFrom) {
-                $query->whereDate('created_at', '>=', $dateFrom);
-            })
-            ->when($request->date_to, function ($query, $dateTo) {
-                $query->whereDate('created_at', '<=', $dateTo);
-            })
-            ->when($request->user()->role === 'member', function ($query) use ($request) {
-                // Members only see their own or assigned clients
-                $query->where('created_by', $request->user()->id)
-                    ->orWhere('assigned_to', $request->user()->id);
-            })
-            ->latest()
-            ->paginate(10)
-            ->through(fn ($client) => [
-                'id' => $client->id,
-                'name' => $client->name,
-                'email' => $client->email,
-                'phone' => $client->phone,
-                'company' => $client->company,
-                'address' => $client->address,
-                'lead' => $client->lead ? [
-                    'id' => $client->lead->id,
-                    'name' => $client->lead->name,
-                ] : null,
-                'assignee' => $client->assignee ? [
-                    'id' => $client->assignee->id,
-                    'name' => $client->assignee->name,
-                ] : null,
-                'creator' => $client->creator ? [
-                    'id' => $client->creator->id,
-                    'name' => $client->creator->name,
-                ] : null,
-                'created_by' => $client->created_by,
-                'assigned_to' => $client->assigned_to,
-                'created_at' => $client->created_at->toDateString(),
-                'updated_at' => $client->updated_at->toDateString(),
-            ]);
+        $filters = request()->only(['search', 'assigned_to', 'date_from', 'date_to']);
+        $clients = $this->clientQueryService->getFilteredClients($filters, auth()->user());
+        $transformedClients = $this->clientQueryService->transformClientsForResponse($clients);
 
         $users = User::select('id', 'name')->get();
 
         return Inertia::render('clients/Index', [
-            'clients' => [
-                'data' => $clients->items(),
-                'meta' => [
-                    'current_page' => $clients->currentPage(),
-                    'last_page' => $clients->lastPage(),
-                    'per_page' => $clients->perPage(),
-                    'total' => $clients->total(),
-                    'from' => $clients->firstItem(),
-                    'to' => $clients->lastItem(),
-                    'prev_page_url' => $clients->previousPageUrl(),
-                    'next_page_url' => $clients->nextPageUrl(),
-                ],
-                'links' => $clients->linkCollection()->toArray(),
-            ],
-            'filters' => $request->only(['search', 'assigned_to', 'date_from', 'date_to']),
+            'clients' => $transformedClients,
+            'filters' => $filters,
             'users' => $users,
         ]);
     }
 
-    // ... rest of your methods remain the same
     /**
-     * Show the form for creating a new client.
+     * Show the form for creating a new client
      */
     public function create(): Response
     {
@@ -110,124 +64,37 @@ class ClientController extends Controller
     }
 
     /**
-     * Store a newly created client in storage.
+     * Store a newly created client in storage
      */
-    public function store(Request $request)
+    public function store(CreateClientRequest $request): RedirectResponse
     {
-        $this->authorize('create', Client::class);
+        try {
+            $this->createClientAction->execute($request->validated(), $request->user());
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'nullable|email',
-            'phone' => 'nullable|string|max:20',
-            'company' => 'nullable|string|max:255',
-            'address' => 'nullable|string',
-            'lead_id' => 'nullable|exists:leads,id',
-            'assigned_to' => 'nullable|exists:users,id',
-        ]);
+            return redirect()->route('clients.index')
+                ->with('success', 'Client created successfully.');
 
-        $validated['created_by'] = $request->user()->id;
-
-        Client::create($validated);
-
-        return redirect()->route('clients.index')
-            ->with('success', 'Client created successfully.');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to create client: ' . $e->getMessage())
+                ->withInput();
+        }
     }
 
     /**
-     * Display the specified client.
+     * Display the specified client with all related data
      */
     public function show(Client $client): Response
     {
         $this->authorize('view', $client);
 
-        $client->load([
-            'assignee',
-            'creator',
-            'lead',
-            'projects' => function ($query) {
-                $query->latest()->limit(10);
-            },
-            'invoices' => function ($query) {
-                $query->latest()->limit(10);
-            },
-            'notes' => function ($query) {
-                $query->with('user')->latest()->limit(10);
-            },
-            'activities' => function ($query) {
-                $query->with('causer')->latest()->limit(10);
-            }
-        ]);
+        $clientData = $this->clientQueryService->getClientWithRelations($client);
 
-        return Inertia::render('clients/Show', [
-            'client' => [
-                'id' => $client->id,
-                'name' => $client->name,
-                'email' => $client->email,
-                'phone' => $client->phone,
-                'company' => $client->company,
-                'address' => $client->address,
-                'industry' => $client->industry,
-                'revenue' => $client->revenue,
-                'status' => $client->status,
-                'lead_id' => $client->lead_id,
-                'assigned_to' => $client->assigned_to,
-                'created_by' => $client->created_by,
-                'created_at' => $client->created_at->toISOString(),
-                'updated_at' => $client->updated_at->toISOString(),
-                'assignee' => $client->assignee ? [
-                    'id' => $client->assignee->id,
-                    'name' => $client->assignee->name,
-                ] : null,
-                'creator' => $client->creator ? [
-                    'id' => $client->creator->id,
-                    'name' => $client->creator->name,
-                ] : null,
-                'lead' => $client->lead ? [
-                    'id' => $client->lead->id,
-                    'name' => $client->lead->name,
-                ] : null,
-            ],
-            'projects' => $client->projects->map(fn ($project) => [
-                'id' => $project->id,
-                'name' => $project->name,
-                'description' => $project->description,
-                'status' => $project->status,
-                'start_date' => $project->start_date?->toISOString(),
-                'end_date' => $project->end_date?->toISOString(),
-                'created_at' => $project->created_at->toISOString(),
-            ]),
-            'invoices' => $client->invoices->map(fn ($invoice) => [
-                'id' => $invoice->id,
-                'invoice_number' => $invoice->invoice_number,
-                'amount' => $invoice->amount,
-                'status' => $invoice->status,
-                'due_date' => $invoice->due_date?->toISOString(),
-                'created_at' => $invoice->created_at->toISOString(),
-            ]),
-            'notes' => $client->notes->map(fn ($note) => [
-                'id' => $note->id,
-                'content' => $note->content,
-                'user' => [
-                    'id' => $note->user->id,
-                    'name' => $note->user->name,
-                ],
-                'created_at' => $note->created_at->toISOString(),
-            ]),
-            'activities' => $client->activities->map(fn ($activity) => [
-                'id' => $activity->id,
-                'description' => $activity->description,
-                'causer' => $activity->causer ? [
-                    'id' => $activity->causer->id,
-                    'name' => $activity->causer->name,
-                ] : null,
-                'created_at' => $activity->created_at->toISOString(),
-            ]),
-        ]);
+        return Inertia::render('clients/Show', $clientData);
     }
 
     /**
-     * Show the form for editing the specified client.
+     * Show the form for editing the specified client
      */
     public function edit(Client $client): Response
     {
@@ -268,38 +135,37 @@ class ClientController extends Controller
     }
 
     /**
-     * Update the specified client in storage.
+     * Update the specified client in storage
      */
-    public function update(Request $request, Client $client)
+    public function update(UpdateClientRequest $request, Client $client): RedirectResponse
     {
-        $this->authorize('update', $client);
+        try {
+            $this->updateClientAction->execute($client, $request->validated());
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'nullable|email',
-            'phone' => 'nullable|string|max:20',
-            'company' => 'nullable|string|max:255',
-            'address' => 'nullable|string',
-            'lead_id' => 'nullable|exists:leads,id',
-            'assigned_to' => 'nullable|exists:users,id',
-        ]);
+            return redirect()->route('clients.index')
+                ->with('success', 'Client updated successfully.');
 
-        $client->update($validated);
-
-        return redirect()->route('clients.index')
-            ->with('success', 'Client updated successfully.');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to update client: ' . $e->getMessage())
+                ->withInput();
+        }
     }
 
     /**
-     * Remove the specified client from storage.
+     * Remove the specified client from storage
      */
-    public function destroy(Client $client)
+    public function destroy(Client $client): RedirectResponse
     {
-        $this->authorize('delete', $client);
+        try {
+            $this->deleteClientAction->execute($client);
 
-        $client->delete();
+            return redirect()->route('clients.index')
+                ->with('success', 'Client deleted successfully.');
 
-        return redirect()->route('clients.index')
-            ->with('success', 'Client deleted successfully.');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to delete client: ' . $e->getMessage());
+        }
     }
 }
