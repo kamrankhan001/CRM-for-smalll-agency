@@ -69,7 +69,7 @@ class UserQueryService
                 $query->latest()->limit(5);
             },
             'projects' => function ($query) {
-                $query->latest()->limit(5);
+                $query->orderBy('projects.created_at', 'desc')->limit(5);
             },
             'ownedProjects' => function ($query) {
                 $query->latest()->limit(5);
