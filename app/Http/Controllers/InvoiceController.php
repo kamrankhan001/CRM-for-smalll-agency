@@ -2,84 +2,54 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\InvoiceMail;
+use App\Actions\Invoice\CreateInvoiceAction;
+use App\Actions\Invoice\DeleteInvoiceAction;
+use App\Actions\Invoice\DownloadInvoiceAction;
+use App\Actions\Invoice\MarkInvoiceAsPaidAction;
+use App\Actions\Invoice\SendInvoiceAction;
+use App\Actions\Invoice\UpdateInvoiceAction;
+use App\Http\Requests\Invoice\StoreInvoiceRequest;
+use App\Http\Requests\Invoice\UpdateInvoiceRequest;
 use App\Models\Client;
-use App\Models\Document;
 use App\Models\Invoice;
 use App\Models\Project;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\Invoice\InvoiceQueryService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class InvoiceController extends Controller
 {
     use AuthorizesRequests;
 
-    public function index(Request $request)
+    public function __construct(
+        private InvoiceQueryService $invoiceQueryService,
+        private CreateInvoiceAction $createInvoiceAction,
+        private UpdateInvoiceAction $updateInvoiceAction,
+        private DeleteInvoiceAction $deleteInvoiceAction,
+        private DownloadInvoiceAction $downloadInvoiceAction,
+        private SendInvoiceAction $sendInvoiceAction,
+        private MarkInvoiceAsPaidAction $markInvoiceAsPaidAction
+    ) {}
+
+    public function index(Request $request): Response
     {
         $this->authorize('viewAny', Invoice::class);
 
-        $invoices = Invoice::query()
-            ->with(['project', 'client', 'creator'])
-            ->when($request->search, function ($query, $search) {
-                $query->where('title', 'like', "%{$search}%")
-                    ->orWhere('invoice_number', 'like', "%{$search}%");
-            })
-            ->when($request->filled('status'), function ($query) use ($request) {
-                $query->where('status', $request->status);
-            })
-            ->when($request->date_from, fn ($q, $v) => $q->whereDate('issue_date', '>=', $v))
-            ->when($request->date_to, fn ($q, $v) => $q->whereDate('issue_date', '<=', $v))
-            ->latest()
-            ->paginate(10)
-            ->through(fn ($invoice) => [
-                'id' => $invoice->id,
-                'invoice_number' => $invoice->invoice_number,
-                'title' => $invoice->title,
-                'amount' => $invoice->amount,
-                'amount_paid' => $invoice->amount_paid,
-                'balance' => $invoice->amount - $invoice->amount_paid,
-                'status' => $invoice->status,
-                'issue_date' => $invoice->issue_date?->toDateString(),
-                'due_date' => $invoice->due_date?->toDateString(),
-                'paid_at' => $invoice->paid_at?->toDateString(),
-                'client' => $invoice->client ? [
-                    'id' => $invoice->client->id,
-                    'name' => $invoice->client->name,
-                ] : null,
-                'project' => $invoice->project ? [
-                    'id' => $invoice->project->id,
-                    'name' => $invoice->project->name,
-                ] : null,
-                'creator' => $invoice->creator ? [
-                    'id' => $invoice->creator->id,
-                    'name' => $invoice->creator->name,
-                ] : null,
-            ]);
+        $filters = $request->only(['search', 'status', 'date_from', 'date_to']);
+        $invoices = $this->invoiceQueryService->getFilteredInvoices($filters);
+        $transformedInvoices = $this->invoiceQueryService->transformInvoicesForResponse($invoices);
 
         return Inertia::render('invoices/Index', [
-            'invoices' => [
-                'data' => $invoices->items(),
-                'links' => $invoices->linkCollection()->toArray(),
-                'meta' => [
-                    'current_page' => $invoices->currentPage(),
-                    'last_page' => $invoices->lastPage(),
-                    'per_page' => $invoices->perPage(),
-                    'total' => $invoices->total(),
-                    'from' => $invoices->firstItem(),
-                    'to' => $invoices->lastItem(),
-                ],
-            ],
-            'filters' => $request->only(['search', 'status', 'date_from', 'date_to']),
+            'invoices' => $transformedInvoices,
+            'filters' => $filters,
         ]);
     }
 
-    public function create()
+    public function create(): Response
     {
         $this->authorize('create', Invoice::class);
 
@@ -89,26 +59,9 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreInvoiceRequest $request): RedirectResponse
     {
-        $this->authorize('create', Invoice::class);
-
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'amount' => 'required|numeric|min:0',
-            'amount_paid' => 'nullable|numeric|min:0|max:'.($request->amount ?? 0),
-            'status' => 'required|in:draft,sent,partially_paid,paid,cancelled,overdue',
-            'issue_date' => 'required|date',
-            'due_date' => 'required|date|after_or_equal:issue_date',
-            'notes' => 'nullable|string',
-            'client_id' => 'nullable|exists:clients,id',
-            'project_id' => 'nullable|exists:projects,id',
-        ]);
-
-        $validated['created_by'] = Auth::id();
-        $validated['invoice_number'] = $this->generateInvoiceNumber();
-
-        $invoice = Invoice::create($validated);
+        $this->createInvoiceAction->execute($request->validated(), $request->user());
 
         return redirect()->route('invoices.index')->with('success', 'Invoice created successfully.');
     }
@@ -117,59 +70,12 @@ class InvoiceController extends Controller
     {
         $this->authorize('view', $invoice);
 
-        $invoice->load([
-            'project',
-            'client',
-            'creator',
-            'activities' => function ($query) {
-                $query->with('causer')->latest()->limit(10);
-            },
-        ]);
+        $data = $this->invoiceQueryService->getInvoiceWithRelations($invoice);
 
-        return Inertia::render('invoices/Show', [
-            'invoice' => [
-                'id' => $invoice->id,
-                'invoice_number' => $invoice->invoice_number,
-                'title' => $invoice->title,
-                'amount' => $invoice->amount,
-                'amount_paid' => $invoice->amount_paid,
-                'balance' => $invoice->amount - $invoice->amount_paid,
-                'status' => $invoice->status,
-                'issue_date' => $invoice->issue_date?->toISOString(),
-                'due_date' => $invoice->due_date?->toISOString(),
-                'paid_at' => $invoice->paid_at?->toISOString(),
-                'notes' => $invoice->notes,
-                'created_at' => $invoice->created_at->toISOString(),
-                'updated_at' => $invoice->updated_at->toISOString(),
-                'client' => $invoice->client ? [
-                    'id' => $invoice->client->id,
-                    'name' => $invoice->client->name,
-                    'email' => $invoice->client->email,
-                    'company' => $invoice->client->company,
-                ] : null,
-                'project' => $invoice->project ? [
-                    'id' => $invoice->project->id,
-                    'name' => $invoice->project->name,
-                ] : null,
-                'creator' => $invoice->creator ? [
-                    'id' => $invoice->creator->id,
-                    'name' => $invoice->creator->name,
-                ] : null,
-            ],
-            'activities' => $invoice->activities->map(fn ($activity) => [
-                'id' => $activity->id,
-                'description' => $activity->description,
-                'causer' => $activity->causer ? [
-                    'id' => $activity->causer->id,
-                    'name' => $activity->causer->name,
-                ] : null,
-                'created_at' => $activity->created_at->toISOString(),
-                'properties' => $activity->properties,
-            ]),
-        ]);
+        return Inertia::render('invoices/Show', $data);
     }
 
-    public function edit(Invoice $invoice)
+    public function edit(Invoice $invoice): Response
     {
         $this->authorize('update', $invoice);
 
@@ -192,88 +98,28 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function update(Request $request, Invoice $invoice)
+    public function update(UpdateInvoiceRequest $request, Invoice $invoice): RedirectResponse
     {
-        $this->authorize('update', $invoice);
+        $this->updateInvoiceAction->execute($invoice, $request->validated());
 
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'amount' => 'required|numeric|min:0',
-            'amount_paid' => 'nullable|numeric|min:0|max:'.($request->amount ?? 0),
-            'status' => 'required|in:draft,sent,partially_paid,paid,cancelled,overdue',
-            'issue_date' => 'required|date',
-            'due_date' => 'required|date|after_or_equal:issue_date',
-            'notes' => 'nullable|string',
-            'client_id' => 'nullable|exists:clients,id',
-            'project_id' => 'nullable|exists:projects,id',
-        ]);
-
-        // Update paid_at if status is paid and amount_paid equals amount
-        if ($validated['status'] === 'paid' && $validated['amount_paid'] >= $validated['amount']) {
-            $validated['paid_at'] = now();
-        }
-
-        $invoice->update($validated);
-
-        return redirect()->route('invoices.show', $invoice->id)->with('success', 'Invoice updated successfully.');
+        return redirect()->route('invoices.index', $invoice->id)->with('success', 'Invoice updated successfully.');
     }
 
-    public function destroy(Invoice $invoice)
+    public function destroy(Invoice $invoice): RedirectResponse
     {
         $this->authorize('delete', $invoice);
 
-        $invoice->delete();
+        $this->deleteInvoiceAction->execute($invoice);
 
         return redirect()->route('invoices.index')->with('success', 'Invoice deleted successfully.');
     }
 
-    public function download(Invoice $invoice)
+    public function download(Invoice $invoice): StreamedResponse|RedirectResponse
     {
         $this->authorize('view', $invoice);
 
         try {
-            // Check if a PDF already exists for this invoice
-            $existingDocument = Document::where('documentable_type', Invoice::class)
-                ->where('documentable_id', $invoice->id)
-                ->where('type', 'invoice')
-                ->first();
-
-            if ($existingDocument && Storage::disk('public')->exists($existingDocument->file_path)) {
-                return Storage::disk('public')->download($existingDocument->file_path);
-            }
-
-            // Generate a fresh PDF if not found or missing
-            $pdf = Pdf::loadView('pdf.invoice', compact('invoice'))
-                ->setPaper('A4', 'portrait')
-                ->setOptions([
-                    'isHtml5ParserEnabled' => true,
-                    'isRemoteEnabled' => false,
-                    'defaultFont' => 'DejaVu Sans',
-                    'dpi' => 96,
-                ]);
-
-            $pdfPath = 'invoices/'.$invoice->invoice_number.'.pdf';
-
-            // Save the PDF to public storage
-            Storage::disk('public')->put($pdfPath, $pdf->output());
-
-            // Record it in the documents table
-            Document::updateOrCreate(
-                [
-                    'documentable_type' => Invoice::class,
-                    'documentable_id' => $invoice->id,
-                    'type' => 'invoice',
-                ],
-                [
-                    'title' => 'Invoice '.$invoice->invoice_number,
-                    'file_path' => $pdfPath,
-                    'uploaded_by' => Auth::id(),
-                ]
-            );
-
-            // Return the file download response
-            return $pdf->download('invoice-'.$invoice->invoice_number.'.pdf');
-
+            return $this->downloadInvoiceAction->execute($invoice);
         } catch (\Throwable $e) {
             \Log::error('Invoice PDF generation failed', [
                 'invoice_id' => $invoice->id,
@@ -284,39 +130,16 @@ class InvoiceController extends Controller
         }
     }
 
-    public function send(Invoice $invoice)
+    public function send(Invoice $invoice): RedirectResponse
     {
         $this->authorize('update', $invoice);
 
-        if (! $invoice->client || ! $invoice->client->email) {
+        if (!$invoice->client || !$invoice->client->email) {
             return back()->with('error', 'Client email is required to send invoice.');
         }
 
         try {
-            // Generate PDF
-            $pdf = PDF::loadView('pdf.invoice', compact('invoice'))->setPaper('a4', 'portrait');
-
-            // Store the PDF as a document
-            $pdfPath = 'invoices/'.$invoice->invoice_number.'.pdf';
-            Storage::disk('public')->put($pdfPath, $pdf->output());
-
-            // Create document record
-            Document::create([
-                'title' => 'Invoice '.$invoice->invoice_number,
-                'type' => 'invoice',
-                'file_path' => $pdfPath,
-                'documentable_type' => Invoice::class,
-                'documentable_id' => $invoice->id,
-                'uploaded_by' => Auth::id(),
-            ]);
-
-            // Send email
-            Mail::to($invoice->client->email)->send(new InvoiceMail($invoice, $pdf->output()));
-
-            // Update invoice status
-            if ($invoice->status === 'draft') {
-                $invoice->update(['status' => 'sent']);
-            }
+            $this->sendInvoiceAction->execute($invoice);
 
             return back()->with('success', 'Invoice sent successfully to '.$invoice->client->email);
         } catch (\Exception $e) {
@@ -324,30 +147,12 @@ class InvoiceController extends Controller
         }
     }
 
-    public function markAsPaid(Invoice $invoice)
+    public function markAsPaid(Invoice $invoice): RedirectResponse
     {
         $this->authorize('update', $invoice);
 
-        $invoice->update([
-            'status' => 'paid',
-            'amount_paid' => $invoice->amount,
-            'paid_at' => now(),
-        ]);
+        $this->markInvoiceAsPaidAction->execute($invoice);
 
         return back()->with('success', 'Invoice marked as paid.');
-    }
-
-    private function generateInvoiceNumber()
-    {
-        $year = date('Y');
-        $month = date('m');
-        $lastInvoice = Invoice::whereYear('created_at', $year)
-            ->whereMonth('created_at', $month)
-            ->orderBy('id', 'desc')
-            ->first();
-
-        $number = $lastInvoice ? (int) substr($lastInvoice->invoice_number, -4) + 1 : 1;
-
-        return 'INV-'.$year.$month.'-'.str_pad($number, 4, '0', STR_PAD_LEFT);
     }
 }
