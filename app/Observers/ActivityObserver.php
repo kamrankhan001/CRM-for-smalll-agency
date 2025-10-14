@@ -2,8 +2,7 @@
 
 namespace App\Observers;
 
-use App\Services\ActivityLogger;
-use Illuminate\Support\Facades\Auth;
+use App\Services\Activity\ActivityLogger;
 
 class ActivityObserver
 {
