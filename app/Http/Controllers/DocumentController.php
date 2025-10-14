@@ -2,233 +2,160 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Client;
+use App\Actions\Document\CreateDocumentAction;
+use App\Actions\Document\DeleteDocumentAction;
+use App\Actions\Document\UpdateDocumentAction;
+use App\Concerns\HasMorphTypes;
+use App\Http\Requests\Document\CreateDocumentRequest;
+use App\Http\Requests\Document\UpdateDocumentRequest;
 use App\Models\Document;
-use App\Models\Lead;
-use App\Models\Project;
-use App\Models\User;
+use App\Services\Document\DocumentQueryService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class DocumentController extends Controller
 {
-    use AuthorizesRequests;
+    use AuthorizesRequests, HasMorphTypes;
 
-    public function index(Request $request)
+    public function __construct(
+        private readonly DocumentQueryService $documentQueryService,
+        private readonly CreateDocumentAction $createDocumentAction,
+        private readonly UpdateDocumentAction $updateDocumentAction,
+        private readonly DeleteDocumentAction $deleteDocumentAction,
+    ) {}
+
+    /**
+     * Display a listing of the documents with filters and pagination
+     */
+    public function index(): Response
     {
         $this->authorize('viewAny', Document::class);
 
-        $documents = Document::query()
-            ->with(['documentable', 'uploader'])
-            ->when($request->search, fn ($q, $search) => $q->where('title', 'like', "%{$search}%"))
-            ->when($request->type, fn ($q, $type) => $q->where('type', $type))
-            ->when($request->uploaded_by, fn ($q, $uploadedBy) => $q->where('uploaded_by', $uploadedBy))
-            ->when($request->documentable_type, function ($q, $documentableType) {
-                $map = [
-                    'lead' => Lead::class,
-                    'client' => Client::class,
-                    'project' => Project::class,
-                ];
-                $q->where('documentable_type', $map[$documentableType]);
-            })
-            ->latest()
-            ->paginate(10)
-            ->through(fn ($doc) => [
-                'id' => $doc->id,
-                'title' => $doc->title,
-                'type' => $doc->type,
-                'file_path' => Storage::url($doc->file_path),
-                'uploader' => $doc->uploader?->only(['id', 'name']),
-                'documentable' => $doc->documentable ? [
-                    'id' => $doc->documentable->id,
-                    'name' => $doc->documentable->name,
-                    'type' => class_basename($doc->documentable_type),
-                ] : null,
-                'created_at' => $doc->created_at->toDateString(),
-            ]);
-
-        $documentTypes = ['proposal', 'contract', 'invoice', 'report', 'brief', 'misc'];
+        $filters = request()->only(['search', 'type', 'uploaded_by', 'documentable_type']);
+        $documents = $this->documentQueryService->getFilteredDocuments($filters);
+        $transformedDocuments = $this->documentQueryService->transformDocumentsForResponse($documents);
 
         return Inertia::render('documents/Index', [
-            'documents' => [
-                'data' => $documents->items(),
-                'meta' => [
-                    'current_page' => $documents->currentPage(),
-                    'last_page' => $documents->lastPage(),
-                    'per_page' => $documents->perPage(),
-                    'total' => $documents->total(),
-                    'from' => $documents->firstItem(),
-                    'to' => $documents->lastItem(),
-                ],
-                'links' => $documents->linkCollection()->toArray(),
-            ],
-            'filters' => $request->only(['search', 'type', 'uploaded_by', 'documentable_type']), // Add documentable_type
-            'users' => User::select('id', 'name')->get(),
-            'types' => $documentTypes,
+            'documents' => $transformedDocuments,
+            'filters' => $filters,
+            'users' => $this->documentQueryService->getAvailableUsers(),
+            'types' => $this->documentQueryService->getDocumentTypes(),
         ]);
-    }
-
-    public function create()
-    {
-        $this->authorize('create', Document::class);
-
-        return Inertia::render('documents/Create', [
-            'leads' => Lead::select('id', 'name')->get(),
-            'clients' => Client::select('id', 'name')->get(),
-            'projects' => Project::select('id', 'name')->get(),
-            'types' => ['proposal', 'contract', 'invoice', 'report', 'brief', 'misc'],
-        ]);
-    }
-
-    public function store(Request $request)
-    {
-        $this->authorize('create', Document::class);
-
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'type' => 'required|string|in:proposal,contract,invoice,report,brief,misc',
-            'file' => 'required|file|mimes:pdf,doc,docx,png,jpg,jpeg|max:5120',
-            'documentable_type' => 'required|string|in:lead,client,project',
-            'documentable_id' => 'required|integer',
-        ]);
-
-        $map = [
-            'lead' => Lead::class,
-            'client' => Client::class,
-            'project' => Project::class,
-        ];
-
-        $validated['documentable_type'] = $map[$validated['documentable_type']];
-        $validated['uploaded_by'] = Auth::id();
-        $validated['file_path'] = $request->file('file')->store('documents', 'public');
-
-        Document::create($validated);
-
-        return redirect()->route('documents.index')->with('success', 'Document uploaded successfully.');
     }
 
     /**
-     * Display the specified document.
+     * Show the form for creating a new document
      */
-    public function show(Document $document)
+    public function create(): Response
+    {
+        $this->authorize('create', Document::class);
+
+        $options = $this->documentQueryService->getRelatedOptions();
+        $options['types'] = $this->documentQueryService->getDocumentTypes();
+
+        return Inertia::render('documents/Create', $options);
+    }
+
+    /**
+     * Store a newly created document in storage
+     */
+    public function store(CreateDocumentRequest $request): RedirectResponse
+    {
+        try {
+            $this->createDocumentAction->execute($request->validated(), $request->file('file'), $request->user());
+
+            return redirect()->route('documents.index')
+                ->with('success', 'Document uploaded successfully.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to upload document: '.$e->getMessage())
+                ->withInput();
+        }
+    }
+
+    /**
+     * Display the specified document with all related data
+     */
+    public function show(Document $document): Response
     {
         $this->authorize('view', $document);
 
-        $document->load([
-            'documentable',
-            'uploader',
-            'activities' => function ($query) {
-                $query->with('causer')->latest()->limit(10);
-            },
-        ]);
+        $documentData = $this->documentQueryService->getDocumentWithRelations($document);
 
-        return Inertia::render('documents/Show', [
-            'document' => [
-                'id' => $document->id,
-                'title' => $document->title,
-                'type' => $document->type,
-                'file_path' => $document->file_path,
-                'file_url' => Storage::url($document->file_path),
-                'documentable_type' => $document->documentable_type,
-                'documentable_id' => $document->documentable_id,
-                'uploaded_by' => $document->uploaded_by,
-                'created_at' => $document->created_at->toISOString(),
-                'updated_at' => $document->updated_at->toISOString(),
-                'uploader' => $document->uploader ? [
-                    'id' => $document->uploader->id,
-                    'name' => $document->uploader->name,
-                    'email' => $document->uploader->email,
-                ] : null,
-                'documentable' => $document->documentable ? [
-                    'id' => $document->documentable->id,
-                    'name' => $document->documentable->name ?? $document->documentable->title,
-                    'type' => class_basename($document->documentable_type),
-                ] : null,
-            ],
-            'activities' => $document->activities->map(fn ($activity) => [
-                'id' => $activity->id,
-                'description' => $activity->description,
-                'causer' => $activity->causer ? [
-                    'id' => $activity->causer->id,
-                    'name' => $activity->causer->name,
-                ] : null,
-                'created_at' => $activity->created_at->toISOString(),
-                'properties' => $activity->properties,
-            ]),
-        ]);
+        return Inertia::render('documents/Show', $documentData);
     }
 
-    public function edit(Document $document)
+    /**
+     * Show the form for editing the specified document
+     */
+    public function edit(Document $document): Response
     {
         $this->authorize('update', $document);
 
-        return Inertia::render('documents/Edit', [
-            'document' => [
-                'id' => $document->id,
-                'title' => $document->title,
-                'type' => $document->type,
-                'file_url' => Storage::url($document->file_path),
-                'documentable_type' => strtolower(class_basename($document->documentable_type)),
-                'documentable_id' => $document->documentable_id,
-            ],
-            'leads' => Lead::select('id', 'name')->get(),
-            'clients' => Client::select('id', 'name')->get(),
-            'projects' => Project::select('id', 'name')->get(),
-            'types' => ['proposal', 'contract', 'invoice', 'report', 'brief', 'misc'],
-        ]);
-    }
-
-    public function update(Request $request, Document $document)
-    {
-        $this->authorize('update', $document);
-
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'type' => 'required|string|in:proposal,contract,invoice,report,brief,misc',
-            'file' => 'nullable|file|mimes:pdf,doc,docx,png,jpg,jpeg|max:5120',
-            'documentable_type' => 'required|string|in:lead,client,project',
-            'documentable_id' => 'required|integer',
-        ]);
-
-        $map = [
-            'lead' => Lead::class,
-            'client' => Client::class,
-            'project' => Project::class,
+        $options = $this->documentQueryService->getRelatedOptions();
+        $options['types'] = $this->documentQueryService->getDocumentTypes();
+        $options['document'] = [
+            'id' => $document->id,
+            'title' => $document->title,
+            'type' => $document->type,
+            'file_url' => Storage::url($document->file_path),
+            'documentable_type' => $this->getShortMorphType($document->documentable_type),
+            'documentable_id' => $document->documentable_id,
         ];
 
-        $validated['documentable_type'] = $map[$validated['documentable_type']];
-
-        if ($request->hasFile('file')) {
-            Storage::disk('public')->delete($document->file_path);
-            $validated['file_path'] = $request->file('file')->store('documents', 'public');
-        }
-
-        $document->update($validated);
-
-        return redirect()->route('documents.index')->with('success', 'Document updated successfully.');
+        return Inertia::render('documents/Edit', $options);
     }
 
-    public function destroy(Document $document)
+    /**
+     * Update the specified document in storage
+     */
+    public function update(UpdateDocumentRequest $request, Document $document): RedirectResponse
+    {
+        try {
+            $this->updateDocumentAction->execute(
+                $document, 
+                $request->validated(), 
+                $request->file('file')
+            );
+
+            return redirect()->route('documents.index')
+                ->with('success', 'Document updated successfully.');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to update document: '.$e->getMessage())
+                ->withInput();
+        }
+    }
+
+    /**
+     * Remove the specified document from storage
+     */
+    public function destroy(Document $document): RedirectResponse
     {
         $this->authorize('delete', $document);
 
-        Storage::disk('public')->delete($document->file_path);
-        $document->delete();
+        try {
+            $this->deleteDocumentAction->execute($document);
 
-        return redirect()->route('documents.index')->with('success', 'Document deleted successfully.');
+            return redirect()->route('documents.index')
+                ->with('success', 'Document deleted successfully.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to delete document: '.$e->getMessage());
+        }
     }
 
-     /**
+    /**
      * Download the document file.
      */
-    public function download(Document $document)
+    public function download(Document $document): \Symfony\Component\HttpFoundation\BinaryFileResponse
     {
         $this->authorize('view', $document);
-
-        dd($document->file_path);
 
         if (!Storage::disk('public')->exists($document->file_path)) {
             abort(404, 'File not found');
