@@ -2,112 +2,60 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Project\CreateProjectAction;
+use App\Actions\Project\DeleteProjectAction;
+use App\Actions\Project\UpdateProjectAction;
+use App\Http\Requests\Project\CreateProjectRequest;
+use App\Http\Requests\Project\UpdateProjectRequest;
 use App\Models\Client;
 use App\Models\Lead;
 use App\Models\Project;
 use App\Models\User;
-use App\Notifications\ProjectAssignedNotification;
+use App\Services\Project\ProjectQueryService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class ProjectController extends Controller
 {
     use AuthorizesRequests;
 
-    public function index(Request $request)
+    public function __construct(
+        private ProjectQueryService $projectQueryService,
+        private CreateProjectAction $createProjectAction,
+        private UpdateProjectAction $updateProjectAction,
+        private DeleteProjectAction $deleteProjectAction
+    ) {}
+
+    /**
+     * Display a listing of the projects with filters and pagination
+     */
+    public function index(): Response
     {
         $this->authorize('viewAny', Project::class);
 
-        $user = Auth::user();
-
-        $projects = Project::query()
-            ->with(['client', 'lead', 'creator', 'members'])
-            ->when($request->search, function ($query, $search) {
-                $query->where('name', 'like', "%{$search}%");
-            })
-            ->when($request->filled('status'), function ($query) use ($request) {
-                $query->where('status', $request->status);
-            })
-            ->when($request->filled('client_id'), function ($query) use ($request) {
-                $query->where('client_id', $request->client_id);
-            })
-            ->when($request->filled('lead_id'), function ($query) use ($request) {
-                $query->where('lead_id', $request->lead_id);
-            })
-            ->when($request->filled('created_by'), function ($query) use ($request) {
-                $query->where('created_by', $request->created_by);
-            })
-            ->when($request->date_from, function ($query, $dateFrom) {
-                $query->whereDate('start_date', '>=', $dateFrom);
-            })
-            ->when($request->date_to, function ($query, $dateTo) {
-                $query->whereDate('end_date', '<=', $dateTo);
-            })
-            ->when($user->role === 'member', function ($query) use ($user) {
-                $query->where(function ($q) use ($user) {
-                    $q->where('created_by', $user->id)
-                        ->orWhereHas('members', function ($memberQuery) use ($user) {
-                            $memberQuery->where('user_id', $user->id);
-                        });
-                });
-            })
-            ->latest()
-            ->paginate(10)
-            ->through(fn ($project) => [
-                'id' => $project->id,
-                'name' => $project->name,
-                'description' => $project->description,
-                'status' => $project->status,
-                'start_date' => $project->start_date?->toDateString(),
-                'end_date' => $project->end_date?->toDateString(),
-                'client' => $project->client ? [
-                    'id' => $project->client->id,
-                    'name' => $project->client->name,
-                ] : null,
-                'lead' => $project->lead ? [
-                    'id' => $project->lead->id,
-                    'name' => $project->lead->name,
-                ] : null,
-                'creator' => $project->creator ? [
-                    'id' => $project->creator->id,
-                    'name' => $project->creator->name,
-                ] : null,
-                'members' => $project->members->map(fn ($member) => [
-                    'id' => $member->id,
-                    'name' => $member->name,
-                ]),
-                'created_by' => $project->created_by,
-                'created_at' => $project->created_at->toDateString(),
-                'updated_at' => $project->updated_at->toDateString(),
-            ]);
+        $filters = request()->only(['search', 'status', 'client_id', 'lead_id', 'created_by', 'date_from', 'date_to']);
+        $projects = $this->projectQueryService->getFilteredProjects($filters, auth()->user());
+        $transformedProjects = $this->projectQueryService->transformProjectsForResponse($projects);
 
         $clients = Client::select('id', 'name')->get();
         $leads = Lead::select('id', 'name')->get();
         $users = User::select('id', 'name')->get();
 
         return Inertia::render('projects/Index', [
-            'projects' => [
-                'data' => $projects->items(),
-                'meta' => [
-                    'current_page' => $projects->currentPage(),
-                    'last_page' => $projects->lastPage(),
-                    'per_page' => $projects->perPage(),
-                    'total' => $projects->total(),
-                    'from' => $projects->firstItem(),
-                    'to' => $projects->lastItem(),
-                ],
-                'links' => $projects->linkCollection()->toArray(),
-            ],
-            'filters' => $request->only(['search', 'status', 'client_id', 'lead_id', 'created_by', 'date_from', 'date_to']),
+            'projects' => $transformedProjects,
+            'filters' => $filters,
             'clients' => $clients,
             'leads' => $leads,
             'users' => $users,
         ]);
     }
 
-    public function create()
+    /**
+     * Show the form for creating a new project
+     */
+    public function create(): Response
     {
         $this->authorize('create', Project::class);
 
@@ -118,146 +66,40 @@ class ProjectController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    /**
+     * Store a newly created project in storage
+     */
+    public function store(CreateProjectRequest $request): RedirectResponse
     {
-        $this->authorize('create', Project::class);
+        try {
+            $this->createProjectAction->execute($request->validated(), $request->user());
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'status' => 'required|in:planning,in_progress,on_hold,completed',
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
-            'client_id' => 'nullable|exists:clients,id',
-            'lead_id' => 'nullable|exists:leads,id',
-            'members' => 'array',
-            'members.*' => 'exists:users,id',
-        ]);
+            return redirect()->route('projects.index')
+                ->with('success', 'Project created successfully.');
 
-        $validated['created_by'] = Auth::id();
-
-        $project = Project::create($validated);
-
-        if (! empty($validated['members'])) {
-            $project->members()->sync($validated['members']);
-
-            // Notify only assigned members (excluding creator)
-            foreach ($validated['members'] as $memberId) {
-                if ($memberId != Auth::id()) {
-                    $member = User::find($memberId);
-                    // Add this condition to exclude admin users
-                    if ($member && $member->role !== 'admin') {
-                        $member->notify(new ProjectAssignedNotification($project));
-                    }
-                }
-            }
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to create project: '.$e->getMessage())
+                ->withInput();
         }
-
-        return redirect()->route('projects.index')->with('success', 'Project created successfully.');
     }
 
     /**
-     * Display the specified project.
+     * Display the specified project with all related data
      */
-    public function show(Project $project)
+    public function show(Project $project): Response
     {
         $this->authorize('view', $project);
 
-        $project->load([
-            'client',
-            'lead',
-            'creator',
-            'members',
-            'tasks' => function ($query) {
-                $query->latest()->limit(10);
-            },
-            'invoices' => function ($query) {
-                $query->latest()->limit(10);
-            },
-            'notes' => function ($query) {
-                $query->with('user')->latest()->limit(10);
-            },
-            'activities' => function ($query) {
-                $query->with('causer')->latest()->limit(10);
-            },
-            'documents',
-        ]);
+        $projectData = $this->projectQueryService->getProjectWithRelations($project);
 
-        return Inertia::render('projects/Show', [
-            'project' => [
-                'id' => $project->id,
-                'name' => $project->name,
-                'description' => $project->description,
-                'status' => $project->status,
-                'start_date' => $project->start_date?->toISOString(),
-                'end_date' => $project->end_date?->toISOString(),
-                'budget' => $project->budget,
-                'client_id' => $project->client_id,
-                'lead_id' => $project->lead_id,
-                'created_by' => $project->created_by,
-                'created_at' => $project->created_at->toISOString(),
-                'updated_at' => $project->updated_at->toISOString(),
-                'client' => $project->client ? [
-                    'id' => $project->client->id,
-                    'name' => $project->client->name,
-                    'company' => $project->client->company,
-                ] : null,
-                'lead' => $project->lead ? [
-                    'id' => $project->lead->id,
-                    'name' => $project->lead->name,
-                ] : null,
-                'creator' => $project->creator ? [
-                    'id' => $project->creator->id,
-                    'name' => $project->creator->name,
-                ] : null,
-                'members' => $project->members->map(fn ($member) => [
-                    'id' => $member->id,
-                    'name' => $member->name,
-                    'email' => $member->email,
-                ]),
-            ],
-            'tasks' => $project->tasks->map(fn ($task) => [
-                'id' => $task->id,
-                'title' => $task->title,
-                'description' => $task->description,
-                'status' => $task->status,
-                'priority' => $task->priority,
-                'due_date' => $task->due_date?->toISOString(),
-                'assigned_to' => $task->assigned_to,
-                'created_at' => $task->created_at->toISOString(),
-            ]),
-            'invoices' => $project->invoices->map(fn ($invoice) => [
-                'id' => $invoice->id,
-                'invoice_number' => $invoice->invoice_number,
-                'amount' => $invoice->amount,
-                'status' => $invoice->status,
-                'due_date' => $invoice->due_date?->toISOString(),
-                'created_at' => $invoice->created_at->toISOString(),
-            ]),
-            'notes' => $project->notes->map(fn ($note) => [
-                'id' => $note->id,
-                'content' => $note->content,
-                'user' => [
-                    'id' => $note->user->id,
-                    'name' => $note->user->name,
-                ],
-                'created_at' => $note->created_at->toISOString(),
-            ]),
-            'activities' => $project->activities->map(fn ($activity) => [
-                'id' => $activity->id,
-                'description' => $activity->description,
-                'causer' => $activity->causer ? [
-                    'id' => $activity->causer->id,
-                    'name' => $activity->causer->name,
-                ] : null,
-                'created_at' => $activity->created_at->toISOString(),
-                'properties' => $activity->properties,
-            ]),
-            'documents_count' => $project->documents->count(),
-        ]);
+        return Inertia::render('projects/Show', $projectData);
     }
 
-    public function edit(Project $project)
+    /**
+     * Show the form for editing the specified project
+     */
+    public function edit(Project $project): Response
     {
         $this->authorize('update', $project);
 
@@ -271,7 +113,7 @@ class ProjectController extends Controller
                 'end_date' => $project->end_date?->toDateString(),
                 'client_id' => $project->client_id,
                 'lead_id' => $project->lead_id,
-                'members' => $project->members->map(fn ($member) => $member->id),
+                'members' => $project->members->map(fn ($member) => ['id' => $member->id]),
                 'creator' => $project->creator ? [
                     'id' => $project->creator->id,
                     'name' => $project->creator->name,
@@ -294,53 +136,40 @@ class ProjectController extends Controller
         ]);
     }
 
-    public function update(Request $request, Project $project)
+    /**
+     * Update the specified project in storage
+     */
+    public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
     {
-        $this->authorize('update', $project);
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'status' => 'required|in:planning,in_progress,on_hold,completed',
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
-            'client_id' => 'nullable|exists:clients,id',
-            'lead_id' => 'nullable|exists:leads,id',
-            'members' => 'array',
-            'members.*' => 'exists:users,id',
-        ]);
+        try {
+            $this->updateProjectAction->execute($project, $request->validated(), $request->user());
 
-        // Get old members before update
-        $oldMembers = $project->members()->pluck('users.id')->toArray();
-
-        $project->update($validated);
-
-        if (isset($validated['members'])) {
-            $project->members()->sync($validated['members']);
-
-            // Find new members only
-            $newMembers = array_diff($validated['members'], $oldMembers);
-
-            foreach ($newMembers as $memberId) {
-                if ($memberId != Auth::id()) {
-                    $member = User::find($memberId);
-                    // Add this condition to exclude admin users
-                    if ($member && $member->role !== 'admin') {
-                        $member->notify(new ProjectAssignedNotification($project));
-                    }
-                }
-            }
+            return redirect()->route('projects.index')
+                ->with('success', 'Project updated successfully.');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to update project: '.$e->getMessage())
+                ->withInput();
         }
-
-        return redirect()->route('projects.index')->with('success', 'Project updated successfully.');
     }
 
-    public function destroy(Project $project)
+    /**
+     * Remove the specified project from storage
+     */
+    public function destroy(Project $project): RedirectResponse
     {
         $this->authorize('delete', $project);
 
-        $project->delete();
+        try {
+            $this->deleteProjectAction->execute($project);
 
-        return redirect()->route('projects.index')->with('success', 'Project deleted successfully.');
+            return redirect()->route('projects.index')
+                ->with('success', 'Project deleted successfully.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to delete project: '.$e->getMessage());
+        }
     }
 }
