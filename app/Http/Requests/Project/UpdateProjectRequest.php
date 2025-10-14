@@ -33,4 +33,12 @@ class UpdateProjectRequest extends FormRequest
             'members.*' => 'exists:users,id',
         ];
     }
+
+    /**
+     * Handle a failed authorization attempt.
+     */
+    protected function failedAuthorization()
+    {
+        abort(403, 'This action is unauthorized.');
+    }
 }
