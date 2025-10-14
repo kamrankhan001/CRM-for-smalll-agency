@@ -2,243 +2,151 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Client;
-use App\Models\Lead;
+use App\Actions\Note\CreateNoteAction;
+use App\Actions\Note\DeleteNoteAction;
+use App\Actions\Note\UpdateNoteAction;
+use App\Http\Requests\Note\CreateNoteRequest;
+use App\Http\Requests\Note\UpdateNoteRequest;
 use App\Models\Note;
-use App\Models\Project;
 use App\Models\User;
-use App\Notifications\NoteAddedNotification;
+use App\Services\Note\NoteQueryService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class NoteController extends Controller
 {
     use AuthorizesRequests;
 
-    public function index(Request $request)
+    public function __construct(
+        private readonly NoteQueryService $noteQueryService,
+        private readonly CreateNoteAction $createNoteAction,
+        private readonly UpdateNoteAction $updateNoteAction,
+        private readonly DeleteNoteAction $deleteNoteAction,
+    ) {}
+
+    /**
+     * Display a listing of the notes with filters and pagination
+     */
+    public function index(): Response
     {
         $this->authorize('viewAny', Note::class);
 
-        $notes = Note::with(['user', 'noteable'])
-            ->when($request->search, function ($query, $search) {
-                $query->where('content', 'like', "%{$search}%");
-            })
-            ->when($request->filled('noteable_type'), function ($query) use ($request) {
-                $query->where('noteable_type', match ($request->noteable_type) {
-                    'lead' => 'App\\Models\\Lead',
-                    'client' => 'App\\Models\\Client',
-                    'project' => 'App\\Models\\Project',
-                    default => 'App\\Models\\Lead'
-                });
-            })
-            ->when($request->filled('user_id'), function ($query) use ($request) {
-                $query->where('user_id', $request->user_id);
-            })
-            ->when($request->date_range, function ($query) use ($request) {
-                $dateRanges = [
-                    '7_days' => now()->subDays(7),
-                    '15_days' => now()->subDays(15),
-                    '30_days' => now()->subDays(30),
-                    'custom' => $request->date_from ?: now()->subDays(30),
-                ];
-
-                if ($request->date_range === 'custom' && $request->date_from && $request->date_to) {
-                    $query->whereBetween('created_at', [
-                        $request->date_from,
-                        $request->date_to,
-                    ]);
-                } else {
-                    $query->where('created_at', '>=', $dateRanges[$request->date_range]);
-                }
-            })
-            ->latest()
-            ->paginate(10)
-            ->through(fn ($note) => [
-                'id' => $note->id,
-                'content' => $note->content,
-                'user' => [
-                    'id' => $note->user->id,
-                    'name' => $note->user->name,
-                ],
-                'user_id' => $note->user_id,
-                'noteable' => $note->noteable ? [
-                    'id' => $note->noteable->id,
-                    'name' => $note->noteable->name,
-                    'type' => class_basename($note->noteable_type),
-                ] : null,
-                'created_at' => $note->created_at->toISOString(),
-                'updated_at' => $note->updated_at->toISOString(),
-            ]);
-
-        $users = User::select('id', 'name')->get();
+        $filters = request()->only(['search', 'noteable_type', 'user_id', 'date_range', 'date_from', 'date_to']);
+        $notes = $this->noteQueryService->getFilteredNotes($filters);
+        $transformedNotes = $this->noteQueryService->transformNotesForResponse($notes);
 
         return Inertia::render('notes/Index', [
-            'notes' => [
-                'data' => $notes->items(),
-                'meta' => [
-                    'current_page' => $notes->currentPage(),
-                    'last_page' => $notes->lastPage(),
-                    'per_page' => $notes->perPage(),
-                    'total' => $notes->total(),
-                    'from' => $notes->firstItem(),
-                    'to' => $notes->lastItem(),
-                    'prev_page_url' => $notes->previousPageUrl(),
-                    'next_page_url' => $notes->nextPageUrl(),
-                ],
-                'links' => $notes->linkCollection()->toArray(),
-            ],
-            'filters' => $request->only(['search', 'noteable_type', 'user_id', 'date_range', 'date_from', 'date_to']),
-            'users' => $users,
+            'notes' => $transformedNotes,
+            'filters' => $filters,
+            'users' => $this->noteQueryService->getAvailableUsers(),
         ]);
-    }
-
-    public function create()
-    {
-        $this->authorize('create', Note::class);
-
-        return Inertia::render('notes/Create', [
-            'leads' => Lead::select('id', 'name')->get(),
-            'clients' => Client::select('id', 'name')->get(),
-            'projects' => Project::select('id', 'name')->get(),
-        ]);
-    }
-
-    public function store(Request $request)
-    {
-        $this->authorize('create', Note::class);
-
-        $validated = $request->validate([
-            'content' => 'required|string|max:1000',
-            'noteable_id' => 'required|integer',
-            'noteable_type' => 'required|string|in:lead,client,project',
-        ]);
-
-        // Convert to full model class names
-        $validated['noteable_type'] = match ($validated['noteable_type']) {
-            'lead' => 'App\\Models\\Lead',
-            'client' => 'App\\Models\\Client',
-            'project' => 'App\\Models\\Project',
-            default => 'App\\Models\\Lead'
-        };
-
-        $validated['user_id'] = auth()->id();
-
-        $note = Note::create($validated);
-
-        // Send notification to ALL users in the system
-        $allUsers = User::all();
-        foreach ($allUsers as $user) {
-            $user->notify(new NoteAddedNotification($note));
-        }
-
-        return redirect()->route('notes.index')->with('success', 'Note created successfully.');
     }
 
     /**
-     * Display the specified note.
+     * Show the form for creating a new note
      */
-    public function show(Note $note)
+    public function create(): Response
+    {
+        $this->authorize('create', Note::class);
+
+        $options = $this->noteQueryService->getRelatedOptions();
+
+        return Inertia::render('notes/Create', $options);
+    }
+
+    /**
+     * Store a newly created note in storage
+     */
+    public function store(CreateNoteRequest $request): RedirectResponse
+    {
+        try {
+            $this->createNoteAction->execute($request->validated(), $request->user());
+
+            return redirect()->route('notes.index')
+                ->with('success', 'Note created successfully.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to create note: '.$e->getMessage())
+                ->withInput();
+        }
+    }
+
+    /**
+     * Display the specified note with all related data
+     */
+    public function show(Note $note): Response
     {
         $this->authorize('view', $note);
 
-        $note->load([
-            'user',
-            'noteable',
-            'activities' => function ($query) {
-                $query->with('causer')->latest()->limit(10);
-            },
-        ]);
+        $noteData = $this->noteQueryService->getNoteWithRelations($note);
 
-        return Inertia::render('notes/Show', [
-            'note' => [
-                'id' => $note->id,
-                'content' => $note->content,
-                'user_id' => $note->user_id,
-                'noteable_type' => $note->noteable_type,
-                'noteable_id' => $note->noteable_id,
-                'created_at' => $note->created_at->toISOString(),
-                'updated_at' => $note->updated_at->toISOString(),
-                'user' => [
-                    'id' => $note->user->id,
-                    'name' => $note->user->name,
-                    'email' => $note->user->email,
-                ],
-                'noteable' => $note->noteable ? [
-                    'id' => $note->noteable->id,
-                    'name' => $note->noteable->name ?? $note->noteable->title,
-                    'type' => class_basename($note->noteable_type),
-                ] : null,
-            ],
-            'activities' => $note->activities->map(fn ($activity) => [
-                'id' => $activity->id,
-                'description' => $activity->description,
-                'causer' => $activity->causer ? [
-                    'id' => $activity->causer->id,
-                    'name' => $activity->causer->name,
-                ] : null,
-                'created_at' => $activity->created_at->toISOString(),
-                'properties' => $activity->properties,
-            ]),
-        ]);
+        return Inertia::render('notes/Show', $noteData);
     }
 
-    public function edit(Note $note)
+    /**
+     * Show the form for editing the specified note
+     */
+    public function edit(Note $note): Response
     {
         $this->authorize('update', $note);
 
-        return Inertia::render('notes/Edit', [
-            'note' => [
-                'id' => $note->id,
-                'content' => $note->content,
-                'user' => [
-                    'id' => $note->user->id,
-                    'name' => $note->user->name,
-                ],
-                'user_id' => $note->user_id,
-                'noteable' => $note->noteable ? [
-                    'id' => $note->noteable->id,
-                    'name' => $note->noteable->name,
-                    'type' => class_basename($note->noteable_type),
-                ] : null,
-                'created_at' => $note->created_at->toISOString(),
-                'updated_at' => $note->updated_at->toISOString(),
+        $options = $this->noteQueryService->getRelatedOptions();
+        $options['note'] = [
+            'id' => $note->id,
+            'content' => $note->content,
+            'user' => [
+                'id' => $note->user->id,
+                'name' => $note->user->name,
             ],
-            'leads' => Lead::select('id', 'name')->get(),
-            'projects' => Project::select('id', 'name')->get(),
-            'clients' => Client::select('id', 'name')->get(),
-        ]);
+            'user_id' => $note->user_id,
+            'noteable' => $note->noteable ? [
+                'id' => $note->noteable->id,
+                'name' => $note->noteable->name,
+                'type' => class_basename($note->noteable_type),
+            ] : null,
+            'created_at' => $note->created_at->toISOString(),
+            'updated_at' => $note->updated_at->toISOString(),
+        ];
+
+        return Inertia::render('notes/Edit', $options);
     }
 
-    public function update(Request $request, Note $note)
+    /**
+     * Update the specified note in storage
+     */
+    public function update(UpdateNoteRequest $request, Note $note): RedirectResponse
     {
-        $this->authorize('update', $note);
+        try {
+            $this->updateNoteAction->execute($note, $request->validated());
 
-        $validated = $request->validate([
-            'content' => 'required|string|max:1000',
-            'noteable_id' => 'required|integer',
-            'noteable_type' => 'required|string|in:lead,client,project',
-        ]);
-
-        // Convert to full model class names
-        $validated['noteable_type'] = match ($validated['noteable_type']) {
-            'lead' => 'App\\Models\\Lead',
-            'client' => 'App\\Models\\Client',
-            'project' => 'App\\Models\\Project',
-            default => 'App\\Models\\Lead'
-        };
-
-        $note->update($validated);
-
-        return redirect()->route('notes.index')->with('success', 'Note updated successfully.');
+            return redirect()->route('notes.index')
+                ->with('success', 'Note updated successfully.');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to update note: '.$e->getMessage())
+                ->withInput();
+        }
     }
 
-    public function destroy(Note $note)
+    /**
+     * Remove the specified note from storage
+     */
+    public function destroy(Note $note): RedirectResponse
     {
         $this->authorize('delete', $note);
 
-        $note->delete();
+        try {
+            $this->deleteNoteAction->execute($note);
 
-        return redirect()->route('notes.index')->with('success', 'Note deleted successfully.');
+            return redirect()->route('notes.index')
+                ->with('success', 'Note deleted successfully.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to delete note: '.$e->getMessage());
+        }
     }
 }

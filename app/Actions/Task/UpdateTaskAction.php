@@ -2,21 +2,21 @@
 
 namespace App\Actions\Task;
 
-use App\Concerns\HasTaskableType;
+use App\Concerns\HasMorphTypes;
 use App\Models\Task;
 use App\Models\User;
 use App\Notifications\TaskAssignedNotification;
 
 class UpdateTaskAction
 {
-    use HasTaskableType;
+    use HasMorphTypes;
 
     public function execute(Task $task, array $data, User $currentUser): void
     {
         $oldAssignedTo = $task->assigned_to;
         $newAssignedTo = $data['assigned_to'] ?? null;
 
-        $data['taskable_type'] = $this->mapTaskableType($data['taskable_type']);
+        $data['taskable_type'] = $this->mapMorphType($data['taskable_type']);
 
         $task->update($data);
 

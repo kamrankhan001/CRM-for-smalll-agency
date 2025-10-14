@@ -5,15 +5,15 @@ namespace App\Actions\Task;
 use App\Models\Task;
 use App\Models\User;
 use App\Notifications\TaskAssignedNotification;
-use App\Concerns\HasTaskableType;
+use App\Concerns\HasMorphTypes;
 
 class CreateTaskAction
 {
-    use HasTaskableType;
+    use HasMorphTypes;
     
     public function execute(array $data, User $currentUser): void
     {
-        $data['taskable_type'] = $this->mapTaskableType($data['taskable_type']);
+        $data['taskable_type'] = $this->mapMorphType($data['taskable_type']);
         $data['created_by'] = $currentUser->id;
 
         $task = Task::create($data);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\HasMorphTypes;
 use App\Actions\Task\CreateTaskAction;
 use App\Actions\Task\DeleteTaskAction;
 use App\Actions\Task\UpdateTaskAction;
@@ -13,7 +14,6 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\Task\TaskQueryService;
-use App\Concerns\HasTaskableType;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -21,7 +21,7 @@ use Inertia\Response;
 
 class TaskController extends Controller
 {
-    use AuthorizesRequests, HasTaskableType;
+    use AuthorizesRequests, HasMorphTypes;
 
     public function __construct(
         private TaskQueryService $taskQueryService,
@@ -110,7 +110,7 @@ class TaskController extends Controller
                 'status' => $task->status,
                 'priority' => $task->priority,
                 'due_date' => $task->due_date?->toDateString(),
-                'taskable_type' => $this->getShortTaskableType($task->taskable_type),
+                'taskable_type' => $this->getShortMorphType($task->taskable_type),
                 'taskable_id' => $task->taskable_id,
                 'assignee' => $task->assignee ? [
                     'id' => $task->assignee->id,
