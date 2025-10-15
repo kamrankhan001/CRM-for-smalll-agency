@@ -129,19 +129,29 @@ const showFilters = ref(false);
 const showDeleteDialog = ref(false);
 const projectToDelete = ref<number | null>(null);
 
-// Permission checks
-const canDelete = computed(() => ['admin', 'manager'].includes(props.auth.user.role));
+// Permission checks based on Laravel Policy
+const canCreate = computed(() => ['admin', 'manager'].includes(props.auth.user.role));
+
+const canViewProject = (project: Project) => {
+    const user = props.auth.user;
+    // Admin and Manager can view ALL projects
+    if (user.role === 'admin' || user.role === 'manager') return true;
+    // Members can only view projects they created or are members of
+    return project.created_by === user.id || 
+           project.members.some(member => member.id === user.id);
+};
 
 const canEditProject = (project: Project) => {
     const user = props.auth.user;
-    if (user.role === 'admin') return true;
-    if (user.role === 'manager') {
-        // Managers can edit projects they created or are members of
-        return project.created_by === user.id || 
-               project.members.some(member => member.id === user.id);
-    }
-    // Members can only edit projects they are members of
-    return project.members.some(member => member.id === user.id);
+    return user.role === 'admin' || 
+           project.created_by === user.id || 
+           (user.role === 'manager' && project.members.some(member => member.id === user.id)) ||
+           (user.role === 'member' && project.members.some(member => member.id === user.id));
+};
+
+const canDeleteProject = (project: Project) => {
+    const user = props.auth.user;
+    return user.role === 'admin' || project.created_by === user.id;
 };
 
 // Filters
@@ -302,7 +312,7 @@ const total = computed(() => props.projects.meta?.total || 0);
                         </TooltipProvider>
 
                         <!-- New Project Button -->
-                        <TooltipProvider v-if="['admin','manager'].includes(auth.user.role)">
+                        <TooltipProvider v-if="canCreate">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Link :href="create.url()" class="shrink-0">
@@ -563,9 +573,9 @@ const total = computed(() => props.projects.meta?.total || 0);
                             </TableCell>
                             <TableCell>
                                 <ActionButtons
+                                    :show-view="canViewProject(project)"
                                     :show-edit="canEditProject(project)"
-                                    :show-view="true"
-                                    :show-delete="canDelete"
+                                    :show-delete="canDeleteProject(project)"
                                     :on-edit="() => goToEdit(project.id)"
                                     :on-view="() => goToView(project.id)"
                                     :on-delete="() => confirmDelete(project.id)"

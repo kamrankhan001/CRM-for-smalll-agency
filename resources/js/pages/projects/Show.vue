@@ -115,6 +115,12 @@ interface Project {
     members: User[];
 }
 
+interface AuthUser {
+    id: number;
+    role: 'admin' | 'manager' | 'member';
+    name: string;
+}
+
 interface Props {
     project: Project;
     tasks: Task[];
@@ -122,6 +128,9 @@ interface Props {
     notes: Note[];
     activities: Activity[];
     documents_count: number;
+    auth: {
+        user: AuthUser;
+    };
 }
 
 const props = defineProps<Props>();
@@ -132,6 +141,24 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const showDeleteDialog = ref(false);
+
+// Permission check for edit
+const canEditProject = computed(() => {
+    const user = props.auth.user;
+    const project = props.project;
+    
+    return user.role === 'admin' || 
+           project.created_by === user.id || 
+           (user.role === 'manager' && project.members.some(member => member.id === user.id));
+});
+
+// Permission check for delete
+const canDeleteProject = computed(() => {
+    const user = props.auth.user;
+    const project = props.project;
+    
+    return user.role === 'admin' || project.created_by === user.id;
+});
 
 // FIXED: Use computed for totalInvoiceAmount with proper reduce implementation
 const totalInvoiceAmount = computed(() => {
@@ -351,7 +378,7 @@ function cancelDelete() {
                         </TooltipProvider>
 
                         <!-- Edit Button -->
-                        <TooltipProvider>
+                        <TooltipProvider v-if="canEditProject">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Link :href="edit.url(props.project.id)">
@@ -374,7 +401,7 @@ function cancelDelete() {
                         </TooltipProvider>
 
                         <!-- Delete Button -->
-                        <TooltipProvider>
+                        <TooltipProvider v-if="canDeleteProject">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Button
@@ -389,7 +416,7 @@ function cancelDelete() {
                                         >
                                     </Button>
                                 </TooltipTrigger>
-                                <TooltipContent class="lg:hidden">
+                                <TooltipContent class="lg-hidden">
                                     <p>Delete this project</p>
                                 </TooltipContent>
                             </Tooltip>
@@ -431,7 +458,7 @@ function cancelDelete() {
                                         }}
                                     </Badge>
                                 </div>
-
+        
                                 <div class="space-y-1">
                                     <Label
                                         class="text-sm font-medium text-muted-foreground"
@@ -478,7 +505,7 @@ function cancelDelete() {
                                     </p>
                                 </div>
                             </div>
-
+        
                             <!-- Budget & Timeline -->
                             <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 <div class="space-y-1">
@@ -493,7 +520,7 @@ function cancelDelete() {
                                         }}
                                     </p>
                                 </div>
-
+        
                                 <div class="space-y-1">
                                     <Label
                                         class="text-sm font-medium text-muted-foreground"
@@ -507,7 +534,7 @@ function cancelDelete() {
                                     </p>
                                 </div>
                             </div>
-
+        
                             <!-- Description -->
                             <div class="space-y-1">
                                 <Label
@@ -521,7 +548,7 @@ function cancelDelete() {
                                     }}
                                 </p>
                             </div>
-
+        
                             <!-- Linked Client -->
                             <div v-if="props.project.client" class="space-y-1">
                                 <Label
@@ -541,7 +568,7 @@ function cancelDelete() {
                                     </Link>
                                 </div>
                             </div>
-
+        
                             <!-- Project Members -->
                             <div class="space-y-3">
                                 <Label
@@ -579,7 +606,7 @@ function cancelDelete() {
                                     No team members assigned
                                 </p>
                             </div>
-
+        
                             <!-- Assignment Information -->
                             <div
                                 class="grid grid-cols-1 gap-6 border-t pt-4 md:grid-cols-2"
@@ -595,7 +622,7 @@ function cancelDelete() {
                                         }}
                                     </p>
                                 </div>
-
+        
                                 <div class="space-y-1">
                                     <Label
                                         class="text-sm font-medium text-muted-foreground"
@@ -610,7 +637,7 @@ function cancelDelete() {
                             </div>
                         </CardContent>
                     </Card>
-
+        
                     <!-- Tasks List -->
                     <Card class="border">
                         <CardHeader>
@@ -705,7 +732,7 @@ function cancelDelete() {
                             </div>
                         </CardContent>
                     </Card>
-
+        
                     <!-- Invoices List -->
                     <Card class="border">
                         <CardHeader>
@@ -815,7 +842,7 @@ function cancelDelete() {
                             </div>
                         </CardContent>
                     </Card>
-
+        
                     <!-- Notes Section -->
                     <Card class="border">
                         <CardHeader>
@@ -856,7 +883,7 @@ function cancelDelete() {
                                     </div>
                                 </div>
                             </div>
-
+        
                             <div v-else class="py-8 text-center">
                                 <FileText
                                     class="mx-auto mb-3 h-12 w-12 text-muted-foreground"
@@ -872,7 +899,7 @@ function cancelDelete() {
                         </CardContent>
                     </Card>
                 </div>
-
+        
                 <!-- Right Column - Activity & Statistics -->
                 <div class="space-y-6">
                     <!-- Activity Log -->
@@ -928,7 +955,7 @@ function cancelDelete() {
                                     </div>
                                 </div>
                             </div>
-
+        
                             <div v-else class="py-8 text-center">
                                 <Activity
                                     class="mx-auto mb-3 h-12 w-12 text-muted-foreground"
@@ -943,7 +970,7 @@ function cancelDelete() {
                             </div>
                         </CardContent>
                     </Card>
-
+        
                     <!-- Project Statistics -->
                     <Card class="border">
                         <CardHeader>
@@ -974,7 +1001,7 @@ function cancelDelete() {
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
-
+        
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger as-child>
@@ -1000,7 +1027,7 @@ function cancelDelete() {
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
-
+        
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger as-child>
@@ -1030,7 +1057,7 @@ function cancelDelete() {
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
-
+        
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger as-child>
@@ -1058,7 +1085,7 @@ function cancelDelete() {
                                     </Tooltip>
                                 </TooltipProvider>
                             </div>
-
+        
                             <!-- Financial Summary -->
                             <div class="border-t pt-4">
                                 <h4 class="mb-3 text-sm font-medium">
@@ -1094,7 +1121,7 @@ function cancelDelete() {
                     </Card>
                 </div>
             </div>
-
+        
             <!-- Delete Confirmation Dialog -->
             <ConfirmationDialog
                 :show="showDeleteDialog"
