@@ -3,19 +3,23 @@
 namespace App\Notifications;
 
 use App\Models\Project;
+use App\Models\User;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 
-class ProjectAssignedNotification extends Notification implements ShouldQueue
+class ProjectAssignedNotification extends Notification implements ShouldQueue, ShouldBroadcast
 {
     use Queueable;
 
     /**
      * Create a new notification instance.
      */
-    public function __construct(public Project $project)
+    public function __construct(public Project $project, public User $assignedBy)
     {
         //
     }
@@ -27,7 +31,7 @@ class ProjectAssignedNotification extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ['database', 'mail', 'broadcast'];
     }
 
     /**
@@ -38,7 +42,7 @@ class ProjectAssignedNotification extends Notification implements ShouldQueue
         return (new MailMessage)
             ->subject('New Project Assigned')
             ->greeting('Hello '.$notifiable->name.',')
-            ->line("You have been added as a member to the project: {$this->project->name}.")
+            ->line("You have been added as a member to the project: {$this->project->name} by {$this->assignedBy->name}.")
             ->action('View Project', url("/projects/{$this->project->id}"))
             ->line('Please check your tasks and collaborate with the team.');
     }
@@ -48,12 +52,32 @@ class ProjectAssignedNotification extends Notification implements ShouldQueue
      */
     public function toDatabase($notifiable): array
     {
-        return [
+         return [
             'type' => 'project_assigned',
-            'message' => "You have been added to the project '{$this->project->name}'.",
+            'message' => "You have been added to the project '{$this->project->name}' by {$this->assignedBy->name}.",
             'project_id' => $this->project->id,
+            'assigned_by_id' => $this->assignedBy->id,
+            'assigned_by_name' => $this->assignedBy->name,
             'url' => "/projects/{$this->project->id}",
         ];
+    }
+
+     public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        return new BroadcastMessage([
+            'type' => 'project_assigned',
+            'message' => "You have been added to the project '{$this->project->name}' by {$this->assignedBy->name}.",
+            'project_id' => $this->project->id,
+            'assigned_by_id' => $this->assignedBy->id,
+            'assigned_by_name' => $this->assignedBy->name,
+            'url' => "/projects/{$this->project->id}",
+            'time' => now()->toDateTimeString(),
+        ]);
+    }
+
+     public function broadcastOn(): array
+    {
+        return [new PrivateChannel('notifications.' . $this->project->assigned_to)];
     }
 
     /**

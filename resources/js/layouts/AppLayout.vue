@@ -6,19 +6,12 @@ import { usePage } from '@inertiajs/vue3';
 import { onMounted } from 'vue';
 import { toast } from 'vue-sonner';
 import { useEchoNotification } from '@laravel/echo-vue';
+import { notificationService } from '@/services/notificationService';
+import type { AppNotification } from '@/types/notifications';
 import 'vue-sonner/style.css';
 
 interface Props {
     breadcrumbs?: BreadcrumbItemType[];
-}
-
-// Define the shape of the incoming notification payload
-interface LeadAssignedNotification {
-    message: string;
-    type: string;
-    url?: string;
-    lead_id: string | number;
-    time?: string;
 }
 
 withDefaults(defineProps<Props>(), {
@@ -29,22 +22,21 @@ const page = usePage();
 const flash = page.props.flash || {};
 const userId = page.props.auth?.user?.id;
 
-// Listen to new lead assigned notifications for this user from ANY page
-useEchoNotification<LeadAssignedNotification>(
-    `lead-assigned.${userId}`,
-    (e: LeadAssignedNotification) => {
-        console.log('🔔 LeadAssigned received:', e);
+// Single listener for ALL notification types on user's private channel
+useEchoNotification<AppNotification>(
+    notificationService.getChannel(userId),
+    (notification: AppNotification) => {
+        notificationService.handleNotification(notification);
+    }
+);
 
-        // Show real-time toast on any page
-        toast.success(e.message ?? 'You have a new lead!', {
-            description: e.time ? `Assigned at ${e.time}` : undefined,
-            action: {
-                label: 'View Lead',
-                onClick: () => window.location.href = e.url ?? `/leads/${e.lead_id}`,
-            },
-        });
+// Listen for global notifications (note_added)
+useEchoNotification<AppNotification>(
+    'notifications.global',
+    (notification: AppNotification) => {
+        notificationService.handleNotification(notification);
     },
-    'App.Notifications.LeadAssignedNotification'
+    'App.Notifications.NoteAddedNotification'
 );
 
 onMounted(() => {

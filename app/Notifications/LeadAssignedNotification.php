@@ -77,7 +77,7 @@ class LeadAssignedNotification extends Notification implements ShouldQueue, Shou
     public function broadcastOn(): array
     {
         // Private channel specific to the assigned user
-        return [new PrivateChannel('lead-assigned.' . $this->lead->assigned_to)];
+        return [new PrivateChannel('notifications.' . $this->lead->assigned_to)];
     }
 
     /**

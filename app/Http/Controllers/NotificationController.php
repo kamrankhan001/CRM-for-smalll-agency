@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\User;
 use App\Models\Notification;
+use App\Models\User;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class NotificationController extends Controller
@@ -43,7 +43,7 @@ class NotificationController extends Controller
         // Build proper pagination links structure
         $links = [];
         $urlRange = $notifications->getUrlRange(1, $notifications->lastPage());
-        
+
         // Previous page link
         $links[] = [
             'url' => $notifications->previousPageUrl(),
@@ -55,7 +55,7 @@ class NotificationController extends Controller
         foreach ($urlRange as $page => $url) {
             $links[] = [
                 'url' => $url,
-                'label' => (string)$page,
+                'label' => (string) $page,
                 'active' => $page == $notifications->currentPage(),
             ];
         }
@@ -90,14 +90,17 @@ class NotificationController extends Controller
     public function markAsRead($id)
     {
         $user = auth()->user();
-        
+
         if ($user->role === 'admin') {
             $notification = Notification::findOrFail($id);
         } else {
             $notification = $user->notifications()->findOrFail($id);
         }
-        
-        $notification->update(['read_at' => now()]);
+
+        // Only mark as read if it's not already read
+        if (! $notification->read_at) {
+            $notification->update(['read_at' => now()]);
+        }
 
         return back()->with('success', 'Notification marked as read.');
     }
@@ -105,26 +108,28 @@ class NotificationController extends Controller
     public function markAllAsRead()
     {
         $user = auth()->user();
-        
+
         if ($user->role === 'admin') {
+            // For admin, mark all notifications as read
             Notification::whereNull('read_at')->update(['read_at' => now()]);
         } else {
+            // For regular users, only mark their own notifications as read
             $user->unreadNotifications->markAsRead();
         }
 
-        return redirect()->route('notifications.index')->with('success', 'All notifications marked as read.');
+        return back()->with('success', 'All notifications marked as read.');
     }
 
     public function destroy($id)
     {
         $user = auth()->user();
-        
+
         if ($user->role === 'admin') {
             $notification = Notification::findOrFail($id);
         } else {
             $notification = $user->notifications()->findOrFail($id);
         }
-        
+
         $notification->delete();
 
         return redirect()->route('notifications.index')->with('success', 'Notification deleted successfully.');

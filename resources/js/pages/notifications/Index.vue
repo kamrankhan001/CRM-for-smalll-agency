@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import { Link, Head, router, usePage } from '@inertiajs/vue3';
-import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -12,11 +11,21 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Bell, CheckCircle, Info, ChevronLeft, ChevronRight, Filter, X } from 'lucide-vue-next';
-import { ref, computed } from 'vue';
-import { toast } from 'vue-sonner'
-import { useEchoNotification } from '@laravel/echo-vue'
+import AppLayout from '@/layouts/AppLayout.vue';
+import { notificationService } from '@/services/notificationService';
+import type { AppNotification } from '@/types/notifications';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { useEchoNotification } from '@laravel/echo-vue';
+import {
+    Bell,
+    CheckCircle,
+    ChevronLeft,
+    ChevronRight,
+    Filter,
+    Info,
+    X,
+} from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
 // ===== INTERFACES =====
 interface Notification {
@@ -49,18 +58,10 @@ interface Props {
     filters: Record<string, any>;
 }
 
-interface LeadAssignedNotification {
-    message: string;
-    type: string;
-    url?: string;
-    lead_id: string | number;
-    time?: string;
-}
-
 // ===== PROPS & REACTIVE STATE =====
-const props = defineProps<Props>()
-const page = usePage()
-const userId = page.props.auth?.user?.id
+const props = defineProps<Props>();
+const page = usePage();
+const userId = page.props.auth?.user?.id;
 
 const showFilters = ref(false);
 const filters = ref({
@@ -72,41 +73,44 @@ const filters = ref({
 const serverNotifications = ref<Notification[]>([...props.notifications.data]);
 const realTimeNotifications = ref<Notification[]>([]);
 
-// ===== ECHO NOTIFICATION LISTENER =====
-useEchoNotification<LeadAssignedNotification>(
-    `lead-assigned.${userId}`,
-    (e: LeadAssignedNotification) => {
-        console.log('🔔 LeadAssigned received:', e)
-
-        // Create new real-time notification
-        const newNotification: Notification = {
-            id: `realtime-${Date.now()}`, // prefix to distinguish from server IDs
-            message: e.message ?? 'New lead assigned.',
-            type: e.type ?? 'lead_assigned',
-            url: e.url ?? `/leads/${e.lead_id}`,
-            read_at: null,
-            created_at: new Date().toISOString(), // Shows as "Just now"
-        };
-
-        // Add to real-time notifications (limit to last 50)
-        realTimeNotifications.value.unshift(newNotification);
-        if (realTimeNotifications.value.length > 50) {
-            realTimeNotifications.value = realTimeNotifications.value.slice(0, 50);
-        }
-
-        // Show toast notification
-        toast.success(e.message ?? 'You have a new lead!', {
-            description: e.time ? `Assigned at ${e.time}` : undefined,
-            action: {
-                label: 'View Lead',
-                onClick: () => window.location.href = e.url ?? `/leads/${e.lead_id}`,
-            },
-        });
+// Listener for user-specific notifications (private channel)
+useEchoNotification<AppNotification>(
+    notificationService.getChannel(userId),
+    (notification: AppNotification) => {
+        handleRealTimeNotification(notification);
     },
-    'App.Notifications.LeadAssignedNotification'
 );
 
-// ===== COMPUTED PROPERTIES =====
+// Listener for global notifications (public channel - for note_added)
+useEchoNotification<AppNotification>(
+    'notifications.global',
+    (notification: AppNotification) => {
+        handleRealTimeNotification(notification);
+    },
+    'App.Notifications.NoteAddedNotification',
+);
+
+// Centralized real-time notification handler
+function handleRealTimeNotification(notification: AppNotification) {
+    // Create new real-time notification
+    const newNotification: Notification = {
+        id: `realtime-${Date.now()}-${notification.type}`,
+        message: notification.message,
+        type: notification.type,
+        url: notification.url,
+        read_at: null,
+        created_at: new Date().toISOString(),
+    };
+
+    // Add to real-time notifications
+    realTimeNotifications.value.unshift(newNotification);
+    if (realTimeNotifications.value.length > 50) {
+        realTimeNotifications.value = realTimeNotifications.value.slice(0, 50);
+    }
+
+    // Show toast via centralized handler
+    notificationService.handleNotification(notification);
+}
 
 // Combine server-side and real-time notifications for display
 const allNotifications = computed(() => {
@@ -123,24 +127,27 @@ const hasActiveFilters = computed(() => {
 
 // Check if any notification is unread (for mark all as read button)
 const hasUnreadNotifications = computed(() => {
-    return allNotifications.value.some(n => !n.read_at);
+    return allNotifications.value.some((n) => !n.read_at);
 });
 
 // Pagination logic (only for server-side notifications)
 const pageLinks = computed(() => {
     if (!props.notifications.meta.links) return [];
     return props.notifications.meta.links.filter(
-        (_, index) => index !== 0 && index !== props.notifications.meta.links.length - 1,
+        (_, index) =>
+            index !== 0 && index !== props.notifications.meta.links.length - 1,
     );
 });
 
 const showingFrom = computed(() => {
-    if (!props.notifications.meta || serverNotifications.value.length === 0) return 0;
+    if (!props.notifications.meta || serverNotifications.value.length === 0)
+        return 0;
     return props.notifications.meta.from || 0;
 });
 
 const showingTo = computed(() => {
-    if (!props.notifications.meta || serverNotifications.value.length === 0) return 0;
+    if (!props.notifications.meta || serverNotifications.value.length === 0)
+        return 0;
     return props.notifications.meta.to || 0;
 });
 
@@ -148,7 +155,10 @@ const total = computed(() => props.notifications.meta?.total || 0);
 
 // ===== METHODS =====
 function applyFilters() {
-    router.get('/notifications', filters.value, { preserveScroll: true,  preserveState: true });
+    router.get('/notifications', filters.value, {
+        preserveScroll: true,
+        preserveState: true,
+    });
 }
 
 function resetFilters() {
@@ -156,19 +166,63 @@ function resetFilters() {
         status: '',
         type: '',
     };
-    router.get('/notifications', {}, { preserveScroll: true,  preserveState: true });
+    router.get(
+        '/notifications',
+        {},
+        { preserveScroll: true, preserveState: true },
+    );
 }
 
 function goToPage(url: string | null) {
-    if (url) router.visit(url, { preserveScroll: true,  preserveState: true });
+    if (url) router.visit(url, { preserveScroll: true, preserveState: true });
 }
 
 function markAsRead(id: string | number) {
-    router.post(`/notifications/${id}/mark-read`, {}, { preserveScroll: true });
+    // For real-time notifications, just remove them from the list immediately
+    if (id.toString().startsWith('realtime-')) {
+        realTimeNotifications.value = realTimeNotifications.value.filter(
+            (n) => n.id !== id,
+        );
+        return;
+    }
+
+    // For server notifications, update locally immediately and then make the request
+    const notification = serverNotifications.value.find((n) => n.id === id);
+    if (notification && !notification.read_at) {
+        // Update locally first for immediate UI feedback
+        notification.read_at = new Date().toISOString();
+
+        // Then make the Inertia request
+        router.post(
+            `/notifications/${id}/mark-read`,
+            {},
+            {
+                preserveScroll: true,
+                preserveState: true,
+            },
+        );
+    }
 }
 
 function markAllAsRead() {
-    router.post('/notifications/mark-all-read', {}, { preserveScroll: true });
+    // Update all notifications locally immediately
+    realTimeNotifications.value = []; // Clear all real-time notifications
+
+    serverNotifications.value.forEach((notification) => {
+        if (!notification.read_at) {
+            notification.read_at = new Date().toISOString();
+        }
+    });
+
+    // Then make the Inertia request
+    router.post(
+        '/notifications/mark-all-read',
+        {},
+        {
+            preserveScroll: true,
+            preserveState: true,
+        },
+    );
 }
 
 function formatDate(dateString: string) {
@@ -221,10 +275,15 @@ function getTypeVariant(type: string) {
             <!-- Header -->
             <div class="mb-6 flex items-center justify-between">
                 <div>
-                    <h1 class="text-3xl font-bold tracking-tight">Notifications</h1>
+                    <h1 class="text-3xl font-bold tracking-tight">
+                        Notifications
+                    </h1>
                     <p class="mt-1 text-muted-foreground">
                         Manage your notifications and stay updated
-                        <span v-if="realTimeCount > 0" class="ml-2 text-primary font-medium">
+                        <span
+                            v-if="realTimeCount > 0"
+                            class="ml-2 font-medium text-primary"
+                        >
                             ({{ realTimeCount }} new real-time)
                         </span>
                     </p>
@@ -251,7 +310,9 @@ function getTypeVariant(type: string) {
 
             <!-- Filters -->
             <div v-if="showFilters" class="mb-6 rounded-lg border p-4">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div
+                    class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+                >
                     <!-- Status Filter -->
                     <div class="space-y-2">
                         <Label for="status">Status</Label>
@@ -260,7 +321,9 @@ function getTypeVariant(type: string) {
                                 <SelectValue placeholder="All statuses" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem :value="null">All Statuses</SelectItem>
+                                <SelectItem :value="null"
+                                    >All Statuses</SelectItem
+                                >
                                 <SelectItem value="unread">Unread</SelectItem>
                                 <SelectItem value="read">Read</SelectItem>
                             </SelectContent>
@@ -308,40 +371,65 @@ function getTypeVariant(type: string) {
                             <li
                                 v-for="notification in allNotifications"
                                 :key="notification.id"
-                                class="p-4 hover:bg-muted/50 transition-colors"
+                                class="p-4 transition-colors hover:bg-muted/50"
                                 :class="{
                                     'bg-muted/30': !notification.read_at,
-                                    'border-l-4 border-l-primary': notification.id.toString().startsWith('realtime-')
+                                    'border-l-4 border-l-primary':
+                                        notification.id
+                                            .toString()
+                                            .startsWith('realtime-'),
                                 }"
                             >
                                 <div class="flex items-start justify-between">
-                                    <div class="flex items-start gap-3 flex-1">
+                                    <div class="flex flex-1 items-start gap-3">
                                         <div
-                                            class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 mt-1"
+                                            class="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-primary/10"
                                             :class="{
-                                                'bg-green-500/10': notification.id.toString().startsWith('realtime-')
+                                                'bg-green-500/10':
+                                                    notification.id
+                                                        .toString()
+                                                        .startsWith(
+                                                            'realtime-',
+                                                        ),
                                             }"
                                         >
-                                            <Info 
-                                                class="h-4 w-4" 
+                                            <Info
+                                                class="h-4 w-4"
                                                 :class="{
-                                                    'text-primary': !notification.id.toString().startsWith('realtime-'),
-                                                    'text-green-500': notification.id.toString().startsWith('realtime-')
-                                                }" 
+                                                    'text-primary':
+                                                        !notification.id
+                                                            .toString()
+                                                            .startsWith(
+                                                                'realtime-',
+                                                            ),
+                                                    'text-green-500':
+                                                        notification.id
+                                                            .toString()
+                                                            .startsWith(
+                                                                'realtime-',
+                                                            ),
+                                                }"
                                             />
                                         </div>
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex items-center gap-2 mb-1">
+                                        <div class="min-w-0 flex-1">
+                                            <div
+                                                class="mb-1 flex items-center gap-2"
+                                            >
                                                 <p
                                                     class="text-sm font-medium"
                                                     :class="{
-                                                        'text-muted-foreground': notification.read_at,
+                                                        'text-muted-foreground':
+                                                            notification.read_at,
                                                     }"
                                                 >
                                                     {{ notification.message }}
                                                 </p>
                                                 <Badge
-                                                    :variant="getTypeVariant(notification.type)"
+                                                    :variant="
+                                                        getTypeVariant(
+                                                            notification.type,
+                                                        )
+                                                    "
                                                     class="text-xs capitalize"
                                                 >
                                                     {{ notification.type }}
@@ -354,20 +442,34 @@ function getTypeVariant(type: string) {
                                                     New
                                                 </Badge>
                                                 <Badge
-                                                    v-if="notification.id.toString().startsWith('realtime-')"
+                                                    v-if="
+                                                        notification.id
+                                                            .toString()
+                                                            .startsWith(
+                                                                'realtime-',
+                                                            )
+                                                    "
                                                     variant="default"
-                                                    class="text-xs bg-green-500 text-white"
+                                                    class="bg-green-500 text-xs text-white"
                                                 >
                                                     Live
                                                 </Badge>
                                             </div>
-                                            <p class="text-xs text-muted-foreground">
-                                                {{ formatDate(notification.created_at) }}
+                                            <p
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                {{
+                                                    formatDate(
+                                                        notification.created_at,
+                                                    )
+                                                }}
                                             </p>
                                         </div>
                                     </div>
 
-                                    <div class="flex items-center gap-2 ml-4 flex-shrink-0">
+                                    <div
+                                        class="ml-4 flex flex-shrink-0 items-center gap-2"
+                                    >
                                         <Link
                                             v-if="notification.url"
                                             :href="notification.url"
@@ -376,7 +478,7 @@ function getTypeVariant(type: string) {
                                             View
                                         </Link>
                                         <Button
-                                            v-if="!notification.read_at && !notification.id.toString().startsWith('realtime-')"
+                                            v-if="!notification.read_at"
                                             @click="markAsRead(notification.id)"
                                             variant="ghost"
                                             size="sm"
@@ -398,9 +500,14 @@ function getTypeVariant(type: string) {
                             v-if="allNotifications.length === 0"
                             class="py-8 text-center text-muted-foreground"
                         >
-                            <Bell class="h-12 w-12 mx-auto mb-3 opacity-50" />
-                            <p class="text-lg font-medium">No notifications found</p>
-                            <p class="text-sm">We'll notify you when something important happens.</p>
+                            <Bell class="mx-auto mb-3 h-12 w-12 opacity-50" />
+                            <p class="text-lg font-medium">
+                                No notifications found
+                            </p>
+                            <p class="text-sm">
+                                We'll notify you when something important
+                                happens.
+                            </p>
                         </div>
                     </div>
 
@@ -413,7 +520,9 @@ function getTypeVariant(type: string) {
                             <!-- Info -->
                             <div class="text-sm text-muted-foreground">
                                 Showing
-                                <span class="font-medium">{{ showingFrom }}</span>
+                                <span class="font-medium">{{
+                                    showingFrom
+                                }}</span>
                                 to
                                 <span class="font-medium">{{ showingTo }}</span>
                                 of
@@ -422,12 +531,21 @@ function getTypeVariant(type: string) {
                             </div>
 
                             <!-- Pagination Controls -->
-                            <nav class="flex items-center overflow-hidden rounded-md border">
+                            <nav
+                                class="flex items-center overflow-hidden rounded-md border"
+                            >
                                 <!-- Prev -->
                                 <button
                                     class="px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-                                    :disabled="!props.notifications.meta.links[0]?.url"
-                                    @click="goToPage(props.notifications.meta.links[0]?.url)"
+                                    :disabled="
+                                        !props.notifications.meta.links[0]?.url
+                                    "
+                                    @click="
+                                        goToPage(
+                                            props.notifications.meta.links[0]
+                                                ?.url,
+                                        )
+                                    "
                                 >
                                     <ChevronLeft class="h-4 w-4" />
                                 </button>
@@ -450,8 +568,20 @@ function getTypeVariant(type: string) {
                                 <!-- Next -->
                                 <button
                                     class="border-l px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-                                    :disabled="!props.notifications.meta.links[props.notifications.meta.links.length - 1]?.url"
-                                    @click="goToPage(props.notifications.meta.links[props.notifications.meta.links.length - 1]?.url)"
+                                    :disabled="
+                                        !props.notifications.meta.links[
+                                            props.notifications.meta.links
+                                                .length - 1
+                                        ]?.url
+                                    "
+                                    @click="
+                                        goToPage(
+                                            props.notifications.meta.links[
+                                                props.notifications.meta.links
+                                                    .length - 1
+                                            ]?.url,
+                                        )
+                                    "
                                 >
                                     <ChevronRight class="h-4 w-4" />
                                 </button>
@@ -461,7 +591,10 @@ function getTypeVariant(type: string) {
                             v-else
                             class="text-center text-sm text-muted-foreground"
                         >
-                            {{ total }} notification{{ total !== 1 ? 's' : '' }} total
+                            {{ total }} notification{{
+                                total !== 1 ? 's' : ''
+                            }}
+                            total
                         </div>
                     </div>
                 </CardContent>

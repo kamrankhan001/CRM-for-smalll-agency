@@ -20,7 +20,7 @@ class CreateTaskAction
 
         if ($task->assigned_to && $task->assigned_to != $currentUser->id) {
             $assignedUser = User::find($task->assigned_to);
-            $assignedUser->notify(new TaskAssignedNotification($task));
+            $assignedUser->notify(new TaskAssignedNotification($task, $currentUser));
         }
     }
 }

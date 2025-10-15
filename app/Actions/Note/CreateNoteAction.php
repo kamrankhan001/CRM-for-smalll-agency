@@ -23,7 +23,7 @@ class CreateNoteAction
             // Send notification to ALL users in the system
             $allUsers = User::all();
             foreach ($allUsers as $user) {
-                $user->notify(new NoteAddedNotification($note));
+                $user->notify(new NoteAddedNotification($note, $currentUser));
             }
         });
     }

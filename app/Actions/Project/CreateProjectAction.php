@@ -24,7 +24,7 @@ class CreateProjectAction
                     if ($memberId != $currentUser->id) {
                         $member = User::find($memberId);
                         if ($member && $member->role !== 'admin') {
-                            $member->notify(new ProjectAssignedNotification($project));
+                            $member->notify(new ProjectAssignedNotification($project, $currentUser));
                         }
                     }
                 }

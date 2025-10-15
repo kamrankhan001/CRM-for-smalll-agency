@@ -2,12 +2,13 @@
 
 namespace App\Notifications;
 
+use App\Models\Client;
+use App\Models\Lead;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use App\Models\Client;
-use App\Models\Lead;
 
 class LeadConvertedNotification extends Notification implements ShouldQueue
 {
@@ -16,10 +17,11 @@ class LeadConvertedNotification extends Notification implements ShouldQueue
     /**
      * Create a new notification instance.
      */
-    public function __construct(public Lead $lead, public Client $client)
-    {
-        //
-    }
+    public function __construct(
+        public Lead $lead,
+        public Client $client,
+        public User $convertedBy
+    ) {}
 
     /**
      * Get the notification's delivery channels.
@@ -38,8 +40,17 @@ class LeadConvertedNotification extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject('Lead Converted to Client')
-            ->line("Lead '{$this->lead->name}' has been successfully converted to a client '{$this->client->name}'.")
+            ->line("Lead '{$this->lead->name}' has been successfully converted to a client '{$this->client->name}' by {$this->convertedBy->name}.")
             ->action('View Client', url("/clients/{$this->client->id}"));
+    }
+
+    /**
+     * Determine which users should receive the notification.
+     */
+    public function shouldSend(object $notifiable): bool
+    {
+        // Don't send notification to the user who performed the conversion
+        return $notifiable->id !== $this->convertedBy->id;
     }
 
     /**

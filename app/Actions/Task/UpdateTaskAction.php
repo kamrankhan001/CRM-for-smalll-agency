@@ -22,7 +22,7 @@ class UpdateTaskAction
 
         if ($newAssignedTo && $newAssignedTo != $oldAssignedTo && $newAssignedTo != $currentUser->id) {
             $assignedUser = User::find($newAssignedTo);
-            $assignedUser->notify(new TaskAssignedNotification($task));
+            $assignedUser->notify(new TaskAssignedNotification($task, $currentUser));
         }
     }
 }

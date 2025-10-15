@@ -8,7 +8,6 @@ use App\Actions\Note\UpdateNoteAction;
 use App\Http\Requests\Note\CreateNoteRequest;
 use App\Http\Requests\Note\UpdateNoteRequest;
 use App\Models\Note;
-use App\Models\User;
 use App\Services\Note\NoteQueryService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
