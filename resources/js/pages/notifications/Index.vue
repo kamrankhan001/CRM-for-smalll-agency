@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Link, Head, router } from '@inertiajs/vue3';
+import { Link, Head, router, usePage } from '@inertiajs/vue3';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Bell, CheckCircle, Info, ChevronLeft, ChevronRight, Filter, X } from 'lucide-vue-next';
 import { ref, computed } from 'vue';
+import { toast } from 'vue-sonner'
+import { useEchoNotification } from '@laravel/echo-vue'
 
+// ===== INTERFACES =====
 interface Notification {
     id: string | number;
     message: string;
@@ -46,7 +49,18 @@ interface Props {
     filters: Record<string, any>;
 }
 
-const props = defineProps<Props>();
+interface LeadAssignedNotification {
+    message: string;
+    type: string;
+    url?: string;
+    lead_id: string | number;
+    time?: string;
+}
+
+// ===== PROPS & REACTIVE STATE =====
+const props = defineProps<Props>()
+const page = usePage()
+const userId = page.props.auth?.user?.id
 
 const showFilters = ref(false);
 const filters = ref({
@@ -54,6 +68,85 @@ const filters = ref({
     type: props.filters.type || '',
 });
 
+// Create separate arrays for server-side and real-time notifications
+const serverNotifications = ref<Notification[]>([...props.notifications.data]);
+const realTimeNotifications = ref<Notification[]>([]);
+
+// ===== ECHO NOTIFICATION LISTENER =====
+useEchoNotification<LeadAssignedNotification>(
+    `lead-assigned.${userId}`,
+    (e: LeadAssignedNotification) => {
+        console.log('🔔 LeadAssigned received:', e)
+
+        // Create new real-time notification
+        const newNotification: Notification = {
+            id: `realtime-${Date.now()}`, // prefix to distinguish from server IDs
+            message: e.message ?? 'New lead assigned.',
+            type: e.type ?? 'lead_assigned',
+            url: e.url ?? `/leads/${e.lead_id}`,
+            read_at: null,
+            created_at: new Date().toISOString(), // Shows as "Just now"
+        };
+
+        // Add to real-time notifications (limit to last 50)
+        realTimeNotifications.value.unshift(newNotification);
+        if (realTimeNotifications.value.length > 50) {
+            realTimeNotifications.value = realTimeNotifications.value.slice(0, 50);
+        }
+
+        // Show toast notification
+        toast.success(e.message ?? 'You have a new lead!', {
+            description: e.time ? `Assigned at ${e.time}` : undefined,
+            action: {
+                label: 'View Lead',
+                onClick: () => window.location.href = e.url ?? `/leads/${e.lead_id}`,
+            },
+        });
+    },
+    'App.Notifications.LeadAssignedNotification'
+);
+
+// ===== COMPUTED PROPERTIES =====
+
+// Combine server-side and real-time notifications for display
+const allNotifications = computed(() => {
+    return [...realTimeNotifications.value, ...serverNotifications.value];
+});
+
+// Real-time notifications count (for display)
+const realTimeCount = computed(() => realTimeNotifications.value.length);
+
+// Check if any filter is active
+const hasActiveFilters = computed(() => {
+    return filters.value.status || filters.value.type;
+});
+
+// Check if any notification is unread (for mark all as read button)
+const hasUnreadNotifications = computed(() => {
+    return allNotifications.value.some(n => !n.read_at);
+});
+
+// Pagination logic (only for server-side notifications)
+const pageLinks = computed(() => {
+    if (!props.notifications.meta.links) return [];
+    return props.notifications.meta.links.filter(
+        (_, index) => index !== 0 && index !== props.notifications.meta.links.length - 1,
+    );
+});
+
+const showingFrom = computed(() => {
+    if (!props.notifications.meta || serverNotifications.value.length === 0) return 0;
+    return props.notifications.meta.from || 0;
+});
+
+const showingTo = computed(() => {
+    if (!props.notifications.meta || serverNotifications.value.length === 0) return 0;
+    return props.notifications.meta.to || 0;
+});
+
+const total = computed(() => props.notifications.meta?.total || 0);
+
+// ===== METHODS =====
 function applyFilters() {
     router.get('/notifications', filters.value, { preserveScroll: true,  preserveState: true });
 }
@@ -78,13 +171,7 @@ function markAllAsRead() {
     router.post('/notifications/mark-all-read', {}, { preserveScroll: true });
 }
 
-// Check if any filter is active
-const hasActiveFilters = computed(() => {
-    return filters.value.status || filters.value.type;
-});
-
-// Format date to relative time
-const formatDate = (dateString: string) => {
+function formatDate(dateString: string) {
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = now.getTime() - date.getTime();
@@ -109,10 +196,9 @@ const formatDate = (dateString: string) => {
             day: 'numeric',
         });
     }
-};
+}
 
-// Get type badge variant
-const getTypeVariant = (type: string) => {
+function getTypeVariant(type: string) {
     switch (type.toLowerCase()) {
         case 'success':
             return 'default';
@@ -125,27 +211,7 @@ const getTypeVariant = (type: string) => {
         default:
             return 'outline';
     }
-};
-
-// Pagination logic
-const pageLinks = computed(() => {
-    if (!props.notifications.meta.links) return [];
-    return props.notifications.meta.links.filter(
-        (_, index) => index !== 0 && index !== props.notifications.meta.links.length - 1,
-    );
-});
-
-const showingFrom = computed(() => {
-    if (!props.notifications.meta || props.notifications.data.length === 0) return 0;
-    return props.notifications.meta.from || 0;
-});
-
-const showingTo = computed(() => {
-    if (!props.notifications.meta || props.notifications.data.length === 0) return 0;
-    return props.notifications.meta.to || 0;
-});
-
-const total = computed(() => props.notifications.meta?.total || 0);
+}
 </script>
 
 <template>
@@ -158,6 +224,9 @@ const total = computed(() => props.notifications.meta?.total || 0);
                     <h1 class="text-3xl font-bold tracking-tight">Notifications</h1>
                     <p class="mt-1 text-muted-foreground">
                         Manage your notifications and stay updated
+                        <span v-if="realTimeCount > 0" class="ml-2 text-primary font-medium">
+                            ({{ realTimeCount }} new real-time)
+                        </span>
                     </p>
                 </div>
                 <div class="flex items-center gap-3">
@@ -172,7 +241,7 @@ const total = computed(() => props.notifications.meta?.total || 0);
                     <Button
                         @click="markAllAsRead"
                         class="flex items-center gap-2"
-                        :disabled="!notifications.data.some(n => !n.read_at)"
+                        :disabled="!hasUnreadNotifications"
                     >
                         <CheckCircle class="h-4 w-4" />
                         Mark All as Read
@@ -237,19 +306,29 @@ const total = computed(() => props.notifications.meta?.total || 0);
                     <div class="overflow-x-auto">
                         <ul class="divide-y divide-border">
                             <li
-                                v-for="notification in notifications.data"
+                                v-for="notification in allNotifications"
                                 :key="notification.id"
                                 class="p-4 hover:bg-muted/50 transition-colors"
                                 :class="{
                                     'bg-muted/30': !notification.read_at,
+                                    'border-l-4 border-l-primary': notification.id.toString().startsWith('realtime-')
                                 }"
                             >
                                 <div class="flex items-start justify-between">
                                     <div class="flex items-start gap-3 flex-1">
                                         <div
                                             class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 mt-1"
+                                            :class="{
+                                                'bg-green-500/10': notification.id.toString().startsWith('realtime-')
+                                            }"
                                         >
-                                            <Info class="h-4 w-4 text-primary" />
+                                            <Info 
+                                                class="h-4 w-4" 
+                                                :class="{
+                                                    'text-primary': !notification.id.toString().startsWith('realtime-'),
+                                                    'text-green-500': notification.id.toString().startsWith('realtime-')
+                                                }" 
+                                            />
                                         </div>
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center gap-2 mb-1">
@@ -274,6 +353,13 @@ const total = computed(() => props.notifications.meta?.total || 0);
                                                 >
                                                     New
                                                 </Badge>
+                                                <Badge
+                                                    v-if="notification.id.toString().startsWith('realtime-')"
+                                                    variant="default"
+                                                    class="text-xs bg-green-500 text-white"
+                                                >
+                                                    Live
+                                                </Badge>
                                             </div>
                                             <p class="text-xs text-muted-foreground">
                                                 {{ formatDate(notification.created_at) }}
@@ -290,7 +376,7 @@ const total = computed(() => props.notifications.meta?.total || 0);
                                             View
                                         </Link>
                                         <Button
-                                            v-if="!notification.read_at"
+                                            v-if="!notification.read_at && !notification.id.toString().startsWith('realtime-')"
                                             @click="markAsRead(notification.id)"
                                             variant="ghost"
                                             size="sm"
@@ -309,7 +395,7 @@ const total = computed(() => props.notifications.meta?.total || 0);
 
                         <!-- Empty State -->
                         <div
-                            v-if="notifications.data.length === 0"
+                            v-if="allNotifications.length === 0"
                             class="py-8 text-center text-muted-foreground"
                         >
                             <Bell class="h-12 w-12 mx-auto mb-3 opacity-50" />
@@ -321,7 +407,7 @@ const total = computed(() => props.notifications.meta?.total || 0);
                     <!-- Pagination Footer -->
                     <div class="border-t bg-muted/30 px-6 py-4">
                         <div
-                            v-if="notifications.meta?.last_page > 1"
+                            v-if="props.notifications.meta?.last_page > 1"
                             class="flex flex-col items-center justify-between gap-4 sm:flex-row"
                         >
                             <!-- Info -->
@@ -340,8 +426,8 @@ const total = computed(() => props.notifications.meta?.total || 0);
                                 <!-- Prev -->
                                 <button
                                     class="px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-                                    :disabled="!notifications.meta.links[0]?.url"
-                                    @click="goToPage(notifications.meta.links[0]?.url)"
+                                    :disabled="!props.notifications.meta.links[0]?.url"
+                                    @click="goToPage(props.notifications.meta.links[0]?.url)"
                                 >
                                     <ChevronLeft class="h-4 w-4" />
                                 </button>
@@ -364,8 +450,8 @@ const total = computed(() => props.notifications.meta?.total || 0);
                                 <!-- Next -->
                                 <button
                                     class="border-l px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-                                    :disabled="!notifications.meta.links[notifications.meta.links.length - 1]?.url"
-                                    @click="goToPage(notifications.meta.links[notifications.meta.links.length - 1]?.url)"
+                                    :disabled="!props.notifications.meta.links[props.notifications.meta.links.length - 1]?.url"
+                                    @click="goToPage(props.notifications.meta.links[props.notifications.meta.links.length - 1]?.url)"
                                 >
                                     <ChevronRight class="h-4 w-4" />
                                 </button>

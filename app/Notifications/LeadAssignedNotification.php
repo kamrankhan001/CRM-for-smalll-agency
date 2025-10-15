@@ -2,14 +2,16 @@
 
 namespace App\Notifications;
 
+use App\Models\Lead;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Notification;
-use App\Models\Lead;
 
-
-class LeadAssignedNotification extends Notification implements ShouldQueue
+class LeadAssignedNotification extends Notification implements ShouldQueue, ShouldBroadcast
 {
     use Queueable;
 
@@ -28,7 +30,7 @@ class LeadAssignedNotification extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-         return ['database', 'mail'];
+        return ['database', 'mail', 'broadcast'];
     }
 
     /**
@@ -38,7 +40,7 @@ class LeadAssignedNotification extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject('New Lead Assigned')
-            ->greeting('Hello ' . $notifiable->name . ',')
+            ->greeting('Hello '.$notifiable->name.',')
             ->line("You have been assigned a new lead: {$this->lead->name}.")
             ->action('View Lead', url("/leads/{$this->lead->id}"))
             ->line('Please follow up as soon as possible.');
@@ -52,6 +54,30 @@ class LeadAssignedNotification extends Notification implements ShouldQueue
             'lead_id' => $this->lead->id,
             'url' => "/leads/{$this->lead->id}",
         ];
+    }
+
+    /**
+     * Broadcast payload for real-time notifications.
+     */
+    public function toBroadcast(object $notifiable)
+    {
+        return new BroadcastMessage([
+            'type' => 'lead_assigned',
+            'message' => "New lead '{$this->lead->name}' has been assigned to you.",
+            'lead_id' => $this->lead->id,
+            'url' => "/leads/{$this->lead->id}",
+            'assigned_by' => auth()->user()?->name ?? 'System',
+            'time' => now()->toDateTimeString(),
+        ]);
+    }
+
+    /**
+     * Define which channel this notification broadcasts on.
+     */
+    public function broadcastOn(): array
+    {
+        // Private channel specific to the assigned user
+        return [new PrivateChannel('lead-assigned.' . $this->lead->assigned_to)];
     }
 
     /**
