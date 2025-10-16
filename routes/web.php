@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LeadController;
+use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\NoteController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProjectController;
@@ -31,6 +32,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/leads/{lead}/convert', [LeadController::class, 'convert'])
         ->name('leads.convert');
     Route::get('/leads/export/download', [LeadController::class, 'downloadExport'])->name('leads.downloadExport');
+
+    Route::resource('appointments', AppointmentController::class);
+
+    // Optional: dedicated cancel route
+    Route::patch('/appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])
+        ->name('appointments.cancel');
 
     Route::resource('clients', ClientController::class);
 

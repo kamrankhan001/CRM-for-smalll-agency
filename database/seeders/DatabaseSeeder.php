@@ -12,6 +12,7 @@ use App\Models\project;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Invoice;
+use App\Models\Appointment;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -54,6 +55,8 @@ class DatabaseSeeder extends Seeder
         Invoice::factory()->count(30)->create();
 
         Document::factory()->count(10)->create();
+
+        Appointment::factory(40)->create();
 
 
     }

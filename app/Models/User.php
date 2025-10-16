@@ -87,4 +87,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(Document::class, 'uploaded_by');
     }
+
+    public function createdAppointments()
+    {
+        return $this->hasMany(Appointment::class, 'created_by');
+    }
+
+    public function attendingAppointments()
+    {
+        return $this->belongsToMany(Appointment::class, 'appointment_user')->withTimestamps();
+    }
 }

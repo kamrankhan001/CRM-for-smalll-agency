@@ -26,6 +26,7 @@ import {
     Target,
     UserCheck,
     FileSearch,
+    CalendarClock,
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
@@ -42,12 +43,17 @@ const mainNavItems: NavItem[] = [
     {
         title: 'Leads',
         href: '/leads',
-        icon: Target, // Better for "target" leads
+        icon: Target,
+    },
+    {
+        title: 'Appointments',
+        href: '/appointments',
+        icon: CalendarClock,
     },
     {
         title: 'Clients',
         href: '/clients',
-        icon: UserCheck, // Represents verified/active clients
+        icon: UserCheck,
     },
     {
         title: 'Projects',
@@ -67,7 +73,7 @@ const mainNavItems: NavItem[] = [
     {
         title: 'Documents',
         href: '/documents',
-        icon: FileSearch, // More specific than generic FileText
+        icon: FileSearch,
     },
     {
         title: 'Activities',
@@ -81,7 +87,7 @@ if (['admin', 'manager'].includes(user?.role)) {
     mainNavItems.push({
         title: 'Invoices',
         href: '/invoices',
-        icon: DollarSign, // Much better for invoices than FileText
+        icon: DollarSign,
     });
 }
 

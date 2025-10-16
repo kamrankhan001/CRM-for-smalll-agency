@@ -53,4 +53,9 @@ class Lead extends Model
     {
         return $this->morphMany(Activity::class, 'subject')->latest();
     }
+
+    public function appointments()
+    {
+        return $this->morphMany(Appointment::class, 'appointable');
+    }
 }
