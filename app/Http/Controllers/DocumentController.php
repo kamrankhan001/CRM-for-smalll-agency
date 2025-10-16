@@ -157,11 +157,11 @@ class DocumentController extends Controller
     public function download(Document $document): StreamedResponse
     {
         $this->authorize('view', $document);
-
+        
         if (!Storage::disk('public')->exists($document->file_path)) {
             abort(404, 'File not found');
         }
-
+        
         return Storage::disk('public')->download(
             $document->file_path,
             $document->title . '.' . pathinfo($document->file_path, PATHINFO_EXTENSION)

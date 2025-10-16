@@ -112,8 +112,6 @@ const props = defineProps<{
     };
 }>();
 
-console.log(props.tasks);
-
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Tasks', href: '#' }];
 
 const showFilters = ref(false);

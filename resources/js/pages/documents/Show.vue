@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     Activity,
     AlertCircle,
@@ -30,7 +30,7 @@ import {
     Trash2,
     User,
 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 interface User {
     id: number;
@@ -73,6 +73,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const page = usePage();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Documents', href: index.url() },
@@ -80,6 +81,35 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const showDeleteDialog = ref(false);
+
+// Permissions computed properties
+const canDownload = computed(() => {
+    const user = page.props.auth?.user;
+    if (!user) return false;
+    
+    // Admin and manager can always download
+    if (['admin', 'manager'].includes(user.role)) {
+        return true;
+    }
+    
+    // Member can download only if they uploaded it
+    return props.document.uploaded_by === user.id;
+});
+
+const canEdit = computed(() => {
+    const user = page.props.auth?.user;
+    if (!user) return false;
+    
+    if (user.role === 'admin') return true;
+    return props.document.uploaded_by === user.id;
+});
+
+const canDelete = computed(() => {
+    const user = page.props.auth?.user;
+    if (!user) return false;
+    
+    return user.role === 'admin' || props.document.uploaded_by === user.id;
+});
 
 function getTypeColor(type: string) {
     const colors = {
@@ -133,7 +163,8 @@ function getDocumentableRoute(documentable: Documentable | null) {
 }
 
 function downloadDocument() {
-    window.open(props.document.file_url, '_blank');
+  const url = `/documents/${props.document.id}/download`;
+  window.location.href = url;
 }
 
 function confirmDelete() {
@@ -206,7 +237,7 @@ function cancelDelete() {
                         class="flex w-full items-center justify-end gap-2 lg:w-auto lg:justify-normal lg:gap-3"
                     >
                         <!-- Download Button -->
-                        <TooltipProvider>
+                        <TooltipProvider  v-if="canDownload">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Button
@@ -228,7 +259,7 @@ function cancelDelete() {
                         </TooltipProvider>
 
                         <!-- Edit Button -->
-                        <TooltipProvider>
+                        <TooltipProvider v-if="canEdit">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Link :href="edit.url(props.document.id)">
@@ -251,7 +282,7 @@ function cancelDelete() {
                         </TooltipProvider>
 
                         <!-- Delete Button -->
-                        <TooltipProvider>
+                        <TooltipProvider v-if="canDelete">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Button

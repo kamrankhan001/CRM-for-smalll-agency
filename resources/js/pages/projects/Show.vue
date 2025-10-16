@@ -148,8 +148,9 @@ const canEditProject = computed(() => {
     const project = props.project;
     
     return user.role === 'admin' || 
-           project.created_by === user.id || 
-           (user.role === 'manager' && project.members.some(member => member.id === user.id));
+            project.created_by === user.id || 
+           (user.role === 'manager' && project.members.some(member => member.id === user.id)) ||
+           (user.role === 'member' && project.members.some(member => member.id === user.id));
 });
 
 // Permission check for delete
@@ -159,6 +160,8 @@ const canDeleteProject = computed(() => {
     
     return user.role === 'admin' || project.created_by === user.id;
 });
+
+const canProjectAndInvoice = computed(() => props.auth.user.role !== 'member');
 
 // FIXED: Use computed for totalInvoiceAmount with proper reduce implementation
 const totalInvoiceAmount = computed(() => {
@@ -350,7 +353,7 @@ function cancelDelete() {
                         </TooltipProvider>
 
                         <!-- Add Invoice Button -->
-                        <TooltipProvider>
+                        <TooltipProvider v-if="canProjectAndInvoice">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Link

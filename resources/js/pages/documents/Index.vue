@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     ChevronLeft,
     ChevronRight,
@@ -108,6 +108,8 @@ const props = defineProps<{
     };
 }>();
 
+const page = usePage()
+
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Documents', href: '#' }];
 
 const showFilters = ref(false);
@@ -115,11 +117,33 @@ const showDeleteDialog = ref(false);
 const documentToDelete = ref<number | null>(null);
 
 // Permissions
-const canDelete = computed(() => props.auth.user.role === 'admin');
+const canDeleteDocument = (document: Document) => {
+    const user = page.props.auth?.user;
+    if (!user) return false;
+    return user.role === 'admin' || document.uploaded_by === user.id;
+};
 
 const canEditDocument = (document: Document) => {
-    const user = props.auth.user;
+    const user = page.props.auth?.user;
+    if (!user) return false;
+    
     if (user.role === 'admin') return true;
+    return document.uploaded_by === user.id;
+};
+
+const canViewDocument = (document: Document) => {
+    const user = page.props.auth?.user;
+    if (!user) return false;
+    
+    // Admin and manager can always view
+    if (['admin', 'manager'].includes(user.role)) {
+        return true;
+    }
+
+    console.log('view baby', document.uploaded_by === user.id)
+    console.log('view baby', document.uploaded_by, user.id)
+    
+    // Member can view only if they uploaded it
     return document.uploaded_by === user.id;
 };
 
@@ -450,8 +474,8 @@ const total = computed(() => props.documents.meta.total || 0);
                             <TableCell>
                                 <ActionButtons
                                     :show-edit="canEditDocument(document)"
-                                    :show-view="true"
-                                    :show-delete="canDelete"
+                                    :show-view="canViewDocument(document)"
+                                    :show-delete="canDeleteDocument(document)"
                                     :on-edit="() => goToEdit(document.id)"
                                     :on-view="() => goToView(document.id)"
                                     :on-delete="

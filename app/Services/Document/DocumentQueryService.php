@@ -52,6 +52,7 @@ class DocumentQueryService
                 'name' => $doc->documentable->name,
                 'type' => class_basename($doc->documentable_type),
             ] : null,
+            'uploaded_by' => $doc->uploaded_by,
             'created_at' => $doc->created_at->toDateString(),
         ]);
 

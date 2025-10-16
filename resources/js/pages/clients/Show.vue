@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     Activity,
     ArrowLeft,
@@ -42,7 +42,7 @@ import {
     Trash2,
     User,
 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 interface User {
     id: number;
@@ -117,12 +117,26 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const page = usePage()
+
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clients', href: index.url() },
     { title: props.client.name, href: '#' },
 ];
 
 const showDeleteDialog = ref(false);
+
+const canDelete = computed(() => page.props.auth.user.role === 'admin');
+
+const canProjectAndInvoice = computed(() => page.props.auth.user.role !== 'member');
+
+const canEdit = (client: Client) => {
+    const user = page.props.auth.user;
+    if (user.role === 'admin') return true;
+    if (user.role === 'manager') return true;
+    // Members can only edit their own or assigned clients
+    return client.created_by === user.id || client.assigned_to === user.id;
+};
 
 function getStatusColor(status: string) {
     const colors = {
@@ -235,7 +249,7 @@ function getDaysRemaining(dueDate: string) {
                         class="flex w-full items-center justify-end gap-2 lg:w-auto lg:justify-normal lg:gap-3"
                     >
                         <!-- Add Project Button -->
-                        <TooltipProvider>
+                        <TooltipProvider v-if="canProjectAndInvoice">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Link
@@ -263,7 +277,7 @@ function getDaysRemaining(dueDate: string) {
                         </TooltipProvider>
 
                         <!-- Add Invoice Button -->
-                        <TooltipProvider>
+                        <TooltipProvider v-if="canProjectAndInvoice">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Link
@@ -291,7 +305,7 @@ function getDaysRemaining(dueDate: string) {
                         </TooltipProvider>
 
                         <!-- Edit Button -->
-                        <TooltipProvider>
+                        <TooltipProvider v-if="canEdit(props.client)">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Link :href="edit.url(props.client.id)">
@@ -314,7 +328,7 @@ function getDaysRemaining(dueDate: string) {
                         </TooltipProvider>
 
                         <!-- Delete Button -->
-                        <TooltipProvider>
+                        <TooltipProvider v-if="canDelete">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Button

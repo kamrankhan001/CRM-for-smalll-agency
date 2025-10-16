@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     Activity,
     AlertCircle,
@@ -32,7 +32,7 @@ import {
     Trash2,
     User,
 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 interface User {
     id: number;
@@ -86,6 +86,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const page = usePage()
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tasks', href: index.url() },
@@ -94,6 +95,19 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const showDeleteDialog = ref(false);
 const showCompleteDialog = ref(false);
+
+const canDelete = computed(() => page.props.auth.user.role === 'admin');
+
+const canEdit = (task: Task) => {
+    const user = page.props.auth.user;
+    if (user.role === 'admin') return true;
+    if (user.role === 'manager') {
+        // Managers can only edit their own or assigned tasks
+        return task.created_by === user.id || task.assigned_to === user.id;
+    }
+    // Members can only edit their own or assigned tasks
+    return task.created_by === user.id || task.assigned_to === user.id;
+};
 
 function getStatusColor(status: string) {
     const colors = {
@@ -261,7 +275,7 @@ function cancelDelete() {
                         </TooltipProvider>
 
                         <!-- Edit Button -->
-                        <TooltipProvider>
+                        <TooltipProvider v-if="canEdit(props.task)">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Link :href="edit.url(props.task.id)">
@@ -284,7 +298,7 @@ function cancelDelete() {
                         </TooltipProvider>
 
                         <!-- Delete Button -->
-                        <TooltipProvider>
+                        <TooltipProvider v-if="canDelete">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Button

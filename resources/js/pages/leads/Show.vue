@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     Activity,
     ArrowLeft,
@@ -33,7 +33,7 @@ import {
     Trash2,
     User,
 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 interface User {
     id: number;
@@ -80,6 +80,7 @@ interface Lead {
     creator?: User | null;
     created_at: string;
     updated_at: string;
+    created_by: number;
     notes: Note[];
     activities: Activity[];
     tasks: Task[];
@@ -95,6 +96,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const page = usePage();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Leads', href: index.url() },
@@ -106,6 +108,15 @@ const showConvertDialog = ref(false);
 
 // Check if lead is converted based on status
 const isConverted = ref(props.lead.status === 'qualified');
+
+const canDelete = computed(() => page.props.auth.user.role === 'admin');
+
+const canEdit = (lead: Lead) => {
+    const user = page.props.auth.user;
+    if (user.role === 'admin') return true;
+    if (user.role === 'manager') return true;
+    return lead.created_by === user.id || lead.assigned_to === user.id;
+};
 
 function getStatusColor(status: string) {
     const colors = {
@@ -254,7 +265,7 @@ function cancelConvert() {
                         </TooltipProvider>
 
                         <!-- Edit Button -->
-                        <TooltipProvider>
+                        <TooltipProvider v-if="canEdit(props.lead)">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Link :href="edit.url(props.lead.id)">
@@ -277,7 +288,7 @@ function cancelConvert() {
                         </TooltipProvider>
 
                         <!-- Delete Button -->
-                        <TooltipProvider>
+                        <TooltipProvider v-if="canDelete">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Button
