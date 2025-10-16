@@ -11,6 +11,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useNotifications } from '@/composables/useNotifications';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { notificationService } from '@/services/notificationService';
 import type { AppNotification } from '@/types/notifications';
@@ -25,11 +26,11 @@ import {
     Info,
     X,
 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 // ===== INTERFACES =====
 interface Notification {
-    id: string | number;
+    id: string;
     message: string;
     type: string;
     url?: string;
@@ -62,6 +63,7 @@ interface Props {
 const props = defineProps<Props>();
 const page = usePage();
 const userId = page.props.auth?.user?.id;
+const notificationStore = useNotifications();
 
 const showFilters = ref(false);
 const filters = ref({
@@ -71,9 +73,18 @@ const filters = ref({
 
 // Create separate arrays for server-side and real-time notifications
 const serverNotifications = ref<Notification[]>([...props.notifications.data]);
-const realTimeNotifications = ref<Notification[]>([]);
 
-// Listener for user-specific notifications (private channel)
+// Use the store's reactive properties directly
+const realTimeNotifications = computed(
+    () => notificationStore.realTimeNotifications.value,
+);
+
+onMounted(() => {
+    const initialCount = page.props.unreadNotificationsCount || 0;
+    notificationStore.setInitialServerCount(initialCount);
+});
+
+// Echo listeners for real-time notifications on this page
 useEchoNotification<AppNotification>(
     notificationService.getChannel(userId),
     (notification: AppNotification) => {
@@ -81,7 +92,6 @@ useEchoNotification<AppNotification>(
     },
 );
 
-// Listener for global notifications (public channel - for note_added)
 useEchoNotification<AppNotification>(
     'notifications.global',
     (notification: AppNotification) => {
@@ -90,7 +100,6 @@ useEchoNotification<AppNotification>(
     'App.Notifications.NoteAddedNotification',
 );
 
-// Centralized real-time notification handler
 function handleRealTimeNotification(notification: AppNotification) {
     // Create new real-time notification
     const newNotification: Notification = {
@@ -102,14 +111,8 @@ function handleRealTimeNotification(notification: AppNotification) {
         created_at: new Date().toISOString(),
     };
 
-    // Add to real-time notifications
-    realTimeNotifications.value.unshift(newNotification);
-    if (realTimeNotifications.value.length > 50) {
-        realTimeNotifications.value = realTimeNotifications.value.slice(0, 50);
-    }
-
-    // Show toast via centralized handler
-    notificationService.handleNotification(notification);
+    // Use store method to add notification
+    notificationStore.addRealTimeNotification(newNotification);
 }
 
 // Combine server-side and real-time notifications for display
@@ -129,6 +132,61 @@ const hasActiveFilters = computed(() => {
 const hasUnreadNotifications = computed(() => {
     return allNotifications.value.some((n) => !n.read_at);
 });
+
+function markAsRead(id: string | number) {
+    if (id.toString().startsWith('realtime-')) {
+        // Use the store's method to mark real-time notification as read
+        notificationStore.markRealTimeAsRead(id.toString());
+    } else {
+        // Server notification logic
+        const notification = serverNotifications.value.find((n) => n.id === id);
+        if (notification && !notification.read_at) {
+            notification.read_at = new Date().toISOString();
+
+            // Update server count properly
+            const currentCount = notificationStore.serverUnreadCount.value;
+            const newCount = Math.max(0, currentCount - 1);
+            notificationStore.setServerCount(newCount);
+
+            router.post(
+                `/notifications/${id}/mark-read`,
+                {},
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                },
+            );
+        }
+    }
+}
+
+function markAllAsRead() {
+    // Clear all real-time notifications from store
+    notificationStore.realTimeNotifications.value = [];
+
+    // Mark all server notifications as read
+    let unreadCount = 0;
+    serverNotifications.value.forEach((notification) => {
+        if (!notification.read_at) {
+            notification.read_at = new Date().toISOString();
+            unreadCount++;
+        }
+    });
+
+    // Calculate the new server count properly
+    const currentCount = notificationStore.serverUnreadCount.value;
+    const newCount = Math.max(0, currentCount - unreadCount);
+    notificationStore.setServerCount(newCount);
+
+    router.post(
+        '/notifications/mark-all-read',
+        {},
+        {
+            preserveScroll: true,
+            preserveState: true,
+        },
+    );
+}
 
 // Pagination logic (only for server-side notifications)
 const pageLinks = computed(() => {
@@ -175,54 +233,6 @@ function resetFilters() {
 
 function goToPage(url: string | null) {
     if (url) router.visit(url, { preserveScroll: true, preserveState: true });
-}
-
-function markAsRead(id: string | number) {
-    // For real-time notifications, just remove them from the list immediately
-    if (id.toString().startsWith('realtime-')) {
-        realTimeNotifications.value = realTimeNotifications.value.filter(
-            (n) => n.id !== id,
-        );
-        return;
-    }
-
-    // For server notifications, update locally immediately and then make the request
-    const notification = serverNotifications.value.find((n) => n.id === id);
-    if (notification && !notification.read_at) {
-        // Update locally first for immediate UI feedback
-        notification.read_at = new Date().toISOString();
-
-        // Then make the Inertia request
-        router.post(
-            `/notifications/${id}/mark-read`,
-            {},
-            {
-                preserveScroll: true,
-                preserveState: true,
-            },
-        );
-    }
-}
-
-function markAllAsRead() {
-    // Update all notifications locally immediately
-    realTimeNotifications.value = []; // Clear all real-time notifications
-
-    serverNotifications.value.forEach((notification) => {
-        if (!notification.read_at) {
-            notification.read_at = new Date().toISOString();
-        }
-    });
-
-    // Then make the Inertia request
-    router.post(
-        '/notifications/mark-all-read',
-        {},
-        {
-            preserveScroll: true,
-            preserveState: true,
-        },
-    );
 }
 
 function formatDate(dateString: string) {
@@ -591,9 +601,7 @@ function getTypeVariant(type: string) {
                             v-else
                             class="text-center text-sm text-muted-foreground"
                         >
-                            {{ total }} notification{{
-                                total !== 1 ? 's' : ''
-                            }}
+                            {{ total }} notification{{ total !== 1 ? 's' : '' }}
                             total
                         </div>
                     </div>

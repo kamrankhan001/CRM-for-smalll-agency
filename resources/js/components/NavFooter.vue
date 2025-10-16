@@ -9,7 +9,9 @@ import {
 import { toUrl, urlIsActive } from '@/lib/utils';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { Badge } from '@/components/ui/badge'; // Import Badge component
+import { Badge } from '@/components/ui/badge';
+import { computed } from 'vue';
+import { useNotifications } from '@/composables/useNotifications';
 
 interface Props {
     items: NavItem[];
@@ -19,7 +21,9 @@ interface Props {
 defineProps<Props>();
 
 const page = usePage();
-const unreadCount = page.props.unreadNotificationsCount || 0;
+const notificationStore = useNotifications();
+
+const unreadCount = computed(() => notificationStore.totalUnreadCount.value);
 </script>
 
 <template>
@@ -35,13 +39,10 @@ const unreadCount = page.props.unreadNotificationsCount || 0;
                         :is-active="urlIsActive(item.href, page.url)"
                         :tooltip="item.title"
                     >
-                        <Link
-                            :href="toUrl(item.href)"
-                        >
+                        <Link :href="toUrl(item.href)">
                             <component :is="item.icon" />
                             <span>{{ item.title }}</span>
                             
-                            <!-- Unread notifications badge -->
                             <Badge 
                                 v-if="item.title === 'Notifications' && unreadCount > 0"
                                 variant="destructive" 
