@@ -1,9 +1,9 @@
 <?php
 
-use App\Models\User;
-use App\Models\Lead;
 use App\Models\Client;
+use App\Models\Lead;
 use App\Models\Project;
+use App\Models\User;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin']);
@@ -128,6 +128,6 @@ test('store maps taskable_type correctly', function () {
 
     $this->assertDatabaseHas('tasks', [
         'title' => 'Test Task',
-        'taskable_type' => 'App\\Models\\Lead'
+        'taskable_type' => 'App\\Models\\Lead',
     ]);
 });

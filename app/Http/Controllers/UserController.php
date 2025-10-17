@@ -6,12 +6,12 @@ use App\Actions\User\CreateUserAction;
 use App\Actions\User\DeleteUserAction;
 use App\Actions\User\UpdateUserAction;
 use App\Http\Requests\User\CreateUserRequest;
-use Illuminate\Http\Request;
 use App\Http\Requests\User\UpdateUserRequest;
 use App\Models\User;
 use App\Services\User\UserQueryService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 

@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Activity\DeleteActivityAction;
-use Illuminate\Http\Request;
 use App\Models\Activity;
 use App\Services\Activity\ActivityQueryService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 

@@ -2,15 +2,15 @@
 
 namespace App\Providers;
 
+use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Document;
+use App\Models\Invoice;
 use App\Models\Lead;
 use App\Models\Note;
+use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
-use App\Models\Project;
-use App\Models\Invoice;
-use App\Models\Appointment;
 use App\Observers\ActivityObserver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;

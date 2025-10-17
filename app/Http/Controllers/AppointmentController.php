@@ -13,8 +13,8 @@ use App\Models\Client;
 use App\Models\Lead;
 use App\Models\Project;
 use App\Models\User;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Services\Appointment\AppointmentQueryService;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -70,7 +70,7 @@ class AppointmentController extends Controller
                 ->with('success', 'Appointment created successfully.');
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Failed to create appointment: ' . $e->getMessage());
+                ->with('error', 'Failed to create appointment: '.$e->getMessage());
         }
     }
 
@@ -121,34 +121,34 @@ class AppointmentController extends Controller
                 ->with('success', 'Appointment updated successfully.');
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Failed to update appointment: ' . $e->getMessage());
+                ->with('error', 'Failed to update appointment: '.$e->getMessage());
         }
     }
 
     public function cancel(Appointment $appointment): RedirectResponse
     {
         $this->authorize('update', $appointment);
-        
+
         try {
             $this->cancelAppointmentAction->execute($appointment, request()->user());
 
             return redirect()->back()->with('success', 'Appointment cancelled successfully.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Failed to cancel appointment: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to cancel appointment: '.$e->getMessage());
         }
     }
 
     public function destroy(Appointment $appointment): RedirectResponse
     {
         $this->authorize('delete', $appointment);
-        
+
         try {
             $appointment->delete();
 
             return redirect()->route('appointments.index')->with('success', 'Appointment deleted successfully.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Failed to delete appointment: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to delete appointment: '.$e->getMessage());
         }
-        
+
     }
 }

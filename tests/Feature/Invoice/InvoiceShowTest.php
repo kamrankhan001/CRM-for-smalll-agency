@@ -7,7 +7,7 @@ beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin']);
     $this->manager = User::factory()->create(['role' => 'manager']);
     $this->member = User::factory()->create(['role' => 'member']);
-    
+
     $this->invoice = Invoice::factory()->create();
 });
 

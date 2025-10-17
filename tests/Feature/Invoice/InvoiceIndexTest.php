@@ -1,15 +1,15 @@
 <?php
 
-use App\Models\Invoice;
-use App\Models\User;
 use App\Models\Client;
+use App\Models\Invoice;
 use App\Models\Project;
+use App\Models\User;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin']);
     $this->manager = User::factory()->create(['role' => 'manager']);
     $this->member = User::factory()->create(['role' => 'member']);
-    
+
     // Create related models for factory
     Client::factory()->create();
     Project::factory()->create();
@@ -67,13 +67,13 @@ test('status filter works correctly', function () {
 
 test('date range filter works correctly', function () {
     $invoice = Invoice::factory()->create([
-        'issue_date' => now()->subDays(5)
+        'issue_date' => now()->subDays(5),
     ]);
 
     $this->actingAs($this->admin)
         ->get(route('invoices.index', [
             'date_from' => now()->subDays(10)->format('Y-m-d'),
-            'date_to' => now()->format('Y-m-d')
+            'date_to' => now()->format('Y-m-d'),
         ]))
         ->assertStatus(200)
         ->assertInertia(fn ($page) => $page

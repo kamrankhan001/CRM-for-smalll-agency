@@ -7,7 +7,7 @@ beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin']);
     $this->manager = User::factory()->create(['role' => 'manager']);
     $this->member = User::factory()->create(['role' => 'member']);
-    
+
     $this->invoice = Invoice::factory()->create();
 });
 
@@ -18,7 +18,7 @@ test('admin can delete invoice', function () {
         ->assertSessionHas('success');
 
     $this->assertDatabaseMissing('invoices', [
-        'id' => $this->invoice->id
+        'id' => $this->invoice->id,
     ]);
 });
 
@@ -28,7 +28,7 @@ test('manager cannot delete invoice', function () {
         ->assertForbidden();
 
     $this->assertDatabaseHas('invoices', [
-        'id' => $this->invoice->id
+        'id' => $this->invoice->id,
     ]);
 });
 
@@ -38,6 +38,6 @@ test('member cannot delete invoice', function () {
         ->assertForbidden();
 
     $this->assertDatabaseHas('invoices', [
-        'id' => $this->invoice->id
+        'id' => $this->invoice->id,
     ]);
 });

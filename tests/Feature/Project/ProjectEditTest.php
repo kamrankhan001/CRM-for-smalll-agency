@@ -1,16 +1,16 @@
 <?php
 
-use App\Models\Project;
-use App\Models\User;
 use App\Models\Client;
 use App\Models\Lead;
+use App\Models\Project;
+use App\Models\User;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin']);
     $this->manager = User::factory()->create(['role' => 'manager']);
     $this->member = User::factory()->create(['role' => 'member']);
     $this->otherMember = User::factory()->create(['role' => 'member']);
-    
+
     $this->client = Client::factory()->create();
     $this->lead = Lead::factory()->create();
 });
@@ -189,7 +189,7 @@ test('manager can update project they created', function () {
 test('manager can update project they are member of', function () {
     $project = Project::factory()->create(['created_by' => $this->otherMember->id]);
     $project->members()->attach($this->manager->id);
-    
+
     $updateData = [
         'name' => 'Manager Member Updated Project',
         'status' => 'on_hold',
@@ -221,7 +221,7 @@ test('manager cannot update unrelated project', function () {
 test('member can update project they are member of', function () {
     $project = Project::factory()->create(['created_by' => $this->otherMember->id]);
     $project->members()->attach($this->member->id);
-    
+
     $updateData = [
         'name' => 'Member Team Updated Project',
         'status' => $project->status,
@@ -265,21 +265,21 @@ test('project members are synced when updating', function () {
         ->assertRedirect(route('projects.index')); // Add assertion to ensure request completed
 
     $project->refresh();
-    
+
     // Debug output to see what's happening
     $actualMembers = $project->members->pluck('id')->sort()->values()->toArray();
     $expectedMembers = collect($newMembers)->sort()->values()->toArray();
-    
+
     // Check count first
     $this->assertCount(count($expectedMembers), $actualMembers);
-    
+
     // Then check exact match
     $this->assertEquals($expectedMembers, $actualMembers);
 });
 
 test('update shows error message on failure', function () {
     $project = Project::factory()->create(['created_by' => $this->admin->id]);
-    
+
     // Mock the action to throw an exception
     $mock = $this->mock(\App\Actions\Project\UpdateProjectAction::class);
     $mock->shouldReceive('execute')

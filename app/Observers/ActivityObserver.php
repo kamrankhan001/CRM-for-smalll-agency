@@ -25,5 +25,4 @@ class ActivityObserver
     {
         ActivityLogger::log($model, 'deleted');
     }
-
 }

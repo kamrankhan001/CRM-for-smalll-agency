@@ -14,7 +14,7 @@ class UpdateUserAction
             if (empty($data['password'])) {
                 unset($data['password']);
             }
-            
+
             // Password will be automatically hashed by the model cast if provided
             $user->update($data);
         });

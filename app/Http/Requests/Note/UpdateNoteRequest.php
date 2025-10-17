@@ -21,7 +21,7 @@ class UpdateNoteRequest extends FormRequest
      */
     public function rules(): array
     {
-         return [
+        return [
             'content' => 'required|string|max:1000',
             'noteable_id' => 'required|integer',
             'noteable_type' => 'required|string|in:lead,client,project',

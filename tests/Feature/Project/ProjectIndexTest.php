@@ -50,14 +50,14 @@ test('manager can view all projects', function () {
 
 test('member can view all projects they created or are member of', function () {
     $otherUser = User::factory()->create();
-    
+
     // Create projects: 2 by member, 1 with member as member, 1 by other user
     Project::factory()->create(['created_by' => $this->member->id]);
     Project::factory()->create(['created_by' => $this->member->id]);
-    
+
     $memberProject = Project::factory()->create(['created_by' => $otherUser->id]);
     $memberProject->members()->attach($this->member->id);
-    
+
     Project::factory()->create(['created_by' => $otherUser->id]); // Not accessible
 
     $this->actingAs($this->member)

@@ -13,26 +13,26 @@ class TaskQueryService
         $query = Task::with(['assignee', 'creator', 'taskable']);
 
         // Apply search filter
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $query->where('title', 'like', "%{$filters['search']}%");
         }
 
         // Apply status filter
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
         // Apply assigned_to filter
-        if (!empty($filters['assigned_to'])) {
+        if (! empty($filters['assigned_to'])) {
             $query->where('assigned_to', $filters['assigned_to']);
         }
 
         // Apply date range filters
-        if (!empty($filters['date_from'])) {
+        if (! empty($filters['date_from'])) {
             $query->whereDate('due_date', '>=', $filters['date_from']);
         }
 
-        if (!empty($filters['date_to'])) {
+        if (! empty($filters['date_to'])) {
             $query->whereDate('due_date', '<=', $filters['date_to']);
         }
 
@@ -40,7 +40,7 @@ class TaskQueryService
         if ($currentUser->role === 'member') {
             $query->where(function ($q) use ($currentUser) {
                 $q->where('assigned_to', $currentUser->id)
-                  ->orWhere('created_by', $currentUser->id);
+                    ->orWhere('created_by', $currentUser->id);
             });
         }
 

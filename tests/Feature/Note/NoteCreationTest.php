@@ -1,15 +1,15 @@
 <?php
 
-use App\Models\User;
-use App\Models\Lead;
 use App\Models\Client;
+use App\Models\Lead;
 use App\Models\Project;
+use App\Models\User;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin']);
     $this->manager = User::factory()->create(['role' => 'manager']);
     $this->member = User::factory()->create(['role' => 'member']);
-    
+
     // Create related models first so factory can find them
     $this->lead = Lead::factory()->create();
     $this->client = Client::factory()->create();
@@ -115,6 +115,6 @@ test('store maps noteable_type correctly', function () {
 
     $this->assertDatabaseHas('notes', [
         'content' => 'Test Note',
-        'noteable_type' => 'App\\Models\\Lead'
+        'noteable_type' => 'App\\Models\\Lead',
     ]);
 });

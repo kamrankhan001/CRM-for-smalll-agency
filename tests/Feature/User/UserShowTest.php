@@ -64,7 +64,7 @@ test('show page loads for admin viewing member profile', function () {
 
 test('show page loads for admin viewing another admin profile', function () {
     $otherAdmin = User::factory()->create(['role' => 'admin']);
-    
+
     $this->actingAs($this->admin)
         ->get(route('users.show', $otherAdmin))
         ->assertStatus(200);

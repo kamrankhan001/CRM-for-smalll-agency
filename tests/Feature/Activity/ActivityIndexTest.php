@@ -1,18 +1,18 @@
 <?php
 
 use App\Models\Activity;
-use App\Models\User;
-use App\Models\Lead;
 use App\Models\Client;
-use App\Models\Task;
+use App\Models\Lead;
 use App\Models\Note;
+use App\Models\Task;
+use App\Models\User;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin']);
     $this->manager = User::factory()->create(['role' => 'manager']);
     $this->member = User::factory()->create(['role' => 'member']);
     $this->otherMember = User::factory()->create(['role' => 'member']);
-    
+
     // Create related models first so factory can find them
     Lead::factory()->create();
     Client::factory()->create();
@@ -64,7 +64,7 @@ test('admin sees all activities', function () {
 test('manager does not see admin activities', function () {
     $adminUser = User::factory()->create(['role' => 'admin']);
     $managerUser = User::factory()->create(['role' => 'manager']);
-    
+
     Activity::factory()->create(['causer_id' => $adminUser->id]);
     Activity::factory()->create(['causer_id' => $managerUser->id]);
     Activity::factory()->create(['causer_id' => $this->member->id]);
@@ -133,7 +133,7 @@ test('date filters work correctly', function () {
     $this->actingAs($this->admin)
         ->get(route('activities.index', [
             'date_from' => now()->subDay()->format('Y-m-d'),
-            'date_to' => now()->addDay()->format('Y-m-d')
+            'date_to' => now()->addDay()->format('Y-m-d'),
         ]))
         ->assertStatus(200)
         ->assertInertia(fn ($page) => $page

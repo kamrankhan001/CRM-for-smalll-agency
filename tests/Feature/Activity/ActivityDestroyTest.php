@@ -1,13 +1,13 @@
 <?php
 
-use App\Models\Activity;
-use App\Models\User;
-use App\Models\Lead;
-use App\Models\Client;
-use App\Models\Task;
-use App\Models\Note;
-use Mockery\MockInterface;
 use App\Actions\Activity\DeleteActivityAction;
+use App\Models\Activity;
+use App\Models\Client;
+use App\Models\Lead;
+use App\Models\Note;
+use App\Models\Task;
+use App\Models\User;
+use Mockery\MockInterface;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin']);

@@ -28,7 +28,7 @@ trait HasMorphTypes
     {
         // Normalize the type for comparison
         $normalizedType = strtolower($type);
-        
+
         return match (true) {
             $normalizedType === strtolower(Lead::class) || $normalizedType === 'lead' => 'lead',
             $normalizedType === strtolower(Client::class) || $normalizedType === 'client' => 'client',
@@ -65,7 +65,7 @@ trait HasMorphTypes
         $normalizedType = strtolower($type);
         $validTypes = array_map('strtolower', [
             'lead', 'client', 'project',
-            Lead::class, Client::class, Project::class
+            Lead::class, Client::class, Project::class,
         ]);
 
         return in_array($normalizedType, $validTypes);

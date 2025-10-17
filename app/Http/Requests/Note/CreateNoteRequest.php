@@ -11,7 +11,7 @@ class CreateNoteRequest extends FormRequest
      */
     public function authorize(): bool
     {
-         return $this->user()->can('create', \App\Models\Note::class);
+        return $this->user()->can('create', \App\Models\Note::class);
     }
 
     /**

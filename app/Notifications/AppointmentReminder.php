@@ -4,12 +4,12 @@ namespace App\Notifications;
 
 use App\Models\Appointment;
 use Carbon\Carbon;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Broadcasting\PrivateChannel;
 
 class AppointmentReminder extends Notification implements ShouldQueue
 {
@@ -38,14 +38,14 @@ class AppointmentReminder extends Notification implements ShouldQueue
     {
         $appointableType = $this->getAppointableType();
         $appointableName = $this->appointment->appointable->name ?? 'N/A';
-        $appointmentDateTime = Carbon::parse($this->appointment->date->format('Y-m-d') . ' ' . $this->appointment->start_time);
+        $appointmentDateTime = Carbon::parse($this->appointment->date->format('Y-m-d').' '.$this->appointment->start_time);
         $timeUntilAppointment = now()->diffForHumans($appointmentDateTime, true);
 
         return (new MailMessage)
             ->subject("⏰ Appointment Starting Soon - {$this->appointment->title}")
             ->greeting("Hello {$notifiable->name},")
             ->line("Your appointment is starting in **{$timeUntilAppointment}**!")
-            ->line("**Appointment Details:**")
+            ->line('**Appointment Details:**')
             ->line("- **Title:** {$this->appointment->title}")
             ->line("- **Time:** {$appointmentDateTime->format('l, F j, Y \\a\\t g:i A')}")
             ->line("- **Duration:** {$this->appointment->start_time} - {$this->appointment->end_time}")
@@ -62,7 +62,7 @@ class AppointmentReminder extends Notification implements ShouldQueue
     {
         $appointableType = $this->getAppointableType();
         $appointableName = $this->appointment->appointable->name ?? 'N/A';
-        $appointmentDateTime = Carbon::parse($this->appointment->date->format('Y-m-d') . ' ' . $this->appointment->start_time);
+        $appointmentDateTime = Carbon::parse($this->appointment->date->format('Y-m-d').' '.$this->appointment->start_time);
         $timeUntilAppointment = now()->diffForHumans($appointmentDateTime, true);
 
         return [
@@ -84,7 +84,7 @@ class AppointmentReminder extends Notification implements ShouldQueue
     {
         $appointableType = $this->getAppointableType();
         $appointableName = $this->appointment->appointable->name ?? 'N/A';
-        $appointmentDateTime = Carbon::parse($this->appointment->date->format('Y-m-d') . ' ' . $this->appointment->start_time);
+        $appointmentDateTime = Carbon::parse($this->appointment->date->format('Y-m-d').' '.$this->appointment->start_time);
         $timeUntilAppointment = now()->diffForHumans($appointmentDateTime, true);
 
         return new BroadcastMessage([
@@ -104,7 +104,7 @@ class AppointmentReminder extends Notification implements ShouldQueue
      */
     public function broadcastOn(): array
     {
-        return [new PrivateChannel('notifications.' . $this->appointment->created_by)];
+        return [new PrivateChannel('notifications.'.$this->appointment->created_by)];
     }
 
     /**

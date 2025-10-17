@@ -1,8 +1,8 @@
 <?php
 
+use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\User;
-use App\Models\Client;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
@@ -10,11 +10,11 @@ beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin']);
     $this->manager = User::factory()->create(['role' => 'manager']);
     $this->member = User::factory()->create(['role' => 'member']);
-    
+
     $this->client = Client::factory()->create(['email' => 'client@example.com']);
     $this->invoice = Invoice::factory()->create([
         'status' => 'draft',
-        'client_id' => $this->client->id
+        'client_id' => $this->client->id,
     ]);
 
     Mail::fake();
@@ -80,7 +80,7 @@ test('member cannot send invoice email', function () {
 
 test('cannot send invoice without client email', function () {
     $invoiceWithoutEmail = Invoice::factory()->create([
-        'client_id' => Client::factory()->create(['email' => null])->id
+        'client_id' => Client::factory()->create(['email' => null])->id,
     ]);
 
     $this->actingAs($this->admin)

@@ -10,7 +10,7 @@ class CreateClientAction
     public function execute(array $data, User $currentUser): Client
     {
         $data['created_by'] = $currentUser->id;
-        
+
         return Client::create($data);
     }
 }

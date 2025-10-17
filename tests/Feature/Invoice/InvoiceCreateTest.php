@@ -1,15 +1,15 @@
 <?php
 
-use App\Models\Invoice;
-use App\Models\User;
 use App\Models\Client;
+use App\Models\Invoice;
 use App\Models\Project;
+use App\Models\User;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin']);
     $this->manager = User::factory()->create(['role' => 'manager']);
     $this->member = User::factory()->create(['role' => 'member']);
-    
+
     $this->client = Client::factory()->create();
     $this->project = Project::factory()->create();
 });

@@ -16,22 +16,22 @@ class NoteQueryService
         $query = Note::with(['user', 'noteable']);
 
         // Apply search filter
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $query->where('content', 'like', "%{$filters['search']}%");
         }
 
         // Apply noteable_type filter
-        if (!empty($filters['noteable_type'])) {
+        if (! empty($filters['noteable_type'])) {
             $query->where('noteable_type', $this->mapMorphType($filters['noteable_type']));
         }
 
         // Apply user_id filter
-        if (!empty($filters['user_id'])) {
+        if (! empty($filters['user_id'])) {
             $query->where('user_id', $filters['user_id']);
         }
 
         // Apply date range filters
-        if (!empty($filters['date_range'])) {
+        if (! empty($filters['date_range'])) {
             $this->applyDateRangeFilter($query, $filters);
         }
 
@@ -139,7 +139,7 @@ class NoteQueryService
             'custom' => $filters['date_from'] ?? now()->subDays(30),
         ];
 
-        if ($filters['date_range'] === 'custom' && !empty($filters['date_from']) && !empty($filters['date_to'])) {
+        if ($filters['date_range'] === 'custom' && ! empty($filters['date_from']) && ! empty($filters['date_to'])) {
             $query->whereBetween('created_at', [
                 $filters['date_from'],
                 $filters['date_to'],

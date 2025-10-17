@@ -44,6 +44,7 @@ class SendAppointmentReminders extends Command
 
         if ($isTest) {
             $this->sendTestReminders();
+
             return;
         }
 
@@ -56,7 +57,7 @@ class SendAppointmentReminders extends Command
     protected function sendScheduledReminders(int $minutesBefore): void
     {
         $reminderTime = now()->addMinutes($minutesBefore);
-        
+
         // Find appointments that start exactly at the reminder time (within 1 minute window)
         $startWindow = $reminderTime->copy()->subMinute();
         $endWindow = $reminderTime->copy()->addMinute();
@@ -76,17 +77,17 @@ class SendAppointmentReminders extends Command
             try {
                 // Use the specialized reminder method that includes everyone
                 $notifiableUsers = $this->notificationService->getReminderNotifiableUsers($appointment);
-                
+
                 foreach ($notifiableUsers as $user) {
                     $user->notify(new AppointmentReminder($appointment));
                     $sentCount++;
                 }
 
-                $this->info("Sent reminders for appointment: {$appointment->title} ({$appointment->date} {$appointment->start_time}) - Notified " . count($notifiableUsers) . " users");
+                $this->info("Sent reminders for appointment: {$appointment->title} ({$appointment->date} {$appointment->start_time}) - Notified ".count($notifiableUsers).' users');
 
             } catch (\Exception $e) {
-                $this->error("Failed to send reminder for appointment {$appointment->id}: " . $e->getMessage());
-                Log::error("Appointment reminder failed for appointment {$appointment->id}: " . $e->getMessage());
+                $this->error("Failed to send reminder for appointment {$appointment->id}: ".$e->getMessage());
+                Log::error("Appointment reminder failed for appointment {$appointment->id}: ".$e->getMessage());
             }
         }
 
@@ -98,7 +99,7 @@ class SendAppointmentReminders extends Command
      */
     protected function sendTestReminders(): void
     {
-        $this->info("Sending test reminders...");
+        $this->info('Sending test reminders...');
 
         // Get a confirmed appointment for testing (preferably one starting soon)
         $appointment = Appointment::with(['creator', 'appointable'])
@@ -108,8 +109,9 @@ class SendAppointmentReminders extends Command
             ->orderBy('start_time')
             ->first();
 
-        if (!$appointment) {
-            $this->warn("No confirmed appointments found for testing.");
+        if (! $appointment) {
+            $this->warn('No confirmed appointments found for testing.');
+
             return;
         }
 
@@ -118,7 +120,7 @@ class SendAppointmentReminders extends Command
         try {
             // Use the specialized reminder method that includes everyone
             $notifiableUsers = $this->notificationService->getReminderNotifiableUsers($appointment);
-            
+
             $sentCount = 0;
             foreach ($notifiableUsers as $user) {
                 $user->notify(new AppointmentReminder($appointment));
@@ -126,10 +128,10 @@ class SendAppointmentReminders extends Command
                 $this->info("Sent test reminder to: {$user->name} ({$user->email})");
             }
 
-            $this->info("Successfully sent {$sentCount} test reminders to " . count($notifiableUsers) . " users.");
+            $this->info("Successfully sent {$sentCount} test reminders to ".count($notifiableUsers).' users.');
 
         } catch (\Exception $e) {
-            $this->error("Failed to send test reminders: " . $e->getMessage());
+            $this->error('Failed to send test reminders: '.$e->getMessage());
         }
     }
 }

@@ -3,19 +3,19 @@
 namespace Database\Seeders;
 
 use App\Models\Activity;
+use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Document;
+use App\Models\Invoice;
 use App\Models\Lead;
 use App\Models\Note;
 use App\Models\Notification;
 use App\Models\project;
 use App\Models\Task;
 use App\Models\User;
-use App\Models\Invoice;
-use App\Models\Appointment;
-use Illuminate\Support\Facades\Hash;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {

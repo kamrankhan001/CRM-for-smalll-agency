@@ -1,16 +1,16 @@
 <?php
 
+use App\Models\Client;
+use App\Models\Lead;
+use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
-use App\Models\Lead;
-use App\Models\Client;
-use App\Models\Project;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin']);
     $this->manager = User::factory()->create(['role' => 'manager']);
     $this->member = User::factory()->create(['role' => 'member']);
-    
+
     // Create related models first so factory can find them
     Lead::factory()->create();
     Client::factory()->create();
@@ -50,13 +50,13 @@ test('index page loads successfully for member', function () {
 test('member sees only assigned or created tasks', function () {
     // Create a different user for the other task
     $otherUser = User::factory()->create(['role' => 'member']);
-    
+
     // Create tasks with specific assignments
     Task::factory()->create(['assigned_to' => $this->member->id]);
     Task::factory()->create(['created_by' => $this->member->id]);
     Task::factory()->create([
         'assigned_to' => $otherUser->id,
-        'created_by' => $otherUser->id
+        'created_by' => $otherUser->id,
     ]);
 
     $this->actingAs($this->member)

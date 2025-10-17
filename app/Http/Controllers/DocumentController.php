@@ -9,13 +9,13 @@ use App\Concerns\HasMorphTypes;
 use App\Http\Requests\Document\CreateDocumentRequest;
 use App\Http\Requests\Document\UpdateDocumentRequest;
 use App\Models\Document;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Services\Document\DocumentQueryService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocumentController extends Controller
 {
@@ -118,8 +118,8 @@ class DocumentController extends Controller
     {
         try {
             $this->updateDocumentAction->execute(
-                $document, 
-                $request->validated(), 
+                $document,
+                $request->validated(),
                 $request->file('file')
             );
 
@@ -157,14 +157,14 @@ class DocumentController extends Controller
     public function download(Document $document): StreamedResponse
     {
         $this->authorize('view', $document);
-        
-        if (!Storage::disk('public')->exists($document->file_path)) {
+
+        if (! Storage::disk('public')->exists($document->file_path)) {
             abort(404, 'File not found');
         }
-        
+
         return Storage::disk('public')->download(
             $document->file_path,
-            $document->title . '.' . pathinfo($document->file_path, PATHINFO_EXTENSION)
+            $document->title.'.'.pathinfo($document->file_path, PATHINFO_EXTENSION)
         );
     }
 }

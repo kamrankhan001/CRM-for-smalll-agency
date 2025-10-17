@@ -23,9 +23,9 @@ class CreateAppointmentAction
             $data['created_by'] = $currentUser->id;
 
             $appointment = Appointment::create($data);
-            
+
             $this->notificationService->sendAppointmentNotifications($appointment, $currentUser, 'created');
-            
+
             return $appointment;
         });
     }

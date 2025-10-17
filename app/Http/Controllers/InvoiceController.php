@@ -134,7 +134,7 @@ class InvoiceController extends Controller
     {
         $this->authorize('update', $invoice);
 
-        if (!$invoice->client || !$invoice->client->email) {
+        if (! $invoice->client || ! $invoice->client->email) {
             return back()->with('error', 'Client email is required to send invoice.');
         }
 

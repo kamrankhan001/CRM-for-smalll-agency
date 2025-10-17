@@ -6,13 +6,13 @@ use App\Models\Project;
 use App\Models\User;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Notification;
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Notifications\Notification;
 
-class ProjectAssignedNotification extends Notification implements ShouldQueue, ShouldBroadcast
+class ProjectAssignedNotification extends Notification implements ShouldBroadcast, ShouldQueue
 {
     use Queueable;
 
@@ -52,7 +52,7 @@ class ProjectAssignedNotification extends Notification implements ShouldQueue, S
      */
     public function toDatabase($notifiable): array
     {
-         return [
+        return [
             'type' => 'project_assigned',
             'message' => "You have been added to the project '{$this->project->name}' by {$this->assignedBy->name}.",
             'project_id' => $this->project->id,
@@ -62,7 +62,7 @@ class ProjectAssignedNotification extends Notification implements ShouldQueue, S
         ];
     }
 
-     public function toBroadcast(object $notifiable): BroadcastMessage
+    public function toBroadcast(object $notifiable): BroadcastMessage
     {
         return new BroadcastMessage([
             'type' => 'project_assigned',
@@ -75,9 +75,9 @@ class ProjectAssignedNotification extends Notification implements ShouldQueue, S
         ]);
     }
 
-     public function broadcastOn(): array
+    public function broadcastOn(): array
     {
-        return [new PrivateChannel('notifications.' . $this->project->assigned_to)];
+        return [new PrivateChannel('notifications.'.$this->project->assigned_to)];
     }
 
     /**

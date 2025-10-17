@@ -12,7 +12,7 @@ class DeleteProjectAction
         DB::transaction(function () use ($project) {
             // Detach members before deletion
             $project->members()->detach();
-            
+
             $project->delete();
         });
     }

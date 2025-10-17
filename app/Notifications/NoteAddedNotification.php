@@ -6,19 +6,19 @@ use App\Models\Note;
 use App\Models\User;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Notification;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Notifications\Notification;
 
-class NoteAddedNotification extends Notification implements ShouldQueue, ShouldBroadcast
+class NoteAddedNotification extends Notification implements ShouldBroadcast, ShouldQueue
 {
     use Queueable;
 
     /**
      * Create a new notification instance.
      */
-     public function __construct(public Note $note, public User $createdBy)
+    public function __construct(public Note $note, public User $createdBy)
     {
         //
     }
@@ -33,13 +33,12 @@ class NoteAddedNotification extends Notification implements ShouldQueue, ShouldB
         return ['database', 'broadcast'];
     }
 
-
     public function toDatabase($notifiable)
     {
         return [
             'type' => 'note_added',
             'message' => "A new note '{$this->note->title}' was added by {$this->createdBy->name}",
-             'note_id' => $this->note->id,
+            'note_id' => $this->note->id,
             'created_by_id' => $this->createdBy->id,
             'created_by_name' => $this->createdBy->name,
             'url' => "/notes/{$this->note->id}",

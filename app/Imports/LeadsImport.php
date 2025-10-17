@@ -11,7 +11,9 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 class LeadsImport implements ToCollection, WithHeadingRow
 {
     private array $errors = [];
+
     private int $importedCount = 0;
+
     private int $userId;
 
     public function __construct(int $userId)
@@ -23,11 +25,12 @@ class LeadsImport implements ToCollection, WithHeadingRow
     {
         foreach ($rows as $index => $row) {
             $rowIndex = $index + 2; // +2 because of header row and 1-based index
-            
+
             try {
                 // Validate required fields
                 if (empty($row['name'])) {
                     $this->errors[] = "Row {$rowIndex}: Name is required";
+
                     continue;
                 }
 
@@ -43,7 +46,7 @@ class LeadsImport implements ToCollection, WithHeadingRow
                 ];
 
                 // Handle assigned_to if provided
-                if (!empty($row['assigned_to'])) {
+                if (! empty($row['assigned_to'])) {
                     $assignedUser = User::where('name', $row['assigned_to'])->first();
                     if ($assignedUser) {
                         $data['assigned_to'] = $assignedUser->id;
@@ -52,9 +55,9 @@ class LeadsImport implements ToCollection, WithHeadingRow
 
                 // Check if lead already exists (by email or phone)
                 $existingLead = null;
-                if (!empty($data['email'])) {
+                if (! empty($data['email'])) {
                     $existingLead = Lead::where('email', $data['email'])->first();
-                } elseif (!empty($data['phone'])) {
+                } elseif (! empty($data['phone'])) {
                     $existingLead = Lead::where('phone', $data['phone'])->first();
                 }
 
@@ -69,7 +72,7 @@ class LeadsImport implements ToCollection, WithHeadingRow
                 $this->importedCount++;
 
             } catch (\Exception $e) {
-                $this->errors[] = "Row {$rowIndex}: " . $e->getMessage();
+                $this->errors[] = "Row {$rowIndex}: ".$e->getMessage();
             }
         }
     }
@@ -78,11 +81,11 @@ class LeadsImport implements ToCollection, WithHeadingRow
     {
         $validStatuses = ['new', 'contacted', 'qualified', 'lost'];
         $status = strtolower(trim($status));
-        
+
         if (in_array($status, $validStatuses)) {
             return $status;
         }
-        
+
         return 'new';
     }
 

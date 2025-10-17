@@ -10,7 +10,7 @@ beforeEach(function () {
     $this->manager = User::factory()->create(['role' => 'manager']);
     $this->member = User::factory()->create(['role' => 'member']);
     $this->otherMember = User::factory()->create(['role' => 'member']);
-    
+
     // Create related models first so factory can find them
     \App\Models\Lead::factory()->create();
     \App\Models\Client::factory()->create();
@@ -22,10 +22,10 @@ beforeEach(function () {
 test('download works successfully for admin', function () {
     $file = UploadedFile::fake()->create('test.pdf', 1000, 'application/pdf');
     $filePath = $file->store('documents', 'public');
-    
+
     $document = Document::factory()->create([
         'file_path' => $filePath,
-        'title' => 'Test Document'
+        'title' => 'Test Document',
     ]);
 
     $this->actingAs($this->admin)
@@ -37,11 +37,11 @@ test('download works successfully for admin', function () {
 test('download works for uploader', function () {
     $file = UploadedFile::fake()->create('uploader.pdf', 1000, 'application/pdf');
     $filePath = $file->store('documents', 'public');
-    
+
     $document = Document::factory()->create([
         'file_path' => $filePath,
         'uploaded_by' => $this->member->id,
-        'title' => 'Uploader Document'
+        'title' => 'Uploader Document',
     ]);
 
     $this->actingAs($this->member)
@@ -60,7 +60,7 @@ test('download forbidden for non-uploader member', function () {
 test('download returns 404 for non-existent file', function () {
     $document = Document::factory()->create([
         'file_path' => 'non-existent-file.pdf',
-        'uploaded_by' => $this->admin->id
+        'uploaded_by' => $this->admin->id,
     ]);
 
     $this->actingAs($this->admin)

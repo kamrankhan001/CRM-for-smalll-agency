@@ -3,15 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Client\CreateClientAction;
-use App\Actions\Client\UpdateClientAction;
 use App\Actions\Client\DeleteClientAction;
+use App\Actions\Client\UpdateClientAction;
 use App\Http\Requests\Client\CreateClientRequest;
 use App\Http\Requests\Client\UpdateClientRequest;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use App\Services\Client\ClientQueryService;
 use App\Models\Client;
-use App\Models\User;
 use App\Models\Lead;
+use App\Models\User;
+use App\Services\Client\ClientQueryService;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,7 +19,7 @@ use Inertia\Response;
 class ClientController extends Controller
 {
     use AuthorizesRequests;
-    
+
     public function __construct(
         private ClientQueryService $clientQueryService,
         private CreateClientAction $createClientAction,
@@ -76,7 +76,7 @@ class ClientController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Failed to create client: ' . $e->getMessage())
+                ->with('error', 'Failed to create client: '.$e->getMessage())
                 ->withInput();
         }
     }
@@ -147,7 +147,7 @@ class ClientController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Failed to update client: ' . $e->getMessage())
+                ->with('error', 'Failed to update client: '.$e->getMessage())
                 ->withInput();
         }
     }
@@ -167,7 +167,7 @@ class ClientController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Failed to delete client: ' . $e->getMessage());
+                ->with('error', 'Failed to delete client: '.$e->getMessage());
         }
     }
 }

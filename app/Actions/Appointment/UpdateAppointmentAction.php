@@ -22,9 +22,9 @@ class UpdateAppointmentAction
             $data['appointable_type'] = $this->mapMorphType($data['appointable_type']);
 
             $appointment->update($data);
-            
+
             $this->notificationService->sendAppointmentNotifications($appointment, $currentUser, 'updated');
-            
+
             return $appointment;
         });
     }

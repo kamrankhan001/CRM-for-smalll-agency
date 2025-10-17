@@ -2,15 +2,15 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
-use App\Models\User;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Notification>
  */
 class NotificationFactory extends Factory
-{     
+{
     /**
      * Define the model's default state.
      *
@@ -18,7 +18,7 @@ class NotificationFactory extends Factory
      */
     public function definition(): array
     {
-          $type = $this->faker->randomElement([
+        $type = $this->faker->randomElement([
             'LeadAssigned',
             'TaskAssigned',
             'TaskDueSoon',
@@ -29,29 +29,29 @@ class NotificationFactory extends Factory
         $user = User::inRandomOrder()->first() ?? User::factory()->create();
 
         $message = match ($type) {
-            'LeadAssigned'   => "A new lead has been assigned to you.",
-            'TaskAssigned'   => "A new task has been assigned to you.",
-            'TaskDueSoon'    => "A task is due within 24 hours.",
-            'LeadConverted'  => "A lead was successfully converted to a client.",
-            'NoteAdded'      => "A new note was added to one of your leads or tasks.",
-            default          => "You have a new notification.",
+            'LeadAssigned' => 'A new lead has been assigned to you.',
+            'TaskAssigned' => 'A new task has been assigned to you.',
+            'TaskDueSoon' => 'A task is due within 24 hours.',
+            'LeadConverted' => 'A lead was successfully converted to a client.',
+            'NoteAdded' => 'A new note was added to one of your leads or tasks.',
+            default => 'You have a new notification.',
         };
 
         $url = match ($type) {
             'LeadAssigned', 'LeadConverted' => '/leads',
-            'TaskAssigned', 'TaskDueSoon'   => '/tasks',
-            'NoteAdded'                      => '/notes',
-            default                          => '/dashboard',
+            'TaskAssigned', 'TaskDueSoon' => '/tasks',
+            'NoteAdded' => '/notes',
+            default => '/dashboard',
         };
 
         return [
-            'id'         => Str::uuid()->toString(),
-            'type'       => "App\\Notifications\\{$type}Notification",
+            'id' => Str::uuid()->toString(),
+            'type' => "App\\Notifications\\{$type}Notification",
             'notifiable_type' => User::class,
-            'notifiable_id'   => $user->id,
+            'notifiable_id' => $user->id,
             'data' => [
                 'message' => $message,
-                'url'     => $url,
+                'url' => $url,
             ],
             'read_at' => $this->faker->boolean(70) ? now() : null,
             'created_at' => $this->faker->dateTimeBetween('-12 months', 'now'),

@@ -8,7 +8,7 @@ beforeEach(function () {
     $this->manager = User::factory()->create(['role' => 'manager']);
     $this->member = User::factory()->create(['role' => 'member']);
     $this->otherMember = User::factory()->create(['role' => 'member']);
-    
+
     // Create related models first so factory can find them
     \App\Models\Lead::factory()->create();
     \App\Models\Client::factory()->create();

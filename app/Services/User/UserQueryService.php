@@ -12,24 +12,24 @@ class UserQueryService
         $query = User::query();
 
         // Apply search filter
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $query->where(function ($q) use ($filters) {
                 $q->where('name', 'like', "%{$filters['search']}%")
-                  ->orWhere('email', 'like', "%{$filters['search']}%");
+                    ->orWhere('email', 'like', "%{$filters['search']}%");
             });
         }
 
         // Apply role filter
-        if (!empty($filters['role'])) {
+        if (! empty($filters['role'])) {
             $query->where('role', $filters['role']);
         }
 
         // Apply date range filters
-        if (!empty($filters['date_from'])) {
+        if (! empty($filters['date_from'])) {
             $query->whereDate('created_at', '>=', $filters['date_from']);
         }
 
-        if (!empty($filters['date_to'])) {
+        if (! empty($filters['date_to'])) {
             $query->whereDate('created_at', '<=', $filters['date_to']);
         }
 

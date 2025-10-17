@@ -1,8 +1,8 @@
 <?php
 
 use App\Models\Client;
-use App\Models\User;
 use App\Models\Lead;
+use App\Models\User;
 
 beforeEach(function () {
     $this->adminUser = User::factory()->create(['role' => 'admin']);
@@ -61,7 +61,7 @@ test('manager can update any client', function () {
 
 test('member can update client they created', function () {
     $memberClient = Client::factory()->create(['created_by' => $this->memberUser->id]);
-    
+
     $updateData = [
         'name' => 'Updated by Member Owner',
         'email' => 'member@example.com',
@@ -83,7 +83,7 @@ test('member can update client they are assigned to', function () {
         'created_by' => $this->adminUser->id,
         'assigned_to' => $this->memberUser->id,
     ]);
-    
+
     $updateData = [
         'name' => 'Updated by Assigned Member',
         'email' => 'assigned@example.com',

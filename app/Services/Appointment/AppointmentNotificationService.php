@@ -81,7 +81,7 @@ class AppointmentNotificationService
                 ->where('id', '!=', $actor->id)
                 ->whereNotIn('id', array_keys($notifiableUsers)) // Don't add if already included
                 ->get();
-            
+
             foreach ($admins as $admin) {
                 $notifiableUsers[$admin->id] = $admin;
             }
@@ -139,7 +139,7 @@ class AppointmentNotificationService
         $admins = User::where('role', 'admin')
             ->whereNotIn('id', array_keys($notifiableUsers))
             ->get();
-        
+
         foreach ($admins as $admin) {
             $notifiableUsers[$admin->id] = $admin;
         }

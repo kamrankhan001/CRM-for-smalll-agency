@@ -2,15 +2,15 @@
 
 namespace App\Actions\Task;
 
+use App\Concerns\HasMorphTypes;
 use App\Models\Task;
 use App\Models\User;
 use App\Notifications\TaskAssignedNotification;
-use App\Concerns\HasMorphTypes;
 
 class CreateTaskAction
 {
     use HasMorphTypes;
-    
+
     public function execute(array $data, User $currentUser): void
     {
         $data['taskable_type'] = $this->mapMorphType($data['taskable_type']);

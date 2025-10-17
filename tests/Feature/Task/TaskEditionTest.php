@@ -1,17 +1,17 @@
 <?php
 
+use App\Models\Client;
+use App\Models\Lead;
+use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
-use App\Models\Lead;
-use App\Models\Client;
-use App\Models\Project;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin']);
     $this->manager = User::factory()->create(['role' => 'manager']);
     $this->member = User::factory()->create(['role' => 'member']);
     $this->otherMember = User::factory()->create(['role' => 'member']);
-    
+
     // Create related models first so factory can find them
     $this->lead = Lead::factory()->create();
     $this->client = Client::factory()->create();
@@ -62,7 +62,7 @@ test('edit page loads successfully for member with their assigned task', functio
 test('edit page forbidden for member with other members task', function () {
     $task = Task::factory()->create([
         'assigned_to' => $this->otherMember->id,
-        'created_by' => $this->otherMember->id
+        'created_by' => $this->otherMember->id,
     ]);
 
     $this->actingAs($this->member)
@@ -144,7 +144,7 @@ test('update works for member with their assigned task', function () {
 test('update forbidden for member with other members task', function () {
     $task = Task::factory()->create([
         'assigned_to' => $this->otherMember->id,
-        'created_by' => $this->otherMember->id
+        'created_by' => $this->otherMember->id,
     ]);
 
     $this->actingAs($this->member)

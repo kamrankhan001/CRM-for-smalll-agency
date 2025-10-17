@@ -59,5 +59,4 @@ class invoice extends Model
     {
         return $this->morphMany(Document::class, 'documentable');
     }
-
 }

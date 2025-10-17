@@ -79,7 +79,7 @@ test('member cannot create project', function () {
 
 test('store creates project with members and sends notifications', function () {
     $memberUser = User::factory()->create(['role' => 'member']);
-    
+
     $projectData = [
         'name' => 'Project with Members',
         'description' => 'Test Description',

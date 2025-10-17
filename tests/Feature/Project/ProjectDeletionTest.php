@@ -1,8 +1,11 @@
 <?php
 
-use App\Models\User;
 use App\Models\Project;
-use function Pest\Laravel\{actingAs, assertDatabaseMissing, assertDatabaseHas};
+use App\Models\User;
+
+use function Pest\Laravel\actingAs;
+use function Pest\Laravel\assertDatabaseHas;
+use function Pest\Laravel\assertDatabaseMissing;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin']);

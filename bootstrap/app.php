@@ -25,12 +25,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withSchedule(function (Schedule $schedule) {
-       $schedule->command('tasks:due-soon')->dailyAt('09:00');
-       // Send appointment reminders 15 minutes before appointment time
+        $schedule->command('tasks:due-soon')->dailyAt('09:00');
+        // Send appointment reminders 15 minutes before appointment time
         $schedule->command('appointments:send-reminders --minutes=15')
-                 ->everyMinute()
-                 ->description('Send appointment reminders 15 minutes before')
-                 ->withoutOverlapping();
+            ->everyMinute()
+            ->description('Send appointment reminders 15 minutes before')
+            ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

@@ -52,7 +52,7 @@ class SendInvoiceAction
 
         // Dispatch queued email job
         if ($invoice->client && $invoice->client->email) {
-            dispatch(new SendInvoiceEmailJob($invoice, storage_path('app/public/' . $pdfPath)));
+            dispatch(new SendInvoiceEmailJob($invoice, storage_path('app/public/'.$pdfPath)));
         }
     }
 }

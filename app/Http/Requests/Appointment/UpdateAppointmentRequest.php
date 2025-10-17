@@ -21,7 +21,7 @@ class UpdateAppointmentRequest extends FormRequest
      */
     public function rules(): array
     {
-         return [
+        return [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'appointable_type' => 'required|string|in:lead,client,project',
@@ -32,5 +32,4 @@ class UpdateAppointmentRequest extends FormRequest
             'status' => 'required|in:pending,confirmed,cancelled',
         ];
     }
-
 }

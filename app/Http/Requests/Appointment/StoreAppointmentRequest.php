@@ -32,5 +32,4 @@ class StoreAppointmentRequest extends FormRequest
             'status' => 'required|in:pending,confirmed,cancelled',
         ];
     }
-
 }

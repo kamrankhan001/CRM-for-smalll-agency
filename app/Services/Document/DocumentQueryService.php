@@ -17,22 +17,22 @@ class DocumentQueryService
         $query = Document::with(['documentable', 'uploader']);
 
         // Apply search filter
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $query->where('title', 'like', "%{$filters['search']}%");
         }
 
         // Apply type filter
-        if (!empty($filters['type'])) {
+        if (! empty($filters['type'])) {
             $query->where('type', $filters['type']);
         }
 
         // Apply uploaded_by filter
-        if (!empty($filters['uploaded_by'])) {
+        if (! empty($filters['uploaded_by'])) {
             $query->where('uploaded_by', $filters['uploaded_by']);
         }
 
         // Apply documentable_type filter
-        if (!empty($filters['documentable_type'])) {
+        if (! empty($filters['documentable_type'])) {
             $query->where('documentable_type', $this->mapMorphType($filters['documentable_type']));
         }
 

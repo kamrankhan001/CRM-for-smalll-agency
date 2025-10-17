@@ -76,7 +76,6 @@ test('member gets 403 when viewing unrelated project', function () {
         ->assertForbidden();
 });
 
-
 test('manager can view unrelated project', function () {
     $otherUser = User::factory()->create();
     $project = Project::factory()->create(['created_by' => $otherUser->id]);

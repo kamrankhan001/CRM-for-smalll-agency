@@ -7,11 +7,11 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class LeadAssignedNotification extends Notification implements ShouldQueue, ShouldBroadcast
+class LeadAssignedNotification extends Notification implements ShouldBroadcast, ShouldQueue
 {
     use Queueable;
 
@@ -77,7 +77,7 @@ class LeadAssignedNotification extends Notification implements ShouldQueue, Shou
     public function broadcastOn(): array
     {
         // Private channel specific to the assigned user
-        return [new PrivateChannel('notifications.' . $this->lead->assigned_to)];
+        return [new PrivateChannel('notifications.'.$this->lead->assigned_to)];
     }
 
     /**

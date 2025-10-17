@@ -63,7 +63,7 @@ test('date filters work correctly', function () {
     $this->actingAs($this->admin)
         ->get(route('users.index', [
             'date_from' => now()->subDay()->format('Y-m-d'),
-            'date_to' => now()->addDay()->format('Y-m-d')
+            'date_to' => now()->addDay()->format('Y-m-d'),
         ]))
         ->assertStatus(200)
         ->assertInertia(fn ($page) => $page

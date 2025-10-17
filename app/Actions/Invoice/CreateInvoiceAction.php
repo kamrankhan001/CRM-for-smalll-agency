@@ -11,7 +11,7 @@ class CreateInvoiceAction
     {
         $data['created_by'] = $user->id;
         $data['invoice_number'] = $this->generateInvoiceNumber();
-        
+
         return Invoice::create($data);
     }
 

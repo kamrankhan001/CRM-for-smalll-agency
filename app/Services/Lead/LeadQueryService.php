@@ -16,30 +16,30 @@ class LeadQueryService
         $query = Lead::with(['creator', 'assignee']);
 
         // Apply search filter
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $query->where(function ($q) use ($filters) {
                 $q->where('name', 'like', "%{$filters['search']}%")
-                  ->orWhere('email', 'like', "%{$filters['search']}%")
-                  ->orWhere('company', 'like', "%{$filters['search']}%");
+                    ->orWhere('email', 'like', "%{$filters['search']}%")
+                    ->orWhere('company', 'like', "%{$filters['search']}%");
             });
         }
 
         // Apply status filter
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
         // Apply assigned_to filter
-        if (!empty($filters['assigned_to'])) {
+        if (! empty($filters['assigned_to'])) {
             $query->where('assigned_to', $filters['assigned_to']);
         }
 
         // Apply date range filters
-        if (!empty($filters['date_from'])) {
+        if (! empty($filters['date_from'])) {
             $query->whereDate('created_at', '>=', $filters['date_from']);
         }
 
-        if (!empty($filters['date_to'])) {
+        if (! empty($filters['date_to'])) {
             $query->whereDate('created_at', '<=', $filters['date_to']);
         }
 
@@ -47,7 +47,7 @@ class LeadQueryService
         if ($currentUser->role === 'member') {
             $query->where(function ($q) use ($currentUser) {
                 $q->where('created_by', $currentUser->id)
-                  ->orWhere('assigned_to', $currentUser->id);
+                    ->orWhere('assigned_to', $currentUser->id);
             });
         }
 

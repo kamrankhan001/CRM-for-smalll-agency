@@ -2,11 +2,11 @@
 
 namespace App\Actions\Lead;
 
+use App\Models\Client;
 use App\Models\Lead;
 use App\Models\User;
-use App\Models\Client;
-use App\Services\Lead\LeadConversionService;
 use App\Notifications\LeadConvertedNotification;
+use App\Services\Lead\LeadConversionService;
 use Illuminate\Support\Facades\DB;
 
 class ConvertLeadToClientAction
@@ -17,7 +17,7 @@ class ConvertLeadToClientAction
 
     public function execute(Lead $lead, User $currentUser): void
     {
-        if (!$this->conversionService->canConvertLead($lead)) {
+        if (! $this->conversionService->canConvertLead($lead)) {
             throw new \Exception('This lead has already been converted to a client.');
         }
 
@@ -36,10 +36,10 @@ class ConvertLeadToClientAction
     private function sendNotifications(Lead $lead, Client $client, User $convertedBy): void
     {
         // Get users who should receive notifications (admins and managers)
-        $recipients = User::where(function ($query) use ($convertedBy) {
-                $query->where('role', 'admin')
-                      ->orWhere('role', 'manager');
-            })
+        $recipients = User::where(function ($query) {
+            $query->where('role', 'admin')
+                ->orWhere('role', 'manager');
+        })
             ->where('id', '!=', $convertedBy->id)
             ->get();
 

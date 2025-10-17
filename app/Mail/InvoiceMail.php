@@ -14,13 +14,12 @@ class InvoiceMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-
     /**
      * Create a new message instance.
      */
     public function __construct(public Invoice $invoice, protected string $pdfPath)
     {
-       //
+        //
     }
 
     /**
@@ -29,7 +28,7 @@ class InvoiceMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Invoice: ' . ($this->invoice->title ?? $this->invoice->invoice_number),
+            subject: 'Invoice: '.($this->invoice->title ?? $this->invoice->invoice_number),
         );
     }
 
@@ -53,7 +52,7 @@ class InvoiceMail extends Mailable
     {
         return [
             Attachment::fromPath($this->pdfPath)
-                ->as('invoice-' . $this->invoice->invoice_number . '.pdf')
+                ->as('invoice-'.$this->invoice->invoice_number.'.pdf')
                 ->withMime('application/pdf'),
         ];
     }

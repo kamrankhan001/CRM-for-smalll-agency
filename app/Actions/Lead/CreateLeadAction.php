@@ -14,7 +14,7 @@ class CreateLeadAction
     public function execute(array $data, User $currentUser): Lead
     {
         $data['created_by'] = $currentUser->id;
-        
+
         $lead = Lead::create($data);
 
         // Send notification if assigned to someone else

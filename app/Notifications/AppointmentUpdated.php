@@ -4,12 +4,12 @@ namespace App\Notifications;
 
 use App\Models\Appointment;
 use App\Models\User;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Broadcasting\PrivateChannel;
 
 class AppointmentUpdated extends Notification implements ShouldQueue
 {
@@ -43,12 +43,12 @@ class AppointmentUpdated extends Notification implements ShouldQueue
             ->subject("Appointment Updated - {$this->appointment->title}")
             ->greeting("Hello {$notifiable->name},")
             ->line("An appointment has been updated by {$this->updater->name}.")
-            ->line("**Updated Appointment Details:**")
+            ->line('**Updated Appointment Details:**')
             ->line("- Title: {$this->appointment->title}")
             ->line("- Date: {$this->appointment->date->format('M d, Y')}")
             ->line("- Time: {$this->appointment->start_time} - {$this->appointment->end_time}")
             ->line("- Related {$appointableType}: {$appointableName}")
-            ->line("- Status: " . ucfirst($this->appointment->status))
+            ->line('- Status: '.ucfirst($this->appointment->status))
             ->action('View Appointment', $this->getAppointmentUrl())
             ->line('Thank you for using our application!');
     }
@@ -98,7 +98,7 @@ class AppointmentUpdated extends Notification implements ShouldQueue
      */
     public function broadcastOn(): array
     {
-        return [new PrivateChannel('notifications.' . $this->appointment->created_by)];
+        return [new PrivateChannel('notifications.'.$this->appointment->created_by)];
     }
 
     /**

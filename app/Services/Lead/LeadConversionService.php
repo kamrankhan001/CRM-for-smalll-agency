@@ -2,8 +2,8 @@
 
 namespace App\Services\Lead;
 
-use App\Models\Lead;
 use App\Models\Client;
+use App\Models\Lead;
 use App\Models\User;
 use App\Notifications\LeadConvertedNotification;
 
@@ -55,7 +55,7 @@ class LeadConversionService
      */
     public function canConvertLead(Lead $lead): bool
     {
-        return !$lead->client; // Only convert if not already converted
+        return ! $lead->client; // Only convert if not already converted
     }
 
     /**

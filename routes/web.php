@@ -1,12 +1,12 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LeadController;
-use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\NoteController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProjectController;
@@ -22,7 +22,7 @@ Route::get('/', function () {
 
 // Authenticated Routes
 Route::middleware(['auth', 'verified'])->group(function () {
-    
+
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 

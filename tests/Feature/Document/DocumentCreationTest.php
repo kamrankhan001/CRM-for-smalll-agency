@@ -1,16 +1,16 @@
 <?php
 
-use App\Models\User;
-use App\Models\Lead;
 use App\Models\Client;
+use App\Models\Lead;
 use App\Models\Project;
+use App\Models\User;
 use Illuminate\Http\UploadedFile;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin']);
     $this->manager = User::factory()->create(['role' => 'manager']);
     $this->member = User::factory()->create(['role' => 'member']);
-    
+
     // Create related models first so factory can find them
     $this->lead = Lead::factory()->create();
     $this->client = Client::factory()->create();
@@ -134,6 +134,6 @@ test('store maps documentable_type correctly', function () {
 
     $this->assertDatabaseHas('documents', [
         'title' => 'Test Document',
-        'documentable_type' => 'App\\Models\\Lead'
+        'documentable_type' => 'App\\Models\\Lead',
     ]);
 });

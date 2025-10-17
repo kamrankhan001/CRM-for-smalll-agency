@@ -3,19 +3,20 @@
 namespace App\Exports;
 
 use App\Models\Lead;
-use Maatwebsite\Excel\Concerns\Exportable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class LeadsExport implements FromCollection, WithHeadings, WithMapping, WithStyles, ShouldQueue
+class LeadsExport implements FromCollection, ShouldQueue, WithHeadings, WithMapping, WithStyles
 {
     use Exportable;
-    
+
     protected $filters;
+
     protected $userId;
 
     public function __construct($filters = [], $userId = null)
@@ -64,7 +65,7 @@ class LeadsExport implements FromCollection, WithHeadings, WithMapping, WithStyl
             'Assigned To',
             'Created By',
             'Created At',
-            'Updated At'
+            'Updated At',
         ];
     }
 

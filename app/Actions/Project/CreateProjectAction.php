@@ -13,10 +13,10 @@ class CreateProjectAction
     {
         return DB::transaction(function () use ($data, $currentUser) {
             $data['created_by'] = $currentUser->id;
-            
+
             $project = Project::create($data);
 
-            if (!empty($data['members'])) {
+            if (! empty($data['members'])) {
                 $project->members()->sync($data['members']);
 
                 // Notify only assigned members (excluding creator and admin users)

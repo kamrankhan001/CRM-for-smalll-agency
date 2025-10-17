@@ -13,36 +13,36 @@ class ProjectQueryService
         $query = Project::with(['client', 'lead', 'creator', 'members']);
 
         // Apply search filter
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $query->where('name', 'like', "%{$filters['search']}%");
         }
 
         // Apply status filter
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
         // Apply client filter
-        if (!empty($filters['client_id'])) {
+        if (! empty($filters['client_id'])) {
             $query->where('client_id', $filters['client_id']);
         }
 
         // Apply lead filter
-        if (!empty($filters['lead_id'])) {
+        if (! empty($filters['lead_id'])) {
             $query->where('lead_id', $filters['lead_id']);
         }
 
         // Apply created_by filter
-        if (!empty($filters['created_by'])) {
+        if (! empty($filters['created_by'])) {
             $query->where('created_by', $filters['created_by']);
         }
 
         // Apply date range filters
-        if (!empty($filters['date_from'])) {
+        if (! empty($filters['date_from'])) {
             $query->whereDate('start_date', '>=', $filters['date_from']);
         }
 
-        if (!empty($filters['date_to'])) {
+        if (! empty($filters['date_to'])) {
             $query->whereDate('end_date', '<=', $filters['date_to']);
         }
 
@@ -50,9 +50,9 @@ class ProjectQueryService
         if ($currentUser->role === 'member') {
             $query->where(function ($q) use ($currentUser) {
                 $q->where('created_by', $currentUser->id)
-                  ->orWhereHas('members', function ($memberQuery) use ($currentUser) {
-                      $memberQuery->where('user_id', $currentUser->id);
-                  });
+                    ->orWhereHas('members', function ($memberQuery) use ($currentUser) {
+                        $memberQuery->where('user_id', $currentUser->id);
+                    });
             });
         }
 

@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\Task;
-use Carbon\Carbon;
 use App\Notifications\TaskDueSoonNotification;
+use Carbon\Carbon;
+use Illuminate\Console\Command;
 
 class NotifyTaskDueSoon extends Command
 {
@@ -28,7 +28,7 @@ class NotifyTaskDueSoon extends Command
      */
     public function handle()
     {
-         $tomorrow = Carbon::tomorrow();
+        $tomorrow = Carbon::tomorrow();
         $tasks = Task::whereDate('due_date', $tomorrow)->with('assigned_to')->get();
 
         foreach ($tasks as $task) {

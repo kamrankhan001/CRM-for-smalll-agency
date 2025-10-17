@@ -21,7 +21,7 @@ class UpdateDocumentRequest extends FormRequest
      */
     public function rules(): array
     {
-         return [
+        return [
             'title' => 'required|string|max:255',
             'type' => 'required|string|in:proposal,contract,invoice,report,brief,misc',
             'file' => 'nullable|file|mimes:pdf,doc,docx,png,jpg,jpeg|max:5120',

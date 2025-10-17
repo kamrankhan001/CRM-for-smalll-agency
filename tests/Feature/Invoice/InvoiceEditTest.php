@@ -1,15 +1,15 @@
 <?php
 
-use App\Models\Invoice;
-use App\Models\User;
 use App\Models\Client;
+use App\Models\Invoice;
 use App\Models\Project;
+use App\Models\User;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin']);
     $this->manager = User::factory()->create(['role' => 'manager']);
     $this->member = User::factory()->create(['role' => 'member']);
-    
+
     $this->client = Client::factory()->create();
     $this->project = Project::factory()->create();
     $this->invoice = Invoice::factory()->create(['status' => 'draft']);
@@ -68,7 +68,7 @@ test('admin can update invoice', function () {
 
     $response->assertRedirect();
     $response->assertSessionHas('success');
-    
+
     // Check that it redirects to some invoices route (more flexible)
     $this->assertStringContainsString('invoices', $response->getTargetUrl());
 
@@ -95,7 +95,7 @@ test('manager can update invoice', function () {
 
     $response->assertRedirect();
     $response->assertSessionHasNoErrors();
-    
+
     // Check that it redirects to some invoices route (more flexible)
     $this->assertStringContainsString('invoices', $response->getTargetUrl());
 

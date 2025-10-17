@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('projects', function (Blueprint $table) {
             $table->id();
-             $table->string('name');
+            $table->string('name');
             $table->text('description')->nullable();
             $table->enum('status', ['planning', 'in_progress', 'on_hold', 'completed'])->default('planning');
             $table->date('start_date')->nullable();
