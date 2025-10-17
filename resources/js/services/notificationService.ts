@@ -3,6 +3,9 @@ import type {
     NoteAddedNotification,
     ProjectAssignedNotification,
     TaskAssignedNotification,
+    AppointmentCreatedNotification,
+    AppointmentUpdatedNotification,
+    AppointmentReminderNotification,
 } from '@/types/notifications';
 import { toast } from 'vue-sonner';
 
@@ -57,6 +60,61 @@ class NotificationService {
                 },
             });
         });
+
+        // Appointment Created Handler
+        this.handlers.set('appointment_created', (notification: AppointmentCreatedNotification) => {
+            toast.info('📅 New Appointment', {
+                description: notification.message,
+                action: {
+                    label: 'View Appointment',
+                    onClick: () => window.location.href = notification.url ?? `/appointments/${notification.appointment_id}`,
+                },
+            });
+        });
+
+        // Appointment Updated Handler
+        this.handlers.set('appointment_updated', (notification: AppointmentUpdatedNotification) => {
+            toast.warning('📅 Appointment Updated', {
+                description: notification.message,
+                action: {
+                    label: 'View Changes',
+                    onClick: () => window.location.href = notification.url ?? `/appointments/${notification.appointment_id}`,
+                },
+            });
+        });
+
+        // Appointment Reminder Handler
+        this.handlers.set('appointment_reminder', (notification: AppointmentReminderNotification) => {
+            const appointmentTime = new Date(notification.appointment_time);
+            const timeUntil = this.getTimeUntil(appointmentTime);
+            
+            toast.warning('⏰ Appointment Reminder', {
+                description: `${notification.message}\nStarts ${timeUntil}`,
+                duration: 10000, // Show for 10 seconds
+                action: {
+                    label: 'View Details',
+                    onClick: () => window.location.href = notification.url ?? `/appointments/${notification.appointment_id}`,
+                },
+            });
+        });
+    }
+
+    private getTimeUntil(appointmentTime: Date): string {
+        const now = new Date();
+        const diffMs = appointmentTime.getTime() - now.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMins / 60);
+        
+        if (diffMins < 1) {
+            return 'now';
+        } else if (diffMins < 60) {
+            return `in ${diffMins} minute${diffMins > 1 ? 's' : ''}`;
+        } else if (diffHours < 24) {
+            return `in ${diffHours} hour${diffHours > 1 ? 's' : ''}`;
+        } else {
+            const diffDays = Math.floor(diffHours / 24);
+            return `in ${diffDays} day${diffDays > 1 ? 's' : ''}`;
+        }
     }
 
     public handleNotification(notification: any) {
@@ -111,7 +169,10 @@ class NotificationService {
             'App\\Notifications\\LeadAssignedNotification',
             'App\\Notifications\\NoteAddedNotification', 
             'App\\Notifications\\ProjectAssignedNotification',
-            'App\\Notifications\\TaskAssignedNotification'
+            'App\\Notifications\\TaskAssignedNotification',
+            'App\\Notifications\\AppointmentCreatedNotification',
+            'App\\Notifications\\AppointmentUpdatedNotification',
+            'App\\Notifications\\AppointmentReminderNotification'
         ];
     }
 }

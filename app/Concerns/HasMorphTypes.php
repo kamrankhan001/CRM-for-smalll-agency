@@ -51,9 +51,9 @@ trait HasMorphTypes
     public function getMorphTypeOptions(): array
     {
         return [
-            'lead' => 'Lead',
-            'client' => 'Client', 
-            'project' => 'Project',
+            ['value' => 'lead', 'label' => 'Lead'],
+            ['value' => 'client', 'label' => 'Client'],
+            ['value' => 'project', 'label' => 'Project'],
         ];
     }
 

@@ -15,57 +15,77 @@ use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+// Public Routes
 Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('home');
 
+// Authenticated Routes
 Route::middleware(['auth', 'verified'])->group(function () {
-
+    
+    // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('/leads/export', [LeadController::class, 'export'])->name('leads.export');
-    Route::post('/leads/import', [LeadController::class, 'import'])->name('leads.import');
-    Route::get('/leads/import/sample', [LeadController::class, 'downloadSample'])->name('leads.import.sample');
+    // Leads Routes
+    Route::prefix('leads')->group(function () {
+        Route::get('/export', [LeadController::class, 'export'])->name('leads.export');
+        Route::get('/export/download', [LeadController::class, 'downloadExport'])->name('leads.downloadExport');
+        Route::get('/import/sample', [LeadController::class, 'downloadSample'])->name('leads.import.sample');
+        Route::post('/import', [LeadController::class, 'import'])->name('leads.import');
+        Route::post('/{lead}/convert', [LeadController::class, 'convert'])->name('leads.convert');
+        Route::resource('/', LeadController::class)->names('leads')->parameters(['' => 'lead']);
+    });
 
-    // Keep the resource route but it should be after custom routes
-    Route::resource('leads', LeadController::class);
-    Route::post('/leads/{lead}/convert', [LeadController::class, 'convert'])
-        ->name('leads.convert');
-    Route::get('/leads/export/download', [LeadController::class, 'downloadExport'])->name('leads.downloadExport');
+    // Appointments Routes
+    Route::prefix('appointments')->group(function () {
+        Route::patch('/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
+        Route::resource('/', AppointmentController::class)->names('appointments')->parameters(['' => 'appointment']);
+    });
 
-    Route::resource('appointments', AppointmentController::class);
-
-    // Optional: dedicated cancel route
-    Route::patch('/appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])
-        ->name('appointments.cancel');
-
+    // Clients Routes
     Route::resource('clients', ClientController::class);
 
-    Route::resource('tasks', TaskController::class);
-    Route::put('/tasks/{task}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
+    // Tasks Routes
+    Route::prefix('tasks')->group(function () {
+        Route::put('/{task}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
+        Route::resource('/', TaskController::class)->names('tasks')->parameters(['' => 'task']);
+    });
 
+    // Notes Routes
     Route::resource('notes', NoteController::class);
 
+    // Projects Routes
     Route::resource('projects', ProjectController::class);
 
-    Route::resource('documents', DocumentController::class);
-    Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
+    // Documents Routes
+    Route::prefix('documents')->group(function () {
+        Route::get('/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
+        Route::resource('/', DocumentController::class)->names('documents')->parameters(['' => 'document']);
+    });
 
+    // Activities Routes (Limited)
     Route::resource('activities', ActivityController::class)->only(['index', 'show', 'destroy']);
 
-    Route::resource('invoices', InvoiceController::class);
-    Route::get('/invoices/{invoice}/download', [InvoiceController::class, 'download'])->name('invoices.download');
-    Route::post('/invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
-    Route::put('/invoices/{invoice}/mark-as-paid', [InvoiceController::class, 'markAsPaid'])->name('invoices.mark-as-paid');
+    // Invoices Routes
+    Route::prefix('invoices')->group(function () {
+        Route::get('/{invoice}/download', [InvoiceController::class, 'download'])->name('invoices.download');
+        Route::post('/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
+        Route::put('/{invoice}/mark-as-paid', [InvoiceController::class, 'markAsPaid'])->name('invoices.mark-as-paid');
+        Route::resource('/', InvoiceController::class)->names('invoices')->parameters(['' => 'invoice']);
+    });
 
+    // Users Routes
     Route::resource('users', UserController::class);
 
-    Route::get('/notifications', [NotificationController::class, 'index'])
-        ->name('notifications.index');
-    Route::post('/notifications/{id}/mark-read', [NotificationController::class, 'markAsRead'])->name('notifications.markRead');
-    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAll');
+    // Notifications Routes
+    Route::prefix('notifications')->group(function () {
+        Route::post('/{id}/mark-read', [NotificationController::class, 'markAsRead'])->name('notifications.markRead');
+        Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAll');
+        Route::get('/', [NotificationController::class, 'index'])->name('notifications.index');
+    });
 
 });
 
+// Include additional route files
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

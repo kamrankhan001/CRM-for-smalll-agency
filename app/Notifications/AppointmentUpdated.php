@@ -3,10 +3,13 @@
 namespace App\Notifications;
 
 use App\Models\Appointment;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Broadcasting\PrivateChannel;
 
 class AppointmentUpdated extends Notification implements ShouldQueue
 {
@@ -15,19 +18,17 @@ class AppointmentUpdated extends Notification implements ShouldQueue
     /**
      * Create a new notification instance.
      */
-    public function __construct(public Appointment $appointment)
-    {
-        //
-    }
+    public function __construct(
+        public Appointment $appointment,
+        public User $updater
+    ) {}
 
     /**
      * Get the notification's delivery channels.
-     *
-     * @return array<int, string>
      */
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['database', 'mail', 'broadcast'];
     }
 
     /**
@@ -35,16 +36,94 @@ class AppointmentUpdated extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $appointableType = $this->getAppointableType();
+        $appointableName = $this->appointment->appointable->name ?? 'N/A';
+
         return (new MailMessage)
-            ->line('The introduction to the notification.')
-            ->action('Notification Action', url('/'))
+            ->subject("Appointment Updated - {$this->appointment->title}")
+            ->greeting("Hello {$notifiable->name},")
+            ->line("An appointment has been updated by {$this->updater->name}.")
+            ->line("**Updated Appointment Details:**")
+            ->line("- Title: {$this->appointment->title}")
+            ->line("- Date: {$this->appointment->date->format('M d, Y')}")
+            ->line("- Time: {$this->appointment->start_time} - {$this->appointment->end_time}")
+            ->line("- Related {$appointableType}: {$appointableName}")
+            ->line("- Status: " . ucfirst($this->appointment->status))
+            ->action('View Appointment', $this->getAppointmentUrl())
             ->line('Thank you for using our application!');
     }
 
     /**
+     * Get the database representation of the notification.
+     */
+    public function toDatabase(object $notifiable): array
+    {
+        $appointableType = $this->getAppointableType();
+        $appointableName = $this->appointment->appointable->name ?? 'N/A';
+
+        return [
+            'type' => 'appointment_updated',
+            'message' => "Appointment '{$this->appointment->title}' updated by {$this->updater->name} for {$appointableType}: {$appointableName}",
+            'appointment_id' => $this->appointment->id,
+            'updater_id' => $this->updater->id,
+            'updater_name' => $this->updater->name,
+            'appointable_type' => $appointableType,
+            'appointable_name' => $appointableName,
+            'url' => $this->getAppointmentUrl(),
+        ];
+    }
+
+    /**
+     * Get the broadcast representation of the notification.
+     */
+    public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        $appointableType = $this->getAppointableType();
+        $appointableName = $this->appointment->appointable->name ?? 'N/A';
+
+        return new BroadcastMessage([
+            'type' => 'appointment_updated',
+            'message' => "Appointment '{$this->appointment->title}' updated by {$this->updater->name} for {$appointableType}: {$appointableName}",
+            'appointment_id' => $this->appointment->id,
+            'updater_name' => $this->updater->name,
+            'appointable_type' => $appointableType,
+            'appointable_name' => $appointableName,
+            'url' => $this->getAppointmentUrl(),
+            'time' => now()->toDateTimeString(),
+        ]);
+    }
+
+    /**
+     * Get the channels the event should broadcast on.
+     */
+    public function broadcastOn(): array
+    {
+        return [new PrivateChannel('notifications.' . $this->appointment->created_by)];
+    }
+
+    /**
+     * Get the appointable type in readable format.
+     */
+    protected function getAppointableType(): string
+    {
+        return match ($this->appointment->appointable_type) {
+            'App\\Models\\Lead' => 'Lead',
+            'App\\Models\\Client' => 'Client',
+            'App\\Models\\Project' => 'Project',
+            default => 'Item'
+        };
+    }
+
+    /**
+     * Get the appointment URL.
+     */
+    protected function getAppointmentUrl(): string
+    {
+        return url("/appointments/{$this->appointment->id}");
+    }
+
+    /**
      * Get the array representation of the notification.
-     *
-     * @return array<string, mixed>
      */
     public function toArray(object $notifiable): array
     {

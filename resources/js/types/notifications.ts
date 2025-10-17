@@ -33,11 +33,42 @@ export interface TaskAssignedNotification extends BaseNotification {
     assigned_by_name: string;
 }
 
+
+export interface AppointmentCreatedNotification extends BaseNotification {
+    type: 'appointment_created';
+    appointment_id: string | number;
+    creator_id: string | number;
+    creator_name: string;
+    appointable_type: string;
+    appointable_name: string;
+}
+
+export interface AppointmentUpdatedNotification extends BaseNotification {
+    type: 'appointment_updated';
+    appointment_id: string | number;
+    updater_id: string | number;
+    updater_name: string;
+    appointable_type: string;
+    appointable_name: string;
+}
+
+export interface AppointmentReminderNotification extends BaseNotification {
+    type: 'appointment_reminder';
+    appointment_id: string | number;
+    appointable_type: string;
+    appointable_name: string;
+    appointment_time: string;
+    reminder_time: string;
+}
+
 export type AppNotification = 
     | LeadAssignedNotification 
     | NoteAddedNotification 
     | ProjectAssignedNotification
-    | TaskAssignedNotification;
+    | TaskAssignedNotification
+    | AppointmentCreatedNotification
+    | AppointmentUpdatedNotification
+    | AppointmentReminderNotification;
 
 export interface NotificationHandler {
     type: string;
