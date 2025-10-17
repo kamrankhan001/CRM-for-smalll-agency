@@ -22,9 +22,9 @@ class Appointment extends Model
     ];
 
     protected $casts = [
-        'date' => 'date',
-        'start_time' => 'datetime:H:i',
-        'end_time' => 'datetime:H:i',
+        'date' => 'datetime',
+        'start_time' => 'string',
+        'end_time' => 'string',
     ];
 
     // Creator
@@ -43,5 +43,10 @@ class Appointment extends Model
     public function attendees()
     {
         return $this->belongsToMany(User::class, 'appointment_user')->withTimestamps();
+    }
+
+    public function activities()
+    {
+        return $this->morphMany(Activity::class, 'subject')->latest();
     }
 }

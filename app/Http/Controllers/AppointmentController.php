@@ -2,14 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\HasMorphTypes;
 use App\Models\Appointment;
-use App\Models\User;
-use App\Models\Lead;
 use App\Models\Client;
+use App\Models\Lead;
 use App\Models\Project;
+use App\Models\User;
 use App\Notifications\AppointmentCreated;
 use App\Notifications\AppointmentUpdated;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -17,7 +19,7 @@ use Inertia\Response;
 
 class AppointmentController extends Controller
 {
-    use AuthorizesRequests;
+    use AuthorizesRequests, HasMorphTypes;
 
     /**
      * Display a listing of appointments.
@@ -27,25 +29,19 @@ class AppointmentController extends Controller
         $this->authorize('viewAny', Appointment::class);
 
         $appointments = Appointment::with(['creator', 'appointable'])
-            ->when($request->search, function ($query, $search) {
-                $query->where('title', 'like', "%{$search}%");
-            })
-            ->when($request->filled('status'), function ($query) use ($request) {
-                $query->where('status', $request->status);
-            })
-            ->when($request->filled('date_from'), function ($query) use ($request) {
-                $query->whereDate('date', '>=', $request->date_from);
-            })
-            ->when($request->filled('date_to'), function ($query) use ($request) {
-                $query->whereDate('date', '<=', $request->date_to);
-            })
-            ->when($request->user()->role === 'member', function ($query) use ($request) {
-                // Members see only appointments they created or related to
-                $query->where('created_by', $request->user()->id);
-            })
+            ->when($request->search, fn ($query, $search) => $query->where('title', 'like', "%{$search}%")
+            )
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status)
+            )
+            ->when($request->filled('date_from'), fn ($query) => $query->whereDate('date', '>=', $request->date_from)
+            )
+            ->when($request->filled('date_to'), fn ($query) => $query->whereDate('date', '<=', $request->date_to)
+            )
+            ->when($request->user()->role === 'member', fn ($query) => $query->where('created_by', $request->user()->id)
+            )
             ->latest()
             ->paginate(10)
-            ->through(fn($appointment) => [
+            ->through(fn ($appointment) => [
                 'id' => $appointment->id,
                 'title' => $appointment->title,
                 'date' => $appointment->date->toDateString(),
@@ -54,7 +50,7 @@ class AppointmentController extends Controller
                 'status' => $appointment->status,
                 'appointable' => $appointment->appointable ? [
                     'id' => $appointment->appointable->id,
-                    'type' => class_basename($appointment->appointable_type),
+                    'type' => $this->getShortMorphType($appointment->appointable_type),
                     'name' => $appointment->appointable->name ?? 'N/A',
                 ] : null,
                 'creator' => $appointment->creator ? [
@@ -88,20 +84,21 @@ class AppointmentController extends Controller
             'leads' => Lead::select('id', 'name')->get(),
             'clients' => Client::select('id', 'name')->get(),
             'projects' => Project::select('id', 'name')->get(),
+            'morphTypes' => $this->getMorphTypeOptions(),
         ]);
     }
 
     /**
      * Store a newly created appointment.
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $this->authorize('create', Appointment::class);
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'appointable_type' => 'required|string|in:App\\Models\\Lead,App\\Models\\Client,App\\Models\\Project',
+            'appointable_type' => 'required|string|in:lead,client,project',
             'appointable_id' => 'required|integer',
             'date' => 'required|date|after_or_equal:today',
             'start_time' => 'required|date_format:H:i',
@@ -109,13 +106,13 @@ class AppointmentController extends Controller
             'status' => 'required|in:pending,confirmed,cancelled',
         ]);
 
+        $validated['appointable_type'] = $this->mapMorphType($validated['appointable_type']);
         $validated['created_by'] = $request->user()->id;
 
         try {
             DB::transaction(function () use ($validated, $request) {
                 $appointment = Appointment::create($validated);
 
-                // Notify creator and related users
                 $relatedUsers = User::where('role', '!=', 'admin')
                     ->where('id', '!=', $request->user()->id)
                     ->get();
@@ -127,7 +124,7 @@ class AppointmentController extends Controller
 
             return redirect()->route('appointments.index')->with('success', 'Appointment created successfully.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Failed to create appointment: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to create appointment: '.$e->getMessage());
         }
     }
 
@@ -137,11 +134,49 @@ class AppointmentController extends Controller
     public function show(Appointment $appointment): Response
     {
         $this->authorize('view', $appointment);
+        $appointment->load(['creator', 'appointable', 'activities.causer']);
 
-        $appointment->load(['creator', 'appointable']);
+        $simplifiedType = $this->getShortMorphType($appointment->appointable_type);
 
         return Inertia::render('appointments/Show', [
-            'appointment' => $appointment,
+            'appointment' => [
+                'id' => $appointment->id,
+                'title' => $appointment->title,
+                'description' => $appointment->description,
+                'appointable_type' => $simplifiedType,
+                'appointable_id' => $appointment->appointable_id,
+                'date' => $appointment->date->toDateString(),
+                'start_time' => $appointment->start_time,
+                'end_time' => $appointment->end_time,
+                'status' => $appointment->status,
+                'appointable' => $appointment->appointable ? [
+                    'id' => $appointment->appointable->id,
+                    'type' => $simplifiedType,
+                    'name' => $appointment->appointable->name ?? 'N/A',
+                ] : null,
+                'creator' => $appointment->creator ? [
+                    'id' => $appointment->creator->id,
+                    'name' => $appointment->creator->name,
+                ] : null,
+                'created_at' => $appointment->created_at,
+                'updated_at' => $appointment->updated_at,
+            ],
+            'activities' => $appointment->activities->map(function ($activity) {
+                return [
+                    'id' => $activity->id,
+                    'description' => $activity->description,
+                    'causer' => $activity->causer ? [
+                        'id' => $activity->causer->id,
+                        'name' => $activity->causer->name,
+                        'email' => $activity->causer->email,
+                    ] : null,
+                    'created_at' => $activity->created_at,
+                ];
+            }),
+            'leads' => Lead::select('id', 'name')->get(),
+            'clients' => Client::select('id', 'name')->get(),
+            'projects' => Project::select('id', 'name')->get(),
+            'morphTypes' => $this->getMorphTypeOptions(),
         ]);
     }
 
@@ -151,27 +186,39 @@ class AppointmentController extends Controller
     public function edit(Appointment $appointment): Response
     {
         $this->authorize('update', $appointment);
+        $simplifiedType = $this->getShortMorphType($appointment->appointable_type);
 
         return Inertia::render('appointments/Edit', [
-            'appointment' => $appointment,
+            'appointment' => [
+                'id' => $appointment->id,
+                'title' => $appointment->title,
+                'description' => $appointment->description,
+                'appointable_type' => $simplifiedType,
+                'appointable_id' => $appointment->appointable_id,
+                'date' => $appointment->date->toDateString(),
+                'start_time' => $appointment->start_time,
+                'end_time' => $appointment->end_time,
+                'status' => $appointment->status,
+            ],
             'users' => User::select('id', 'name')->get(),
             'leads' => Lead::select('id', 'name')->get(),
             'clients' => Client::select('id', 'name')->get(),
             'projects' => Project::select('id', 'name')->get(),
+            'morphTypes' => $this->getMorphTypeOptions(),
         ]);
     }
 
     /**
      * Update the specified appointment.
      */
-    public function update(Request $request, Appointment $appointment)
+    public function update(Request $request, Appointment $appointment): RedirectResponse
     {
         $this->authorize('update', $appointment);
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'appointable_type' => 'required|string|in:App\\Models\\Lead,App\\Models\\Client,App\\Models\\Project',
+            'appointable_type' => 'required|string|in:lead,client,project',
             'appointable_id' => 'required|integer',
             'date' => 'required|date|after_or_equal:today',
             'start_time' => 'required|date_format:H:i',
@@ -179,11 +226,12 @@ class AppointmentController extends Controller
             'status' => 'required|in:pending,confirmed,cancelled',
         ]);
 
+        $validated['appointable_type'] = $this->mapMorphType($validated['appointable_type']);
+
         try {
             DB::transaction(function () use ($appointment, $validated, $request) {
                 $appointment->update($validated);
 
-                // Notify relevant users about the update
                 $relatedUsers = User::where('role', '!=', 'admin')
                     ->where('id', '!=', $request->user()->id)
                     ->get();
@@ -193,21 +241,19 @@ class AppointmentController extends Controller
                 }
             });
 
-            return redirect()->route('appointments.show', $appointment)->with('success', 'Appointment updated successfully.');
+            return redirect()->route('appointments.index', $appointment)->with('success', 'Appointment updated successfully.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Failed to update appointment: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to update appointment: '.$e->getMessage());
         }
     }
 
     /**
      * Cancel the appointment.
      */
-    public function cancel(Appointment $appointment)
+    public function cancel(Appointment $appointment): RedirectResponse
     {
         $this->authorize('update', $appointment);
-
         $appointment->update(['status' => 'cancelled']);
-
         $appointment->creator->notify(new AppointmentUpdated($appointment));
 
         return redirect()->back()->with('success', 'Appointment cancelled successfully.');
@@ -216,10 +262,9 @@ class AppointmentController extends Controller
     /**
      * Remove the specified appointment.
      */
-    public function destroy(Appointment $appointment)
+    public function destroy(Appointment $appointment): RedirectResponse
     {
         $this->authorize('delete', $appointment);
-
         $appointment->delete();
 
         return redirect()->route('appointments.index')->with('success', 'Appointment deleted successfully.');

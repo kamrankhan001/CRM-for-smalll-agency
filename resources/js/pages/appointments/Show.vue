@@ -71,10 +71,12 @@ interface Appointment {
 
 interface Props {
     appointment: Appointment;
-    activities: Activity[];
+    activities?: Activity[]; // Make activities optional
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    activities: () => [] // Default to empty array if not provided
+});
 const page = usePage();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -102,21 +104,13 @@ const canDelete = computed(() => {
     return user.role === 'admin' || props.appointment.created_by === user.id;
 });
 
-const canCancel = computed(() => {
-    const user = page.props.auth?.user;
-    if (!user) return false;
-    
-    return (user.role === 'admin' || props.appointment.created_by === user.id) && 
-           props.appointment.status !== 'cancelled';
-});
-
 function getStatusColor(status: string) {
     const colors = {
-        pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-        confirmed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-        cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+        pending: 'bg-blue-100 text-blue-800 border-blue-200',
+        confirmed: 'bg-green-100 text-green-800 border-green-200',
+        cancelled: 'bg-red-100 text-red-800 border-red-200',
     };
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
+    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800 border-gray-200';
 }
 
 function getStatusIcon(status: string) {
@@ -130,10 +124,38 @@ function getStatusIcon(status: string) {
 
 function formatDate(date: string) {
     return new Date(date).toLocaleDateString('en-US', {
+        weekday: 'long',
         year: 'numeric',
-        month: 'short',
+        month: 'long',
         day: 'numeric',
     });
+}
+
+function formatTime(timeString: string): string {
+    if (!timeString) return '';
+    
+    try {
+        // Handle different time formats: "20:13:00" or "20:13"
+        const timeParts = timeString.split(':');
+        const hour = parseInt(timeParts[0]);
+        const minutes = timeParts[1] || '00';
+        
+        if (hour === 0) {
+            return `12:${minutes} AM`;
+        } else if (hour === 12) {
+            return `12:${minutes} PM`;
+        } else if (hour > 12) {
+            return `${hour - 12}:${minutes} PM`;
+        } else {
+            return `${hour}:${minutes} AM`;
+        }
+    } catch {
+        return timeString;
+    }
+}
+
+function formatTimeRange(startTime: string, endTime: string): string {
+    return `${formatTime(startTime)} - ${formatTime(endTime)}`;
 }
 
 function formatDateTime(date: string, time: string) {
@@ -147,17 +169,10 @@ function formatDateTime(date: string, time: string) {
     });
 }
 
-function formatTime(time: string) {
-    return new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-}
-
 function calculateRemainingTime() {
     const now = new Date();
     const start = new Date(`${props.appointment.date}T${props.appointment.start_time}`);
-    const diffMs = start - now;
+    const diffMs = start.getTime() - now.getTime();
 
     if (diffMs <= 0) {
         timeRemaining.value = 'Started or passed';
@@ -258,7 +273,7 @@ onMounted(() => {
                                         :class="
                                             getStatusColor(props.appointment.status)
                                         "
-                                        class="capitalize"
+                                        class="capitalize border"
                                     >
                                         <component 
                                             :is="getStatusIcon(props.appointment.status)" 
@@ -267,7 +282,7 @@ onMounted(() => {
                                         {{ props.appointment.status }}
                                     </Badge>
                                     <Badge
-                                        v-if="timeRemaining"
+                                        v-if="timeRemaining && props.appointment.status !== 'cancelled'"
                                         variant="outline"
                                     >
                                         {{ timeRemaining }}
@@ -277,7 +292,7 @@ onMounted(() => {
                             <p
                                 class="mt-1 text-sm text-muted-foreground sm:text-base"
                             >
-                                Scheduled for {{ formatDateTime(props.appointment.date, props.appointment.start_time) }}
+                                Scheduled for {{ formatDate(props.appointment.date) }} at {{ formatTime(props.appointment.start_time) }}
                             </p>
                         </div>
                     </div>
@@ -287,7 +302,7 @@ onMounted(() => {
                         class="flex w-full items-center justify-end gap-2 lg:w-auto lg:justify-normal lg:gap-3"
                     >
                         <!-- Cancel Appointment Button -->
-                        <TooltipProvider v-if="canCancel">
+                        <TooltipProvider v-if="canEdit">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Button
@@ -360,7 +375,7 @@ onMounted(() => {
                 <!-- Left Column - Appointment Info & Description -->
                 <div class="space-y-6 lg:col-span-2">
                     <!-- Appointment Information Card -->
-                    <Card class="border">
+                    <Card class="border shadow-sm">
                         <CardHeader>
                             <CardTitle class="flex items-center gap-2">
                                 <Calendar class="h-5 w-5" />
@@ -430,8 +445,8 @@ onMounted(() => {
                                     class="text-sm font-medium text-muted-foreground"
                                     >Duration</Label
                                 >
-                                <p class="text-sm">
-                                    {{ formatTime(props.appointment.start_time) }} - {{ formatTime(props.appointment.end_time) }}
+                                <p class="text-sm font-medium">
+                                    {{ formatTimeRange(props.appointment.start_time, props.appointment.end_time) }}
                                 </p>
                             </div>
 
@@ -446,7 +461,7 @@ onMounted(() => {
                                         :class="
                                             getStatusColor(props.appointment.status)
                                         "
-                                        class="capitalize"
+                                        class="capitalize border"
                                     >
                                         <component 
                                             :is="getStatusIcon(props.appointment.status)" 
@@ -485,7 +500,7 @@ onMounted(() => {
                                                 props.appointment.appointable,
                                             )
                                         "
-                                        class="text-sm text-primary hover:underline"
+                                        class="text-sm text-primary hover:underline font-medium"
                                     >
                                         {{
                                             props.appointment.appointable.name
@@ -504,7 +519,7 @@ onMounted(() => {
                                         class="text-sm font-medium text-muted-foreground"
                                         >Created By</Label
                                     >
-                                    <p class="text-sm">
+                                    <p class="text-sm font-medium">
                                         {{ props.appointment.creator?.name || 'N/A' }}
                                     </p>
                                 </div>
@@ -513,8 +528,8 @@ onMounted(() => {
                                     <Label
                                         class="text-sm font-medium text-muted-foreground"
                                         >Created</Label
-                                    >
-                                    <p class="text-sm">
+                                        >
+                                    <p class="text-sm font-medium">
                                         {{ formatDateTime(props.appointment.created_at, '00:00') }}
                                     </p>
                                 </div>
@@ -527,8 +542,8 @@ onMounted(() => {
                                     <Label
                                         class="text-sm font-medium text-muted-foreground"
                                         >Last Updated</Label
-                                    >
-                                    <p class="text-sm">
+                                        >
+                                    <p class="text-sm font-medium">
                                         {{ formatDateTime(props.appointment.updated_at, '00:00') }}
                                     </p>
                                 </div>
@@ -540,7 +555,7 @@ onMounted(() => {
                 <!-- Right Column - Activity & Statistics -->
                 <div class="space-y-6">
                     <!-- Activity Log -->
-                    <Card class="border">
+                    <Card class="border shadow-sm">
                         <CardHeader>
                             <CardTitle class="flex items-center gap-2">
                                 <Activity class="h-5 w-5" />
@@ -552,7 +567,7 @@ onMounted(() => {
                         </CardHeader>
                         <CardContent>
                             <div
-                                v-if="props.activities.length > 0"
+                                v-if="props.activities && props.activities.length > 0"
                                 class="space-y-4"
                             >
                                 <div
@@ -610,7 +625,7 @@ onMounted(() => {
                     </Card>
 
                     <!-- Appointment Statistics -->
-                    <Card class="border">
+                    <Card class="border shadow-sm">
                         <CardHeader>
                             <CardTitle>Appointment Statistics</CardTitle>
                         </CardHeader>
@@ -626,7 +641,7 @@ onMounted(() => {
                                                     class="text-2xl font-bold text-primary"
                                                 >
                                                     {{
-                                                        props.activities.length
+                                                        props.activities ? props.activities.length : 0
                                                     }}
                                                 </div>
                                                 <div
@@ -711,7 +726,7 @@ onMounted(() => {
                                             >Duration</span
                                         >
                                         <span class="text-sm font-medium">
-                                            {{ formatTime(props.appointment.start_time) }} - {{ formatTime(props.appointment.end_time) }}
+                                            {{ formatTimeRange(props.appointment.start_time, props.appointment.end_time) }}
                                         </span>
                                     </div>
                                 </div>

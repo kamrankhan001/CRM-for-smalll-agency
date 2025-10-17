@@ -28,7 +28,7 @@ import AppLayout from '@/layouts/AppLayout.vue'
 import type { BreadcrumbItem } from '@/types'
 import { ArrowLeft, Save, Calendar } from 'lucide-vue-next'
 import { update, index } from '@/actions/App/Http/Controllers/AppointmentController';
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 
 interface User {
   id: number
@@ -82,14 +82,46 @@ interface Props {
 
 const props = defineProps<Props>()
 
+// Format time for HTML input (HH:MM)
+function formatTimeForInput(timeString: string): string {
+  if (!timeString) return ''
+
+  try {
+    // handle both "08:00:00" and "08:00"
+    const [hour, minute] = timeString.split(':')
+    return `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+  } catch {
+    return ''
+  }
+}
+
+// Format time for display (8:15 PM)
+function formatTimeForDisplay(timeString: string): string {
+  if (!timeString) return ''
+
+  try {
+    const [h, m] = timeString.split(':')
+    let hour = parseInt(h)
+    const minutes = m || '00'
+    const suffix = hour >= 12 ? 'PM' : 'AM'
+
+    if (hour === 0) hour = 12
+    if (hour > 12) hour -= 12
+
+    return `${hour}:${minutes.padStart(2, '0')} ${suffix}`
+  } catch {
+    return timeString
+  }
+}
+
 const form = reactive({
   title: props.appointment.title,
   description: props.appointment.description || '',
   appointable_type: props.appointment.appointable_type,
   appointable_id: props.appointment.appointable_id,
   date: props.appointment.date,
-  start_time: props.appointment.start_time,
-  end_time: props.appointment.end_time,
+  start_time: formatTimeForInput(props.appointment.start_time),
+  end_time: formatTimeForInput(props.appointment.end_time),
   status: props.appointment.status
 })
 
@@ -98,19 +130,10 @@ const breadcrumbs: BreadcrumbItem[] = [
   { title: `Edit ${props.appointment.title}`, href: '#' },
 ]
 
-// Get available options based on selected type
-const appointableOptions = computed(() => {
-  switch (form.appointable_type) {
-    case 'App\\Models\\Lead':
-      return props.leads
-    case 'App\\Models\\Client':
-      return props.clients
-    case 'App\\Models\\Project':
-      return props.projects
-    default:
-      return []
-  }
-})
+function formatTimeRange(startTime: string, endTime: string): string {
+  return `${formatTimeForDisplay(startTime)} - ${formatTimeForDisplay(endTime)}`
+}
+
 
 function submit() {
   router.put(update.url(props.appointment.id), form)
@@ -147,7 +170,7 @@ function submit() {
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Main Form Card -->
-        <Card class="lg:col-span-2 border">
+        <Card class="lg:col-span-2 border shadow-sm">
           <CardHeader>
             <CardTitle class="flex items-center gap-2">
               <Calendar class="h-5 w-5" />
@@ -191,49 +214,63 @@ function submit() {
                 </p>
               </div>
 
-              <!-- Linked To Fields -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Appointable Type -->
-                <div class="space-y-2">
-                  <Label for="appointable_type">Link To</Label>
-                  <Select v-model="form.appointable_type">
-                    <SelectTrigger class="w-full" :class="errors.appointable_type ? 'border-destructive' : ''">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="App\\Models\\Lead">Lead</SelectItem>
-                      <SelectItem value="App\\Models\\Client">Client</SelectItem>
-                      <SelectItem value="App\\Models\\Project">Project</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p v-if="errors.appointable_type" class="text-sm text-destructive">
-                    {{ errors.appointable_type }}
-                  </p>
-                </div>
+              <!-- Linked Entity Section -->
+              <div class="space-y-4">
+                <Label>Link To</Label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <!-- Entity Type -->
+                  <div class="space-y-2">
+                    <Label for="appointable_type">Entity Type</Label>
+                    <Select v-model="form.appointable_type">
+                      <SelectTrigger class="w-full" :class="errors.appointable_type ? 'border-destructive' : ''">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="lead">Lead</SelectItem>
+                        <SelectItem value="client">Client</SelectItem>
+                        <SelectItem value="project">Project</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p v-if="errors.appointable_type" class="text-sm text-destructive">
+                      {{ errors.appointable_type }}
+                    </p>
+                  </div>
 
-                <!-- Appointable ID -->
-                <div class="space-y-2">
-                  <Label for="appointable_id">Select Record</Label>
-                  <Select 
-                    v-model="form.appointable_id" 
-                    :disabled="!form.appointable_type"
-                  >
-                    <SelectTrigger class="w-full" :class="errors.appointable_id ? 'border-destructive' : ''">
-                      <SelectValue placeholder="Select record" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem 
-                        v-for="item in appointableOptions" 
-                        :key="item.id" 
-                        :value="item.id"
-                      >
-                        {{ item.name }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p v-if="errors.appointable_id" class="text-sm text-destructive">
-                    {{ errors.appointable_id }}
-                  </p>
+                  <!-- Entity Selection -->
+                  <div class="space-y-2">
+                    <Label v-if="form.appointable_type === 'lead'" for="appointable_id">Select Lead</Label>
+                    <Label v-else-if="form.appointable_type === 'client'" for="appointable_id">Select Client</Label>
+                    <Label v-else for="appointable_id">Select Project</Label>
+                    <Select v-model="form.appointable_id">
+                      <SelectTrigger class="w-full" :class="errors.appointable_id ? 'border-destructive' : ''">
+                        <SelectValue :placeholder="
+                          form.appointable_type === 'lead' ? 'Select a lead' : 
+                          form.appointable_type === 'client' ? 'Select a client' : 
+                          'Select a project'
+                        " />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <template v-if="form.appointable_type === 'lead'">
+                          <SelectItem v-for="lead in leads" :key="lead.id" :value="lead.id">
+                            {{ lead.name }}
+                          </SelectItem>
+                        </template>
+                        <template v-else-if="form.appointable_type === 'client'">
+                          <SelectItem v-for="client in clients" :key="client.id" :value="client.id">
+                            {{ client.name }}
+                          </SelectItem>
+                        </template>
+                        <template v-else>
+                          <SelectItem v-for="project in projects" :key="project.id" :value="project.id">
+                            {{ project.name }}
+                          </SelectItem>
+                        </template>
+                      </SelectContent>
+                    </Select>
+                    <p v-if="errors.appointable_id" class="text-sm text-destructive">
+                      {{ errors.appointable_id }}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -341,7 +378,7 @@ function submit() {
         <!-- Sidebar Information -->
         <div class="space-y-6">
           <!-- Appointment Summary Card -->
-          <Card class="border">
+          <Card class="border shadow-sm">
             <CardHeader>
               <CardTitle class="text-lg">Appointment Summary</CardTitle>
             </CardHeader>
@@ -353,46 +390,55 @@ function submit() {
                 <div>
                   <p class="font-medium">{{ props.appointment.title }}</p>
                   <p class="text-muted-foreground">
-                    {{ new Date(props.appointment.date).toLocaleDateString() }}
+                    {{ new Date(props.appointment.date).toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    }) }}
                   </p>
                 </div>
               </div>
-              <div class="space-y-2">
-                <div class="flex justify-between">
+              <div class="space-y-3">
+                <div class="flex justify-between items-center py-2 border-b">
                   <span class="text-muted-foreground">Current Status:</span>
                   <span 
                     :class="{
-                      'text-yellow-600 font-medium': props.appointment.status === 'pending',
+                      'text-blue-600 font-medium': props.appointment.status === 'pending',
                       'text-green-600 font-medium': props.appointment.status === 'confirmed',
-                      'text-destructive font-medium': props.appointment.status === 'cancelled'
+                      'text-red-600 font-medium': props.appointment.status === 'cancelled'
                     }"
-                    class="capitalize"
+                    class="capitalize font-semibold"
                   >
                     {{ props.appointment.status }}
                   </span>
                 </div>
-                <div class="flex justify-between">
+                <div class="flex justify-between items-center py-2 border-b">
                   <span class="text-muted-foreground">Time:</span>
-                  <span class="font-medium">
-                    {{ props.appointment.start_time }} - {{ props.appointment.end_time }}
+                  <span class="font-medium text-gray-900">
+                    {{ formatTimeRange(props.appointment.start_time, props.appointment.end_time) }}
                   </span>
                 </div>
-                <div class="flex justify-between">
+                <div class="flex justify-between items-center py-2 border-b">
                   <span class="text-muted-foreground">Linked To:</span>
-                  <span class="font-medium">
+                  <span class="font-medium text-gray-900">
                     {{ props.appointment.appointable?.name || 'Not linked' }}
                   </span>
                 </div>
-                <div class="flex justify-between">
+                <div class="flex justify-between items-center py-2 border-b">
                   <span class="text-muted-foreground">Created By:</span>
-                  <span class="font-medium">
+                  <span class="font-medium text-gray-900">
                     {{ props.appointment.creator?.name || 'Unknown' }}
                   </span>
                 </div>
-                <div class="flex justify-between">
+                <div class="flex justify-between items-center py-2">
                   <span class="text-muted-foreground">Last Updated:</span>
-                  <span class="font-medium">
-                    {{ new Date(props.appointment.updated_at).toLocaleDateString() }}
+                  <span class="font-medium text-gray-900">
+                    {{ new Date(props.appointment.updated_at).toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric',
+                      year: 'numeric'
+                    }) }}
                   </span>
                 </div>
               </div>
@@ -400,56 +446,26 @@ function submit() {
           </Card>
 
           <!-- Update Tips Card -->
-          <Card class="border">
+          <Card class="border shadow-sm">
             <CardHeader>
               <CardTitle class="text-lg">Update Tips</CardTitle>
             </CardHeader>
             <CardContent class="space-y-3 text-sm">
-              <div class="flex items-start gap-2">
-                <div class="w-1.5 h-1.5 bg-primary rounded-full mt-1.5"></div>
+              <div class="flex items-start gap-3">
+                <div class="w-2 h-2 bg-blue-600 rounded-full mt-1.5 flex-shrink-0"></div>
                 <p class="text-muted-foreground">Update status promptly to reflect current state</p>
               </div>
-              <div class="flex items-start gap-2">
-                <div class="w-1.5 h-1.5 bg-primary rounded-full mt-1.5"></div>
+              <div class="flex items-start gap-3">
+                <div class="w-2 h-2 bg-blue-600 rounded-full mt-1.5 flex-shrink-0"></div>
                 <p class="text-muted-foreground">Ensure time slots don't overlap with other appointments</p>
               </div>
-              <div class="flex items-start gap-2">
-                <div class="w-1.5 h-1.5 bg-primary rounded-full mt-1.5"></div>
+              <div class="flex items-start gap-3">
+                <div class="w-2 h-2 bg-blue-600 rounded-full mt-1.5 flex-shrink-0"></div>
                 <p class="text-muted-foreground">Link to relevant records for better organization</p>
               </div>
-              <div class="flex items-start gap-2">
-                <div class="w-1.5 h-1.5 bg-primary rounded-full mt-1.5"></div>
+              <div class="flex items-start gap-3">
+                <div class="w-2 h-2 bg-blue-600 rounded-full mt-1.5 flex-shrink-0"></div>
                 <p class="text-muted-foreground">Notify participants of any schedule changes</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <!-- Status Guide Card -->
-          <Card class="border">
-            <CardHeader>
-              <CardTitle class="text-lg">Status Guide</CardTitle>
-            </CardHeader>
-            <CardContent class="space-y-3 text-sm">
-              <div class="flex items-center gap-2">
-                <div class="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                <div>
-                  <span class="font-medium text-yellow-600">Pending</span>
-                  <p class="text-muted-foreground">Awaiting confirmation</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                <div>
-                  <span class="font-medium text-green-600">Confirmed</span>
-                  <p class="text-muted-foreground">All parties confirmed</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <div class="w-2 h-2 bg-destructive rounded-full"></div>
-                <div>
-                  <span class="font-medium text-destructive">Cancelled</span>
-                  <p class="text-muted-foreground">Appointment cancelled</p>
-                </div>
               </div>
             </CardContent>
           </Card>

@@ -10,6 +10,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\Project;
 use App\Models\Invoice;
+use App\Models\Appointment;
 use App\Observers\ActivityObserver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
@@ -30,11 +31,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Automatically log activity for these models
-        Task::observe(ActivityObserver::class);
         Lead::observe(ActivityObserver::class);
+        Appointment::observe(ActivityObserver::class);
         Client::observe(ActivityObserver::class);
-        Note::observe(ActivityObserver::class);
         Project::observe(ActivityObserver::class);
+        Task::observe(ActivityObserver::class);
+        Note::observe(ActivityObserver::class);
         Document::observe(ActivityObserver::class);
         Invoice::observe(ActivityObserver::class);
 
