@@ -83,6 +83,14 @@ class DashboardPolicy
     }
 
     /**
+     * Determine if the user can view all appointments.
+     */
+    public function viewAllAppointments(User $user): bool
+    {
+        return in_array($user->role, ['admin', 'manager']);
+    }
+
+    /**
      * Scope queries for the dashboard based on user role.
      */
     public function scopeDashboardData(User $user, $model)
@@ -108,6 +116,13 @@ class DashboardPolicy
         if ($model instanceof \App\Models\Task) {
             return $model->where('assigned_to', $user->id)
                 ->orWhere('created_by', $user->id);
+        }
+
+        if ($model instanceof \App\Models\Appointment) {
+            return $model->where('created_by', $user->id)
+                ->orWhereHas('attendees', function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                });
         }
 
         if ($model instanceof \App\Models\Note) {

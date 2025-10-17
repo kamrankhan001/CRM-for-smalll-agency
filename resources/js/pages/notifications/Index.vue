@@ -11,9 +11,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useNotifications } from '@/composables/useNotifications';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { notificationService } from '@/services/notificationService';
+import type { BreadcrumbItem } from '@/types';
 import type { AppNotification } from '@/types/notifications';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useEchoNotification } from '@laravel/echo-vue';
@@ -27,6 +34,9 @@ import {
     X,
 } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
+
+// Import Wayfinder-generated actions if available
+// import { markRead, markAllRead } from '@/actions/...';
 
 // ===== INTERFACES =====
 interface Notification {
@@ -57,6 +67,13 @@ interface Meta {
 interface Props {
     notifications: { data: Notification[]; meta: Meta };
     filters: Record<string, any>;
+    auth: {
+        user: {
+            id: number;
+            role: 'admin' | 'manager' | 'member';
+            name: string;
+        };
+    };
 }
 
 // ===== PROPS & REACTIVE STATE =====
@@ -64,6 +81,8 @@ const props = defineProps<Props>();
 const page = usePage();
 const userId = page.props.auth?.user?.id;
 const notificationStore = useNotifications();
+
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Notifications', href: '#' }];
 
 const showFilters = ref(false);
 const filters = ref({
@@ -148,6 +167,8 @@ function markAsRead(id: string | number) {
             const newCount = Math.max(0, currentCount - 1);
             notificationStore.setServerCount(newCount);
 
+            // Use Wayfinder action if available
+            // router.post(markRead.url(id), ...);
             router.post(
                 `/notifications/${id}/mark-read`,
                 {},
@@ -178,6 +199,8 @@ function markAllAsRead() {
     const newCount = Math.max(0, currentCount - unreadCount);
     notificationStore.setServerCount(newCount);
 
+    // Use Wayfinder action if available
+    // router.post(markAllRead.url(), ...);
     router.post(
         '/notifications/mark-all-read',
         {},
@@ -280,41 +303,85 @@ function getTypeVariant(type: string) {
 
 <template>
     <Head title="Notifications" />
-    <AppLayout>
+    <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6">
             <!-- Header -->
-            <div class="mb-6 flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold tracking-tight">
-                        Notifications
-                    </h1>
-                    <p class="mt-1 text-muted-foreground">
-                        Manage your notifications and stay updated
-                        <span
-                            v-if="realTimeCount > 0"
-                            class="ml-2 font-medium text-primary"
+            <div class="mb-6">
+                <div
+                    class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+                >
+                    <div class="space-y-1">
+                        <h1
+                            class="text-2xl font-bold tracking-tight sm:text-3xl"
                         >
-                            ({{ realTimeCount }} new real-time)
-                        </span>
-                    </p>
-                </div>
-                <div class="flex items-center gap-3">
-                    <Button
-                        variant="outline"
-                        @click="showFilters = !showFilters"
-                        class="flex items-center gap-2"
+                            Notifications
+                        </h1>
+                        <p class="text-sm text-muted-foreground sm:text-base">
+                            Manage your notifications and stay updated
+                            <span
+                                v-if="realTimeCount > 0"
+                                class="ml-2 font-medium text-primary"
+                            >
+                                ({{ realTimeCount }} new real-time)
+                            </span>
+                        </p>
+                    </div>
+
+                    <!-- All buttons container -->
+                    <div
+                        class="flex w-full items-center justify-end gap-2 lg:w-auto lg:justify-normal lg:gap-3"
                     >
-                        <Filter class="h-4 w-4" />
-                        {{ showFilters ? 'Hide' : 'Show' }} Filters
-                    </Button>
-                    <Button
-                        @click="markAllAsRead"
-                        class="flex items-center gap-2"
-                        :disabled="!hasUnreadNotifications"
-                    >
-                        <CheckCircle class="h-4 w-4" />
-                        Mark All as Read
-                    </Button>
+                        <!-- Filter Button -->
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Button
+                                        variant="outline"
+                                        @click="showFilters = !showFilters"
+                                        class="h-9 w-9 p-0 md:px-4 md:py-2 lg:h-auto lg:w-auto"
+                                        size="sm"
+                                    >
+                                        <Filter class="h-4 w-4" />
+                                        <span class="hidden lg:inline">
+                                            {{ showFilters ? 'Hide' : 'Show' }}
+                                            Filters
+                                        </span>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent class="lg:hidden">
+                                    <p>
+                                        {{ showFilters ? 'Hide' : 'Show' }}
+                                        filters
+                                    </p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                        <!-- Mark All as Read Button -->
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Button
+                                        @click="markAllAsRead"
+                                        class="h-9 w-9 p-0 md:px-4 md:py-2 lg:h-auto lg:w-auto"
+                                        size="sm"
+                                        :disabled="!hasUnreadNotifications"
+                                    >
+                                        <CheckCircle class="h-4 w-4" />
+                                        <span class="hidden lg:inline"
+                                            >Mark All as Read</span
+                                        >
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent class="lg:hidden">
+                                    <p>Mark all notifications as read</p>
+                                </TooltipContent>
+                                <TooltipContent v-if="!hasUnreadNotifications">
+                                    <p>No unread notifications</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                 </div>
             </div>
 
@@ -356,16 +423,27 @@ function getTypeVariant(type: string) {
 
                 <!-- Filter Actions -->
                 <div class="mt-4 flex justify-between">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        @click="resetFilters"
-                        :disabled="!hasActiveFilters"
-                        class="flex items-center gap-2"
-                    >
-                        <X class="h-4 w-4" />
-                        Clear Filters
-                    </Button>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <div class="inline-block">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        @click="resetFilters"
+                                        :disabled="!hasActiveFilters"
+                                        class="flex items-center gap-2"
+                                    >
+                                        <X class="h-4 w-4" />
+                                        Clear Filters
+                                    </Button>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent v-if="!hasActiveFilters">
+                                <p>No active filters to clear</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     <Button size="sm" @click="applyFilters">
                         Apply Filters
                     </Button>
@@ -480,6 +558,7 @@ function getTypeVariant(type: string) {
                                     <div
                                         class="ml-4 flex flex-shrink-0 items-center gap-2"
                                     >
+                                        <!-- View Link - Always show if URL exists -->
                                         <Link
                                             v-if="notification.url"
                                             :href="notification.url"
@@ -487,6 +566,8 @@ function getTypeVariant(type: string) {
                                         >
                                             View
                                         </Link>
+
+                                        <!-- Mark as Read Button - Only show if unread -->
                                         <Button
                                             v-if="!notification.read_at"
                                             @click="markAsRead(notification.id)"
@@ -496,6 +577,8 @@ function getTypeVariant(type: string) {
                                         >
                                             Mark as read
                                         </Button>
+
+                                        <!-- Check icon for read notifications -->
                                         <CheckCircle
                                             v-if="notification.read_at"
                                             class="h-4 w-4 text-green-500"
@@ -541,61 +624,104 @@ function getTypeVariant(type: string) {
                             </div>
 
                             <!-- Pagination Controls -->
-                            <nav
-                                class="flex items-center overflow-hidden rounded-md border"
-                            >
-                                <!-- Prev -->
-                                <button
-                                    class="px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-                                    :disabled="
-                                        !props.notifications.meta.links[0]?.url
-                                    "
-                                    @click="
-                                        goToPage(
-                                            props.notifications.meta.links[0]
-                                                ?.url,
-                                        )
-                                    "
+                            <TooltipProvider>
+                                <nav
+                                    class="flex items-center overflow-hidden rounded-md border"
                                 >
-                                    <ChevronLeft class="h-4 w-4" />
-                                </button>
+                                    <!-- Prev Button -->
+                                    <Tooltip>
+                                        <TooltipTrigger as-child>
+                                            <div class="inline-block">
+                                                <button
+                                                    class="px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                                                    :disabled="
+                                                        !props.notifications
+                                                            .meta.links[0]?.url
+                                                    "
+                                                    @click="
+                                                        goToPage(
+                                                            props.notifications
+                                                                .meta.links[0]
+                                                                ?.url,
+                                                        )
+                                                    "
+                                                >
+                                                    <ChevronLeft
+                                                        class="h-4 w-4"
+                                                    />
+                                                </button>
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent
+                                            v-if="
+                                                !props.notifications.meta
+                                                    .links[0]?.url
+                                            "
+                                        >
+                                            <p>You're on the first page</p>
+                                        </TooltipContent>
+                                    </Tooltip>
 
-                                <!-- Page Numbers -->
-                                <button
-                                    v-for="link in pageLinks"
-                                    :key="link.label"
-                                    class="border-l px-3 py-2 text-sm font-medium transition-colors"
-                                    @click="goToPage(link.url)"
-                                    :class="[
-                                        link.active
-                                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                            : 'text-muted-foreground hover:bg-muted',
-                                    ]"
-                                >
-                                    {{ link.label }}
-                                </button>
+                                    <!-- Page Numbers -->
+                                    <button
+                                        v-for="link in pageLinks"
+                                        :key="link.label"
+                                        class="border-l px-3 py-2 text-sm font-medium transition-colors"
+                                        @click="goToPage(link.url)"
+                                        :class="[
+                                            link.active
+                                                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                                : 'text-muted-foreground hover:bg-muted',
+                                        ]"
+                                    >
+                                        {{ link.label }}
+                                    </button>
 
-                                <!-- Next -->
-                                <button
-                                    class="border-l px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-                                    :disabled="
-                                        !props.notifications.meta.links[
-                                            props.notifications.meta.links
-                                                .length - 1
-                                        ]?.url
-                                    "
-                                    @click="
-                                        goToPage(
-                                            props.notifications.meta.links[
-                                                props.notifications.meta.links
-                                                    .length - 1
-                                            ]?.url,
-                                        )
-                                    "
-                                >
-                                    <ChevronRight class="h-4 w-4" />
-                                </button>
-                            </nav>
+                                    <!-- Next Button -->
+                                    <Tooltip>
+                                        <TooltipTrigger as-child>
+                                            <div class="inline-block">
+                                                <button
+                                                    class="border-l px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                                                    :disabled="
+                                                        !props.notifications
+                                                            .meta.links[
+                                                            props.notifications
+                                                                .meta.links
+                                                                .length - 1
+                                                        ]?.url
+                                                    "
+                                                    @click="
+                                                        goToPage(
+                                                            props.notifications
+                                                                .meta.links[
+                                                                props
+                                                                    .notifications
+                                                                    .meta.links
+                                                                    .length - 1
+                                                            ]?.url,
+                                                        )
+                                                    "
+                                                >
+                                                    <ChevronRight
+                                                        class="h-4 w-4"
+                                                    />
+                                                </button>
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent
+                                            v-if="
+                                                !props.notifications.meta.links[
+                                                    props.notifications.meta
+                                                        .links.length - 1
+                                                ]?.url
+                                            "
+                                        >
+                                            <p>You're on the last page</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </nav>
+                            </TooltipProvider>
                         </div>
                         <div
                             v-else

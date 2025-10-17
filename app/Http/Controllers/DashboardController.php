@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Activity;
+use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\Invoice;
@@ -50,10 +51,12 @@ class DashboardController extends Controller
             'stats' => $stats,
             'leadByStatus' => $this->getLeadsByStatus($user, $currentMonth, $currentYear),
             'taskByStatus' => $this->getTasksByStatus($user, $currentMonth, $currentYear),
+            'appointmentByStatus' => $this->getAppointmentsByStatus($user, $currentMonth, $currentYear),
             'monthlyStats' => $this->getMonthlyStats($user),
             'recentActivities' => $this->getRecentActivities($user),
             'recentData' => $this->getRecentData($user),
             'userTaskStats' => $this->getUserTaskStats($user),
+            'userAppointmentStats' => $this->getUserAppointmentStats($user),
             'invoiceStats' => $this->getInvoiceStats($user),
             'userRole' => $user->role,
         ];
@@ -76,6 +79,7 @@ class DashboardController extends Controller
         $leadsQuery = $policy->scopeDashboardData($user, new Lead);
         $clientsQuery = $policy->scopeDashboardData($user, new Client);
         $tasksQuery = $policy->scopeDashboardData($user, new Task);
+        $appointmentsQuery = $policy->scopeDashboardData($user, new Appointment);
         $notesQuery = $policy->scopeDashboardData($user, new Note);
         $projectsQuery = $policy->scopeDashboardData($user, new Project);
         $documentsQuery = $policy->scopeDashboardData($user, new Document);
@@ -84,6 +88,8 @@ class DashboardController extends Controller
             'leads' => $leadsQuery->count(),
             'clients' => $clientsQuery->count(),
             'pending_tasks' => $tasksQuery->where('status', 'pending')->count(),
+            'total_appointments' => $appointmentsQuery->count(),
+            'upcoming_appointments' => $appointmentsQuery->where('start_time', '>', now())->count(),
             'notes' => $notesQuery->count(),
             'projects' => $projectsQuery->count(),
             'documents' => $documentsQuery->count(),
@@ -146,6 +152,30 @@ class DashboardController extends Controller
                     'label' => ucfirst(str_replace('_', ' ', $item->status)),
                     'count' => $item->total,
                     'percentage' => round(($item->total / max($totalTasks, 1)) * 100, 1),
+                ];
+            });
+    }
+
+    /**
+     * Get appointments by status with role-based scoping
+     */
+    protected function getAppointmentsByStatus(User $user, int $month, int $year)
+    {
+        $query = $this->policy->scopeDashboardData($user, new Appointment)
+            ->select('status', DB::raw('count(*) as total'))
+            ->whereMonth('created_at', $month)
+            ->whereYear('created_at', $year)
+            ->groupBy('status');
+
+        $totalAppointments = $query->clone()->count();
+
+        return $query->get()
+            ->map(function ($item) use ($totalAppointments) {
+                return [
+                    'status' => $item->status,
+                    'label' => ucfirst(str_replace('_', ' ', $item->status)),
+                    'count' => $item->total,
+                    'percentage' => round(($item->total / max($totalAppointments, 1)) * 100, 1),
                 ];
             });
     }
@@ -223,12 +253,14 @@ class DashboardController extends Controller
                 ->with('creator')->latest()->take(5)->get(),
             'recent_tasks' => $policy->scopeDashboardData($user, new Task)
                 ->with(['assignee', 'creator'])->latest()->take(5)->get(),
+            'recent_appointments' => $policy->scopeDashboardData($user, new Appointment)
+                ->with(['creator', 'attendees'])->latest()->take(5)->get(),
             'recent_clients' => $policy->scopeDashboardData($user, new Client)
                 ->with('creator')->latest()->take(5)->get(),
             'recent_notes' => $policy->scopeDashboardData($user, new Note)
                 ->with('user')->latest()->take(5)->get(),
             'recent_projects' => $policy->scopeDashboardData($user, new Project)
-                ->with(['client', 'creator', 'members'])->latest()->take(5)->get(), // Added 'users' relationship
+                ->with(['client', 'creator', 'members'])->latest()->take(5)->get(),
             'recent_documents' => $policy->scopeDashboardData($user, new Document)
                 ->with(['uploader', 'documentable'])->latest()->take(5)->get(),
         ];
@@ -261,6 +293,22 @@ class DashboardController extends Controller
             'pending_tasks' => $query->where('status', 'pending')->count(),
             'in_progress_tasks' => $query->where('status', 'in_progress')->count(),
             'completed_tasks' => $query->where('status', 'completed')->count(),
+        ];
+    }
+
+    /**
+     * Get appointment statistics for current user
+     */
+    protected function getUserAppointmentStats(User $user): array
+    {
+        $query = $this->policy->scopeDashboardData($user, new Appointment);
+
+        return [
+            'total_appointments' => $query->count(),
+            'scheduled_appointments' => $query->where('status', 'scheduled')->count(),
+            'completed_appointments' => $query->where('status', 'completed')->count(),
+            'cancelled_appointments' => $query->where('status', 'cancelled')->count(),
+            'upcoming_appointments' => $query->where('start_time', '>', now())->count(),
         ];
     }
 

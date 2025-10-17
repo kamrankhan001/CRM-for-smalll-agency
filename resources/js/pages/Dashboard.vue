@@ -18,7 +18,8 @@ import {
     Activity,
     ArrowRight,
     TrendingUp,
-    Target
+    Target,
+    Clock
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -27,6 +28,8 @@ interface Stats {
     leads: number;
     clients: number;
     pending_tasks: number;
+    total_appointments: number;
+    upcoming_appointments: number;
     notes: number;
     projects: number;
     documents: number;
@@ -69,6 +72,7 @@ interface TaskStatusItem {
 interface RecentData {
     recent_leads: any[];
     recent_tasks: any[];
+    recent_appointments: any[];
     recent_clients: any[];
     recent_notes: any[];
     recent_projects: any[];
@@ -81,6 +85,7 @@ interface Props {
     stats: Stats;
     leadByStatus: Record<string, number>;
     taskByStatus: TaskStatusItem[];
+    appointmentByStatus: TaskStatusItem[];
     monthlyStats: Record<string, number>;
     topPerformers?: TopPerformer[];
     recentActivities: RecentActivity[];
@@ -90,6 +95,13 @@ interface Props {
         pending_tasks: number;
         in_progress_tasks: number;
         completed_tasks: number;
+    };
+    userAppointmentStats: {
+        total_appointments: number;
+        scheduled_appointments: number;
+        completed_appointments: number;
+        cancelled_appointments: number;
+        upcoming_appointments: number;
     };
     invoiceStats?: {
         total_invoices: number;
@@ -117,11 +129,14 @@ function getStatusVariant(status: string): BadgeVariant {
         case 'qualified':
         case 'paid':
         case 'converted':
+        case 'finished':
             return 'default';
         case 'in_progress':
         case 'contacted':
         case 'sent':
         case 'partially_paid':
+        case 'scheduled':
+        case 'confirmed':
             return 'secondary';
         case 'pending':
         case 'new':
@@ -142,6 +157,21 @@ function formatCurrency(amount: number) {
         style: 'currency',
         currency: 'USD',
     }).format(amount || 0);
+}
+
+function formatDate(dateString: string) {
+    return new Date(dateString).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    });
+}
+
+function formatTime(dateString: string) {
+    return new Date(dateString).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
 }
 
 // Quick stats for the main cards
@@ -174,19 +204,28 @@ const quickStats = computed(() => [
         href: '/tasks'
     },
     {
-        title: 'Active Projects',
-        value: props.stats.projects,
-        icon: FolderOpen,
-        description: 'Ongoing projects',
+        title: 'Upcoming Appointments',
+        value: props.stats.upcoming_appointments,
+        icon: Clock,
+        description: 'Scheduled meetings',
         color: 'text-purple-600',
         bgColor: 'bg-purple-50',
-        href: '/projects'
+        href: '/appointments'
     },
 ]);
 
 // Additional stats for second row
 const additionalStats = computed(() => {
     const stats = [
+        {
+            title: 'Total Appointments',
+            value: props.stats.total_appointments,
+            icon: Calendar,
+            description: 'All meetings',
+            color: 'text-violet-600',
+            bgColor: 'bg-violet-50',
+            href: '/appointments'
+        },
         {
             title: 'Documents',
             value: props.stats.documents,
@@ -204,6 +243,15 @@ const additionalStats = computed(() => {
             color: 'text-amber-600',
             bgColor: 'bg-amber-50',
             href: '/notes'
+        },
+        {
+            title: 'Projects',
+            value: props.stats.projects,
+            icon: FolderOpen,
+            description: 'Ongoing projects',
+            color: 'text-cyan-600',
+            bgColor: 'bg-cyan-50',
+            href: '/projects'
         },
     ];
 
@@ -380,6 +428,42 @@ const canViewInvoiceStats = computed(() => {
                     </CardContent>
                 </Card>
 
+                <!-- My Appointments Summary -->
+                <Card class="lg:col-span-1">
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2 text-sm">
+                            <Calendar class="h-4 w-4" />
+                            My Appointments
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent class="space-y-4">
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center p-2">
+                                <span class="text-sm">Total</span>
+                                <Badge variant="default">{{ userAppointmentStats.total_appointments }}</Badge>
+                            </div>
+                            <div class="flex justify-between items-center p-2">
+                                <span class="text-sm">Scheduled</span>
+                                <Badge variant="secondary">{{ userAppointmentStats.scheduled_appointments }}</Badge>
+                            </div>
+                            <div class="flex justify-between items-center p-2">
+                                <span class="text-sm">Upcoming</span>
+                                <Badge variant="outline">{{ userAppointmentStats.upcoming_appointments }}</Badge>
+                            </div>
+                            <div class="flex justify-between items-center p-2">
+                                <span class="text-sm">Completed</span>
+                                <Badge variant="default">{{ userAppointmentStats.completed_appointments }}</Badge>
+                            </div>
+                        </div>
+                        <Link href="/appointments">
+                            <Button variant="outline" class="w-full text-xs">
+                                View All Appointments
+                                <ArrowRight class="ml-2 h-3 w-3" />
+                            </Button>
+                        </Link>
+                    </CardContent>
+                </Card>
+
                 <!-- Leads by Status -->
                 <Card class="lg:col-span-1">
                     <CardHeader>
@@ -438,6 +522,39 @@ const canViewInvoiceStats = computed(() => {
                                 class="text-center py-4 text-muted-foreground text-sm"
                             >
                                 No tasks data
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <!-- Appointment Status Overview -->
+                <Card class="lg:col-span-1">
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2 text-sm">
+                            <Calendar class="h-4 w-4" />
+                            Appointment Status
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="space-y-3">
+                            <div 
+                                v-for="appointment in appointmentByStatus" 
+                                :key="appointment.status"
+                                class="flex items-center justify-between p-2"
+                            >
+                                <Badge :variant="getStatusVariant(appointment.status)" class="capitalize text-xs">
+                                    {{ appointment.label }}
+                                </Badge>
+                                <div class="text-right">
+                                    <div class="text-sm font-medium">{{ appointment.count }}</div>
+                                    <div class="text-xs text-muted-foreground">{{ appointment.percentage }}%</div>
+                                </div>
+                            </div>
+                            <div 
+                                v-if="appointmentByStatus.length === 0"
+                                class="text-center py-4 text-muted-foreground text-sm"
+                            >
+                                No appointments data
                             </div>
                         </div>
                     </CardContent>
@@ -507,6 +624,52 @@ const canViewInvoiceStats = computed(() => {
                             <Link href="/leads" class="block">
                                 <Button variant="outline" class="w-full text-xs">
                                     View All Leads
+                                    <ArrowRight class="ml-2 h-3 w-3" />
+                                </Button>
+                            </Link>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <!-- Recent Appointments -->
+                <Card class="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2">
+                            <Calendar class="h-4 w-4" />
+                            Recent Appointments
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="space-y-3">
+                            <div 
+                                v-for="appointment in recentData.recent_appointments" 
+                                :key="appointment.id"
+                                class="flex items-center justify-between p-3 rounded-lg border"
+                            >
+                                <div class="flex items-center gap-3 min-w-0 flex-1">
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-medium text-sm truncate">{{ appointment.title }}</p>
+                                        <p class="text-xs text-muted-foreground truncate">
+                                            {{ formatDate(appointment.start_time) }} at {{ formatTime(appointment.start_time) }}
+                                        </p>
+                                        <p class="text-xs text-muted-foreground">
+                                            {{ appointment.creator?.name ? `By ${appointment.creator.name}` : 'No creator' }}
+                                        </p>
+                                    </div>
+                                    <Badge :variant="getStatusVariant(appointment.status)" class="capitalize text-xs shrink-0">
+                                        {{ appointment.status?.replace('_', ' ') }}
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div 
+                                v-if="recentData.recent_appointments.length === 0"
+                                class="text-center py-6 text-muted-foreground text-sm"
+                            >
+                                No recent appointments
+                            </div>
+                            <Link href="/appointments" class="block">
+                                <Button variant="outline" class="w-full text-xs">
+                                    View All Appointments
                                     <ArrowRight class="ml-2 h-3 w-3" />
                                 </Button>
                             </Link>
