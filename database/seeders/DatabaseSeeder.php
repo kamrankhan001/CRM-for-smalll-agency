@@ -24,7 +24,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-         // === DEMO USERS (for live demo login) ===
+        // === DEMO USERS (for live demo login) ===
         User::factory()->admin()->create([
             'name' => 'Admin User',
             'email' => 'admin@crm.com',
