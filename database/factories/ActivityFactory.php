@@ -2,11 +2,11 @@
 
 namespace Database\Factories;
 
-use App\Models\User;
-use App\Models\Lead;
 use App\Models\Client;
-use App\Models\Task;
+use App\Models\Lead;
 use App\Models\Note;
+use App\Models\Task;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -21,7 +21,7 @@ class ActivityFactory extends Factory
      */
     public function definition(): array
     {
-         // Randomly pick one of the subject types
+        // Randomly pick one of the subject types
         $subjects = [
             Lead::class,
             Client::class,
@@ -54,7 +54,7 @@ class ActivityFactory extends Factory
                 'from' => ['status' => $this->faker->randomElement(['new', 'contacted', 'in_progress'])],
                 'to' => ['status' => $this->faker->randomElement(['qualified', 'lost', 'converted'])],
             ],
-            'created_at' => $this->faker->dateTimeBetween('-1 month', 'now'),
+            'created_at' => $this->faker->dateTimeBetween('-12 months', 'now'),
             'updated_at' => now(),
         ];
     }

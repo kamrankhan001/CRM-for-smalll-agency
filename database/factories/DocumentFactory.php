@@ -35,6 +35,8 @@ class DocumentFactory extends Factory
             'documentable_id' => $documentableId,
             'documentable_type' => $documentableType,
             'uploaded_by' => User::inRandomOrder()->first()?->id,
+            'created_at' => $this->faker->dateTimeBetween('-12 months', 'now'),
+            'updated_at' => now(),
         ];
     }
 }

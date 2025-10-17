@@ -33,6 +33,8 @@ class UserFactory extends Factory
             'two_factor_secret' => Str::random(10),
             'two_factor_recovery_codes' => Str::random(10),
             'two_factor_confirmed_at' => now(),
+            'created_at' => fake()->dateTimeBetween('-12 months', 'now'),
+            'updated_at' => now(),
         ];
     }
 
@@ -60,16 +62,30 @@ class UserFactory extends Factory
 
     public function admin()
     {
-        return $this->state(fn () => ['role' => 'admin', 'email' => 'admin@crm.com']);
+        return $this->state(fn () => [
+            'role' => 'admin',
+            'email' => 'admin@crm.com',
+            'created_at' => now()->subMonths(11),
+            'updated_at' => now(),
+        ]);
     }
 
     public function manager()
     {
-        return $this->state(fn () => ['role' => 'manager', 'email' => 'manager@crm.com']);
+        return $this->state(fn () => [
+            'role' => 'manager',
+            'email' => fake()->unique()->safeEmail(),
+            'created_at' => now()->subMonths(8),
+            'updated_at' => now(),
+        ]);
     }
 
     public function member()
     {
-        return $this->state(fn () => ['role' => 'member']);
+        return $this->state(fn () => [
+            'role' => 'member',
+            'created_at' => fake()->dateTimeBetween('-12 months', 'now'),
+            'updated_at' => now(),
+        ]);
     }
 }

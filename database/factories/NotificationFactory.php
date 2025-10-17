@@ -54,7 +54,7 @@ class NotificationFactory extends Factory
                 'url'     => $url,
             ],
             'read_at' => $this->faker->boolean(70) ? now() : null,
-            'created_at' => $this->faker->dateTimeBetween('-2 months', 'now'),
+            'created_at' => $this->faker->dateTimeBetween('-12 months', 'now'),
         ];
     }
 }

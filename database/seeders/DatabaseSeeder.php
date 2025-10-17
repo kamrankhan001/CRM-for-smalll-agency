@@ -13,6 +13,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\Invoice;
 use App\Models\Appointment;
+use Illuminate\Support\Facades\Hash;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -23,41 +24,40 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create core users
-        User::factory()->admin()->create(['name' => 'Admin User']);
-        User::factory()->manager()->create(['name' => 'Manager User']);
+         // === DEMO USERS (for live demo login) ===
+        User::factory()->admin()->create([
+            'name' => 'Admin User',
+            'email' => 'admin@crm.com',
+            'password' => Hash::make('password'),
+        ]);
+
+        User::factory()->manager()->create([
+            'name' => 'Manager User',
+            'email' => 'manager@crm.com',
+            'password' => Hash::make('password'),
+        ]);
+
+        User::factory()->member()->create([
+            'name' => 'Member User',
+            'email' => 'member@crm.com',
+            'password' => Hash::make('password'),
+        ]);
+
+        // === Additional realistic team ===
         User::factory()->count(10)->member()->create();
+        User::factory()->count(2)->manager()->create();
 
-        // Create leads and clients
-        Lead::factory(30)->create();
-        Client::factory(15)->create();
-
-        // Create tasks & notes
-        Task::factory(50)->create();
-        Note::factory(60)->create();
-        Activity::factory(100)->create();
-
-        Notification::factory(30)->create();
-
-        Project::factory()
-            ->count(10)
-            ->afterCreating(function ($project) {
-                $members = User::inRandomOrder()->take(rand(2, 3))->pluck('id');
-                $project->members()->attach($members);
-
-                // Ensure the creator is also a member
-                if (! $members->contains($project->created_by)) {
-                    $project->members()->attach($project->created_by);
-                }
-            })
-            ->create();
-
-        Invoice::factory()->count(30)->create();
-
-        Document::factory()->count(10)->create();
-
-        Appointment::factory(40)->create();
-
+        // === CRM Data (spread across the past year) ===
+        Lead::factory(80)->create();
+        Client::factory(40)->create();
+        Project::factory(20)->create();
+        Task::factory(120)->create();
+        Note::factory(100)->create();
+        Invoice::factory(40)->create();
+        Document::factory(30)->create();
+        Notification::factory(80)->create();
+        Appointment::factory(60)->create();
+        Activity::factory(200)->create();
 
     }
 }

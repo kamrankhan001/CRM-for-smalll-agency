@@ -36,7 +36,7 @@ class InvoiceFactory extends Factory
             : ($status === 'paid' ? $amount : 0);
 
         // Generate unique invoice number
-        $invoiceNumber = 'INV-' . date('Y') . '-' . str_pad($this->faker->unique()->numberBetween(1, 9999), 4, '0', STR_PAD_LEFT);
+        $invoiceNumber = 'INV-'.date('Y').'-'.str_pad($this->faker->unique()->numberBetween(1, 9999), 4, '0', STR_PAD_LEFT);
 
         return [
             'invoice_number' => $invoiceNumber,
@@ -44,13 +44,16 @@ class InvoiceFactory extends Factory
             'amount' => $amount,
             'amount_paid' => $amountPaid,
             'status' => $status,
-            'issue_date' => $this->faker->dateTimeBetween('-2 weeks', 'now'),
-            'due_date' => $this->faker->dateTimeBetween('now', '+2 weeks'),
-            'paid_at' => $status === 'paid' ? $this->faker->dateTimeBetween('-1 week', 'now') : null,
+            'issue_date' => $this->faker->dateTimeBetween('-12 months', 'now'),
+            'due_date' => $this->faker->dateTimeBetween('-11 months', '+1 month'),
+            'paid_at' => $status === 'paid' ? $this->faker->dateTimeBetween('-11 months', 'now') : null,
             'notes' => $this->faker->boolean(40) ? $this->faker->sentence() : null,
             'project_id' => $isProjectInvoice ? $project?->id : null,
             'client_id' => $isProjectInvoice ? ($project?->client_id ?? $client?->id) : $client?->id,
             'created_by' => User::inRandomOrder()->first()?->id,
+
+            'created_at' => $this->faker->dateTimeBetween('-12 months', 'now'),
+            'updated_at' => now(),
         ];
     }
 }

@@ -26,6 +26,8 @@ class NoteFactory extends Factory
             'noteable_type' => $noteableType,
             'user_id' => User::inRandomOrder()->first()?->id,
             'content' => $this->faker->paragraph(),
+            'created_at' => $this->faker->dateTimeBetween('-12 months', 'now'),
+            'updated_at' => now(),
         ];
     }
 }

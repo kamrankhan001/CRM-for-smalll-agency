@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Appointment;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Arr;
@@ -22,7 +21,7 @@ class AppointmentFactory extends Factory
         $appointableType = Arr::random(['App\\Models\\Lead', 'App\\Models\\Client', 'App\\Models\\Project']);
         $appointableId = $appointableType::inRandomOrder()->first()?->id;
 
-        $start = $this->faker->dateTimeBetween('now', '+10 days');
+        $start = $this->faker->dateTimeBetween('-12 months', '+1 month');
         $end = (clone $start)->modify('+1 hour');
 
         return [
@@ -35,6 +34,8 @@ class AppointmentFactory extends Factory
             'end_time' => $end->format('H:i:s'),
             'status' => Arr::random(['pending', 'confirmed', 'cancelled']),
             'created_by' => User::inRandomOrder()->first()?->id,
+            'created_at' => $this->faker->dateTimeBetween('-12 months', 'now'),
+            'updated_at' => now(),
         ];
     }
 }
