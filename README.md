@@ -1,98 +1,115 @@
-# Agency CRM
+# 🚀 AgencyCRM
 
-An open-source CRM solution tailored for small agencies, featuring lead/client management, task tracking, and collaborative notes. Built by [kamrankhan.dev](https://kamrankhan.dev).
+**Open-source CRM for modern agencies** — manage leads, clients, projects, tasks, invoices, and more in one unified system.  
+Built with **Laravel 12**, **Vue 3 (Inertia.js)**, and **Tailwind CSS** for speed, scalability, and simplicity.  
+
+> 🧑‍💻 Developed & maintained by [kamrankhan.dev](https://kamrankhan.dev)
 
 ![Project Banner](public/screenshot.png)
 
-## Features
+---
 
-### Core Modules
-- **Leads Management** - Track prospects from first contact to client conversion
-- **Clients** - Manage client relationships and communication history
-- **Projects** - Organize client work with tasks and timelines  
-- **Tasks** - Team workflow management with due dates and priorities
-- **Documents** - Central repository for contracts and files
-- **Invoices** - Create and track billing/collections
-- **Activities** - System log of user actions and events
-- **Notifications** - Real-time user alerts and reminders
-- **Notes** - Collaborative documentation system  
-- **Users** - Role-based access (Admin/Manager/Member)
+## ✨ Features
 
-### Database Structure
-#### Entity Relationships
-- Clients (1) ↔ (∞) Projects ↔ (∞) Tasks
-- Users (∞) ↔ (∞) Projects via Project Members
-- Leads → Clients (when converted)
-- Invoices (1) ↔ (1) Clients
+### 🧩 Core Modules
+- **Leads Management** – Track prospects from first contact to client conversion  
+- **Clients** – Manage relationships, documents, and communication history  
+- **Projects** – Plan and deliver client work with tasks, budgets, and timelines  
+- **Tasks** – Organize team workflow with priorities and due dates  
+- **Documents** – Centralized repository for contracts, files, and uploads  
+- **Invoices** – Create, send, and monitor payments  
+- **Activities** – Full audit log of user actions and system changes  
+- **Notifications** – Real-time alerts via Laravel Echo  
+- **Notes** – Collaborative documentation system  
+- **Users & Roles** – Role-based permissions (Admin, Manager, Member)
 
-#### Key Tables
-```
-+---------------+-----------------------------+
-| Table         | Key Fields                  |
-+---------------+-----------------------------+
-| leads         | status, source, score       |
-| clients       | name, industry, revenue     |
-| projects      | name, deadline, budget      |  
-| tasks         | title, due_date, progress   |
-| invoices      | number, amount, status      |
-| documents     | name, type, version         |
-| activities    | type, description, changes  |
-| notifications| type, read_at, recipient_id  |
-+---------------+-----------------------------+
-```
-### Key Functionality
-- Role-based access control system
-- Dashboard analytics
-- CRUD operations for all core entities
-- Two-factor authentication
-- Responsive UI with dark/light themes
+---
 
-## Tech Stack
+## 🧠 Database Design
+
+### Entity Relationships
+- **Clients (1)** ↔ **(∞) Projects** ↔ **(∞) Tasks**
+- **Users (∞)** ↔ **(∞) Projects** (via `project_members`)
+- **Leads → Clients** (on conversion)
+- **Invoices (1)** ↔ **(1) Clients**
+
+### Key Tables Overview
+| Table | Key Fields |
+|-------|-------------|
+| leads | status, source, score |
+| clients | name, industry, revenue |
+| projects | name, deadline, budget |
+| tasks | title, due_date, progress |
+| invoices | number, amount, status |
+| documents | name, type, version |
+| activities | type, description, changes |
+| notifications | type, read_at, recipient_id |
+
+---
+
+## ⚙️ Core Functionality
+✅ Role-based access control  
+✅ Dashboard analytics & KPIs  
+✅ Full CRUD for all modules  
+✅ Two-factor authentication  
+✅ Dark / Light theme toggle  
+✅ Smooth scrolling & responsive design  
+
+---
+
+## 🛠️ Tech Stack
 
 ### Backend
-- **Laravel 12** - PHP framework
-- **MySQL** - Database
-- **Inertia.js** - Server-client communication
+- ⚡ **Laravel 12** (PHP framework)
+- 🗄️ **MySQL** (Database)
+- 🔗 **Inertia.js** (Bridges Laravel + Vue)
 
 ### Frontend
-- **Vue 3** - Reactive components
-- **TypeScript** - Type-safe JavaScript
-- **Tailwind CSS** - Utility-first styling
-- **Vite** - Frontend tooling
+- 🧩 **Vue 3** (Reactive UI)
+- 🧠 **TypeScript** (Type-safe logic)
+- 🎨 **Tailwind CSS** (Utility-first design)
+- ⚙️ **Vite** (Fast build tool)
 
-## Installation
+---
 
-1. Clone repository:
+## ⚡ Installation
+
+### 1️⃣ Clone Repository
 ```bash
 git clone https://github.com/kamrankhan001/CRM-for-smalll-agency.git
 cd CRM-for-smalll-agency
 ```
 
-2. Install dependencies:
+### 2️⃣ Install Dependencies
 ```bash
 composer install
 npm install
 ```
 
-3. Configure environment:
+### 3️⃣ Configure Environment
 ```bash
 cp .env.example .env
 php artisan key:generate
 ```
 
-4. Run migrations:
+### 4️⃣ Run Migrations & Seeders
 ```bash
 php artisan migrate --seed
 ```
 
-5. Start development server:
+### 5️⃣ Start Development Servers
 ```bash
 npm run dev
+php artisan serve
 ```
 
-## Configuration
+Then visit: 👉 **http://localhost:8000**
 
-Set these in `.env`:
+---
+
+## ⚙️ Environment Configuration
+
+Update `.env` with your local setup:
 ```ini
 APP_URL=http://localhost:8000
 DB_DATABASE=crm
@@ -100,35 +117,60 @@ DB_USERNAME=root
 DB_PASSWORD=
 ```
 
-## User Guide
+---
 
-### For End Users
-**Managing Clients**
-1. Add new clients with contact/company details
-2. Track communication history and documents
-3. Convert qualified leads to clients
+## 📘 User Guide
 
-**Working with Projects**
-- Create projects with budgets and timelines
-- Assign team members and track progress
+### 👥 Managing Clients
+1. Add clients with detailed contact info  
+2. Attach notes, files, and communication logs  
+3. Convert leads into active clients
+
+### 🧱 Working with Projects
+- Create projects with budgets, timelines, and team members  
+- Track task completion and progress  
 - Generate invoices from project milestones
 
-**Invoice Workflow**  
-1. Create invoices with line items
-2. Send to client email directly
-3. Track payment status (Paid/Unpaid/Partial)
+### 💰 Invoice Workflow
+1. Create invoices with line items  
+2. Email invoices directly to clients  
+3. Monitor payment status (Paid / Unpaid / Partial)
 
-### For Developers
-**Schema Conventions**
-- All tables use UUID primary keys
-- Polymorphic relationships for activities/notes
-- Soft deletes implemented globally
-- Notification system uses Laravel Echo
+---
 
-## License
+## 🧑‍💻 Developer Notes
 
-## Contributing
-PRs welcome! Follow standard GitHub flow:
-1. Fork repo
-2. Create feature branch
-3. Submit PR with detailed description
+### Schema Conventions
+- All tables use **UUIDs** as primary keys  
+- **Polymorphic** relationships for notes & activities  
+- **Soft deletes** enabled globally  
+- **Laravel Echo** used for notifications  
+
+### Code Standards
+- PSR-12 coding style  
+- API resources for all models  
+- Vue components are composition-API-based  
+- Tailwind with dark mode support  
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome!  
+Follow the GitHub flow:
+1. Fork the repository  
+2. Create a feature branch  
+3. Commit and push your changes  
+4. Open a PR with a clear description  
+
+---
+
+## 🪪 License
+
+Released under the [MIT License](https://opensource.org/licenses/MIT).  
+Use it freely in commercial or personal projects.
+
+---
+
+### ❤️ Built by [Kamran Khan](https://kamrankhan.dev)
+> Empowering small agencies with open-source software.
